@@ -34,7 +34,6 @@ function run_walker(
 	tracker_end = Dict(
 		"current" => zeros(n_end_sites), 
 		"terminated" => [], 
-		"history" => []
 	) # tracks every RNA getting into the last strand
 	
 	for k in 1:n_steps # number of timesteps
@@ -47,9 +46,6 @@ function run_walker(
 
 		exits[k] = finish_flag
 
-		# TODO: delete
-		push!(tracker_end["history"], tracker_end["current"])
-		
 	end
 
 	return exits, density, gene, tracker_end
@@ -77,13 +73,11 @@ function step(
 	# update tracker for RNAs present on the second strand
 	tracker_end["current"][tracker_end["current"].>0] .+= 1
 	
-	# @show tracker_end["current"]
-	
 	# iterate on the termination strand
 	if model == "continuous_detachment"
 		
 		# detachment can occur at any point, with increasing probability with time
-		for j in n_sites+1:length(gene)
+		for j in length(gene):-1:n_sites+1
 			x = j - n_sites
 			p = 1 - exp(-δ/β2*x)
 	
@@ -109,8 +103,13 @@ function step(
 		
 		# detachment can occur only at the end site, with increasing probability with time
 
+		if (gene[end]==1) & (rand(Bernoulli(Δt/t_d)))
+			gene[end] = 0
+			push!(tracker_end["terminated"], tracker_end["current"][end])
+			tracker_end["current"][end] = 0
+		end
 
-		for j in n_sites+1:length(gene)-1
+		for j in length(gene)-1:-1:n_sites+1
 			if (gene[j]==1) & (gene[j+1]==0) * (rand(Bernoulli(β2*Δt)))
 				gene[j+1] = 1
 				gene[j] = 0
@@ -118,11 +117,6 @@ function step(
 				tracker_end["current"][j-n_sites+1] = tracker_end["current"][j-n_sites]
 				tracker_end["current"][j-n_sites] = 0
 			end
-		end
-		if (gene[end]==1) & (rand(Bernoulli(Δt/t_d)))
-			gene[end] = 0
-			push!(tracker_end["terminated"], tracker_end["current"][end])
-			tracker_end["current"][end] = 0
 		end
 		
 	end
@@ -152,6 +146,23 @@ function step(
 	
 end
 
-get_t_d(δ, n_end_sites, β2) = 1/δ - n_end_sites/β2
+get_t_d(δ, n_end_sites, β2) = 1/δ - (n_end_sites)/β2
 
 get_t_d(params) = get_t_d(params.δ, params.n_end_sites, params.β2)
+
+get_trans_rate(exits, β, Δt) = mean(exits)/β/Δt
+
+get_trans_rate(exits, params) = get_trans_rate(exits, params.β, params.Δt)
+
+"""
+Theoretical model for infinite termination rate
+"""
+function J(α, β, L)
+	αc = β/(1+L^(1/2))
+
+	if α<αc
+		return α.*(β.-α) ./ (β .+ α.*(L-1))
+	else 
+		return β./(1 .+L^(1/2)).^2
+	end
+end

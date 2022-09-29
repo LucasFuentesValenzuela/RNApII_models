@@ -4,29 +4,13 @@
 using Markdown
 using InteractiveUtils
 
-# This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
-macro bind(def, element)
-    quote
-        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
-        local el = $(esc(element))
-        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
-        el
-    end
-end
-
-# ╔═╡ 6b8ce4f6-2e0f-11ed-0f46-0f9f7243a38c
+# ╔═╡ aebb31ae-400e-11ed-1439-21415b393a87
 using Plots
 
-# ╔═╡ 1c2be8f8-763f-4cc6-9b2d-28bad768eca8
-using Random
-
-# ╔═╡ 8dc7d859-cbd0-49a9-8440-7faea8898671
+# ╔═╡ a9736d4a-0c92-4de0-a443-82d153b49ccf
 using Distributions
 
-# ╔═╡ 13fd8e1c-d0aa-4938-ab41-2a146d65003b
-using PlutoUI
-
-# ╔═╡ e343e2d6-0b22-4f43-b112-cc72f8fb76fd
+# ╔═╡ 4f1a72a1-59f9-45c5-a302-3e8b53dfdb1b
 # replacement of the include statement
 function ingredients(path::String)
 	# this is from the Julia source code (evalfile in base/loading.jl)
@@ -42,468 +26,24 @@ function ingredients(path::String)
 	m
 end
 
-# ╔═╡ a41f5e4c-d1eb-4065-9c61-5695dc151b00
+# ╔═╡ 258591f9-68fd-46db-a5ad-3fc60668170f
 base = ingredients("model.jl")
 
-# ╔═╡ 282f03d7-acf5-40e4-8cae-222b398602ae
-plot_utils = ingredients("plot_utils.jl")
-
-# ╔═╡ b4890915-71c2-4a52-9152-34c163be9c7b
+# ╔═╡ 9c79970a-f98c-40fb-bd47-65a6164699bf
 md"""
-# Questions: 
-* What is the actual residence time as compared to expectations? How does it scale with the initiation rate? We expect it to increase with the initiation rate up to a given limit, right? 
-* Is the continuous_detachment model accurate in some ways? It does not seem like it... The way the probabilities are modeled are not sufficient I think. 
+# Questions
+
+* There are also analytical solutions for the densities on the strand. I should review them because they will be very useful as we care about densities and there are probably interesting statements to extract from these. 
+
+* How to really use the general solution with $L>1$? Do I need to scale up β and α as a function of L, so that the total rate is conserved, or no? 
 """
 
-# ╔═╡ f4af7844-459e-44ca-b5a7-79093f77d76a
-md"""# Notes"""
-
-# ╔═╡ b4fddea7-fecc-4db8-8288-6ad4f8b31780
-md"""We will model the walker as a uni-directional walker with some probability $p$ of stepping to the next site, given that on average it walks at the rate of $\beta$ sites per unit time. 
-
-At each step, the walker walks one site with probability $p$ and stays put with probability $1-p$. Each step is independent of the others. Therefore, over a long time $T$, the expected walked distance is $pT$. We have a rate $\beta$ that tells us that, over a given time $T$, it should have walked on average $\beta T$. Therefore, $p=\beta$. 
-
-Of course, this is valid as long as $\beta < 1$. Otherwise, it means that we are looking at too long a time window. You need to discretize so that **at most** there is one site per unit time. 
-"""
-
-# ╔═╡ e9521f7e-3940-436d-946c-17a97f269898
-md"""**Todo**: you can probably figure out analytical solutions for both the Bernouilli and the Poisson processes"""
-
-# ╔═╡ a71561a8-2fc5-44e9-92ab-8a182cd9c7c8
-md"""Basically, we assume that we are discretizing fine enough in time that α and β are smaller than 1. Your timestep is limited by the timescale set by hopping, otherwise you have to account for potentially two hops. """
-
-# ╔═╡ 83326b9a-55bb-4c1d-8eb2-596bb5ed2944
+# ╔═╡ ca87554a-0149-446a-99e9-443ca7dfd389
 md"""
-**NOTE/QUESTION**: am I really sure that the rate δ is respected in both models? Can I run some test to see whether that is the case? 
-* as soon as an RNA passes the TTS, you follow it and you count the number of timesteps it actually resides there
+# Transcription rates
 """
 
-# ╔═╡ ea70ff75-a7fa-4524-876b-15d49088cf2c
-md"""
-*A quick note on rates*: 
-* α has units of [1/s] : it tells us how many RNAp's want to attach to the start site. Here we model it such that αΔt << 1, so that we do not have to model multiple arrivals in a single timestep. 
-* β has units of [bp/s]: it tells us how many bp it steps on average. Here we model it such that βΔt << 1, so that we do not have to model multiple stepping events in a single timestep. 
-* δ has units of [1/s]: it tells us how many detach per second on average. i.e. 1/δ gives us the average "lifetime" if modelled by an exponential distribution (true? to check)
-
-
-We expect that the number of detachments per unit time is much higher than the number of attachments. i.e. α << δ. 
-"""
-
-# ╔═╡ 7f09ab21-108c-42a1-a35d-66058c622be7
-md"""# Simple tests"""
-
-# ╔═╡ 87105a65-9ad9-4721-9890-94471728a122
-@bind model_test Select(["continuous_detachment", "end_site"])
-
-# ╔═╡ dac33505-de73-4a6d-90e4-95a1b497bece
-n_steps_test = 100000
-
-# ╔═╡ 5cf87f0a-7709-49e4-a69e-dd06c55ba255
-params_test = base.Params(.2, 1., .166, 1., n_steps_test, 5, 5, 1.)
-
-# ╔═╡ 4c27380f-db77-45d5-b94b-3c867fb7b0ec
-md""" 
-
-For the *end_site* model:
-* We expect that it takes on average $(round(1/params_test.δ;digits=2)/params_test.Δt) steps for the RNA to escape.
-* It should take $(round(params_test.n_end_sites/params_test.β2; digits=2)/params_test.Δt) steps for the RNA to walk through the entire second strand. 
-* The rest should be spend waiting to escape. ($(round(base.get_t_d(params_test)/params_test.Δt; digits=2)))
-"""
-
-# ╔═╡ b80c2e10-ab9c-4a2b-9a94-6026e5128239
-exits_test, density_test, gene_test, tracker_end = base.run_walker(params_test, model_test);
-
-# ╔═╡ 467f0b3e-339b-4903-8678-4fc43e8c7794
-exits_test
-
-# ╔═╡ d44b4a39-e4e1-4214-b5ed-6f96cfe770f0
-plot(exits_test)
-
-# ╔═╡ 1f3e8bff-0d9f-44f5-ae49-a351c127b73e
-density_test
-
-# ╔═╡ 0ab5b956-6a50-4705-95ea-b957d072c2cf
-plot(density_test)
-
-# ╔═╡ a5f9dd3a-12c4-4f7e-8d4e-ebda5162128e
-gene_test
-
-# ╔═╡ 4dd0a89c-9704-4e6b-8858-7811c5ad0412
-md"""
-* We expect that it takes on average $(round(1/params_test.δ;digits=2)/params_test.Δt) steps for the RNA to escape.
-* We have that the RNA on average takes $(round(mean(tracker_end["terminated"]); digits=2)) steps to escape.
-"""
-
-# ╔═╡ be513688-8b7e-42b5-8da4-3d97ad103a10
-plot_utils.plot_tracker_end(tracker_end, params_test)
-
-# ╔═╡ 1e46b7aa-4b61-4107-97a2-e114249386dc
-plot(gene_test)
-
-# ╔═╡ f5c5126a-35ee-4b35-8f1b-38e2a5d2392e
-md"""
-# Example
-"""
-
-# ╔═╡ 3423594f-380e-4797-b017-30a1c49b39b0
-begin
-	n_steps = 200000
-	Δt = .1 # [s]
-	n_sites = 40
-	n_end_sites = 10
-end;
-
-# ╔═╡ 8f9a6b1c-8e78-4982-8d89-400f9f47d429
-ranges = 10. .^([-4, -3, -2, -1, 0, 1, 2, 3])
-
-# ╔═╡ 7838a04f-b983-47f1-b68b-46f2c6d43f88
-md"""Choose the model:"""
-
-# ╔═╡ 384e5ef0-a361-438d-b0b9-7abda0412656
-@bind model Select(["continuous_detachment", "end_site"])
-
-# ╔═╡ 639f69df-4fe9-4e7a-8303-7d179225327e
-@bind α Slider(ranges; default=1.)
-
-# ╔═╡ 4a85f56e-cc55-4aa2-a7b5-1512dd3aa5bf
-md"""
-α = $α
-"""
-
-# ╔═╡ 02978832-045c-4acb-bced-5a9a5ca6f001
-@bind β Slider(ranges; default=1.)
-
-# ╔═╡ 408896d5-0235-4277-b53c-401c634e6c6c
-md"""β = $β"""
-
-# ╔═╡ 8217efed-3083-406b-ade5-fc7481837120
-β2 = β/5
-
-# ╔═╡ 831bf83b-5238-4a4e-ade7-0f682d45d65a
-@bind δ Slider(ranges; default=0.01)
-
-# ╔═╡ 2429bd43-05f7-4a80-b2b3-492b03d281ce
-md"""δ=$δ"""
-
-# ╔═╡ cfc4da6c-c276-434e-8aa1-02976adbc30c
-t_d = base.get_t_d(δ, n_end_sites, β2)
-
-# ╔═╡ 90b2e83a-585b-46b4-a0cd-f79f52dc6489
-md"""
-Characteristic timescales: 
-- α initiations per second
-- Traverse the main strand $(n_sites/β) s
-
-if model = "end_site"
-- Traverse the second strand in $(n_end_sites/β2) s
-- Detach from the end site: $t_d s 
-"""
-
-# ╔═╡ c21a9c67-9f1c-419f-95c4-fa5c58dd2fa5
-params = base.Params(α, β, δ, Δt, n_steps, n_sites, n_end_sites, β2)
-
-# ╔═╡ 2186a6dc-f3bb-40ca-8fb6-6dc20576f8e4
-exits, density, gene, tracker_end_ = base.run_walker(params, model); 
-
-# ╔═╡ 23dc6a2e-7c38-45c4-83df-f6e0c46960d0
-begin
-	p1 = plot_utils.plot_density(density, params)
-	p2 = scatter([1], [mean(exits)/β/Δt], label="")
-	ylims!(-.1, 1.1)
-	xlims!(.5, 1.5)
-	ylabel!("Transcription rate")
-
-	plot(p1, p2)
-end
-
-# ╔═╡ f395a88c-f6d9-4001-94a6-d702725d188b
-plot_utils.plot_density(density, params)
-
-# ╔═╡ a67336a0-b55b-4345-b725-2d363a97f559
-md"""
-* We expect that it takes on average $(round(1/params.δ;digits=2)/params.Δt) steps for the RNA to escape.
-* We have that the RNA on average takes $(round(mean(tracker_end_["terminated"]); digits=2)) steps to escape.
-"""
-
-# ╔═╡ f5819935-73c9-4035-9895-30407e7401f9
-plot_utils.plot_tracker_end(tracker_end_, params)
-
-# ╔═╡ 94373d86-e5d8-4c6d-b37f-1d5abb88d346
-md"""
-**Transcription rate**:
-* The mean value of exits tells us how many genes are transcribed per timestep. 
-* We need to divide this by Δt to have the value per unit time
-* we further divide by β to collapse the curves 
-"""
-
-# ╔═╡ 1c05f490-bc7c-4eb8-abf5-fab38d2508c6
-md"""There seems to be a role of δ only in some regimes. need to figure out when it is actually impactful. 
-
-* β2/δ defines a given probability of disappearing
-* α/β defines the effective flow rate
-
-Therefore, we would expect that these parameters would compete with each other in order to define the ultimate flow rate... 
-
-
-"""
-
-# ╔═╡ 4e497931-2e75-4fbc-b334-d279bd262b43
-md"""
-# Analyzing real parameters
-"""
-
-# ╔═╡ ad232aca-df0d-4ffd-8388-f25a3d0f8b8d
-begin
-	# from Matt's review document
-	α_default = 0.0033
-	β_default = 0.57
-	δ_default = 0.014
-	Δt_default = .1
-	β2_default = β_default/5
-	DEFAULT_PARAMS = base.Params(
-		α_default, β_default, δ_default, Δt_default, 2000000, 42, 5, β2_default
-	)
-end;
-
-# ╔═╡ f87ef88f-fc56-47e6-a548-9c9d243fbbb4
-t_d_default = base.get_t_d(DEFAULT_PARAMS)
-
-# ╔═╡ 095a8ff7-0e22-46ee-b59c-5966154e0031
-md"""Choose model:"""
-
-# ╔═╡ 646132cb-b3ac-4e94-b9d2-9c185d4d1623
-@bind CHOSEN_MODEL Select(["continuous_detachment", "end_site"])
-
-# ╔═╡ a55151a4-e4d0-4cbd-8f14-c4d2acef4405
-DEFAULT_PARAMS
-
-# ╔═╡ 40bf01f6-7c9c-43a4-a4c1-64557893f86b
-exits_def, density_def, _, tracker_def = base.run_walker(DEFAULT_PARAMS, CHOSEN_MODEL); 
-
-# ╔═╡ 54d011f4-b78d-4d53-9a69-6aa53f61b387
-trans_rate = base.get_trans_rate(exits_def, DEFAULT_PARAMS)
-
-# ╔═╡ bc012aed-9c67-414e-bf81-945aa232155d
-begin
-	plot_utils.plot_density(density_def, DEFAULT_PARAMS)
-	# ylims!(0, 0.05)
-	title!("Density with all default parameters")
-end
-
-# ╔═╡ 28eb8e07-1c90-433c-a73b-02fb6b036bf7
-md"""### Initiation rate sweep"""
-
-# ╔═╡ f63924f9-2afc-43e4-8999-904d16a3595c
-n_points_ = 30
-
-# ╔═╡ e104bed1-58d9-4ba4-9cab-f0928b3e4aac
-α_vec = 10. .^(LinRange(-3, 0, n_points_));
-
-# ╔═╡ 1d3eafb0-f691-4434-9c1e-645ff050aa0a
-begin
-	trans_rates = []
-	residence_times = [] # in number of steps
-	densities = Dict()
-	
-	for α in α_vec
-		exits_, density_, _, tracker_ = base.run_walker(
-			α, 
-			DEFAULT_PARAMS.β, 
-			DEFAULT_PARAMS.δ, 
-			DEFAULT_PARAMS.Δt, 
-			DEFAULT_PARAMS.n_steps, 
-			DEFAULT_PARAMS.n_sites, 
-			DEFAULT_PARAMS.n_end_sites;
-			β2=DEFAULT_PARAMS.β2, 
-			model=CHOSEN_MODEL
-		); 
-	
-		push!(trans_rates, base.get_trans_rate(exits_, DEFAULT_PARAMS))
-		push!(residence_times, mean(tracker_["terminated"]))
-		densities[α] = density_
-	
-	end
-end
-
-# ╔═╡ 84b537d3-865a-446a-bfb1-6a3b63e73677
-begin
-
-	plot(α_vec, trans_rates*DEFAULT_PARAMS.β, 
-		label="", linestyle=:dash, linewidth=2
-	)
-	plot!(
-		α_vec, 
-		J.(α_vec, DEFAULT_PARAMS.β, 1), 
-		label="Theory with γ very large", linewidth=2,
-		color=:firebrick
-	)
-	scatter!(α_vec, trans_rates*DEFAULT_PARAMS.β, label="", markersize=5)
-	xlabel!("Initiation rate [1/s]")
-	ylabel!("Transcription rate [1/s]")
-	plot!(legend=:bottomright)
-	plot!(xscale=:log)
-	title!("Model: $CHOSEN_MODEL")
-end
-
-# ╔═╡ 17d9f3cf-b42b-45d1-9fe6-36b55713f72b
-let
-	p = plot()
-	
-	for k in 1:length(α_vec)
-		α = α_vec[k]
-		color = palette([:blue, :green], length(α_vec))[k]
-
-		if k%5==0
-			label = "α=$(round(α; digits=3))"
-		else
-			label=""
-		end
-		plot!(
-			densities[α]/DEFAULT_PARAMS.n_steps, 
-			label=label, 
-			color=color, linewidth=2.
-		)
-		xlabel!("basepair")
-		ylabel!("Steady-state density")
-		
-	end
-	plot!(
-		[DEFAULT_PARAMS.n_sites, DEFAULT_PARAMS.n_sites], 
-		[0, 1], 
-		linestyle=:dash, 
-		label="TTS", 
-		linewidth=2.
-	)
-	plot!(
-		[1, 1], [0, 1], 
-		linestyle=:dash, 
-		label="TSS", 
-		linewidth=2.
-	)
-	plot!(legend=:outertopright)
-	title!("Occupancy as a function of α")
-	p
-end
-
-# ╔═╡ 7d0b166b-4bf6-48ee-8357-330018e482da
-# residence time
-let
-
-	plot(α_vec, residence_times, label="", linestyle=:dash)
-	scatter!(α_vec, residence_times, label="Data")
-	hline!(
-		[1/DEFAULT_PARAMS.δ/DEFAULT_PARAMS.Δt], 
-		label="Expected", linestyle=:dash, linewidth=3, 
-	)
-	xlabel!("Initiation rate [1/s]")
-	ylabel!("Number of steps on second strand")
-	plot!(legend=:bottomright)
-	
-end
-
-# ╔═╡ 0c8cc16a-514e-4839-83bd-d70c10ebd0aa
-let
-	p = plot()
-
-	total_occupancy = [
-		sum(densities[α][1:DEFAULT_PARAMS.n_sites])/(DEFAULT_PARAMS.n_steps*DEFAULT_PARAMS.n_sites) for α in α_vec
-	]
-
-	plot!(α_vec, total_occupancy, linestyle=:dash, label="")
-	scatter!(α_vec, total_occupancy, linestyle=:dash, label="")
-	vline!([1/t_d_default], label="α = 1/t_d")
-	vline!([DEFAULT_PARAMS.β], label="α = β")
-
-	xlabel!("Initiation rate α [1/s]")
-	ylabel!("Total occupancy")
-	plot!(xscale=:log)
-	ylims!(-.1, 1.1)
-	plot!(legend=:bottomright)
-end
-
-# ╔═╡ 7ede41b0-e284-45ee-9bfd-50a9f12a7fc2
-md"""
-**Note:** you really need to figure out the parameter landscape, to see what leads to jamming. I can't seem to see jaamming here at the end even in the case of low α. This probably has to do with γ/β. right? 
-"""
-
-# ╔═╡ eb6d48d1-09ce-4638-9d16-8db07b8fdec9
-md"""
-# OLD? 
-
-**I NEED TO FIX THIS**
-
-## Parameter study
-"""
-
-# ╔═╡ 45f03028-2e5e-44d4-a9da-669727ad996a
-n_points = 3
-
-# ╔═╡ c9b5a16d-b4e9-4bae-ac76-9dba063a1844
-rates = LinRange(0, 1, n_points)
-
-# ╔═╡ ca1107aa-5987-4bda-99d0-bc6d35c0e4a4
-max_α = 1.
-
-# ╔═╡ d918cb5f-936e-40f7-9384-1ade707c1184
-δ_=.01
-
-# ╔═╡ 4fa9548c-7840-4019-9cf8-52bc0e19777a
-begin
-	transcription_rates = Dict()
-	xx = Dict()
-	for β in rates
-		transcription_rates[β] = ([], [])
-		for α in LinRange(0., max_α*β, n_points)
-
-			params=Params(α, β, δ_, Δt, n_steps, n_sites, n_end_sites, nothing)
-			exits, density, gene = run_walker(params, "continuous_detachment"); 
-			push!(transcription_rates[β][1], α/β)
-			push!(transcription_rates[β][2], mean(exits)/Δt/β)
-
-		end
-	end
-end
-
-# ╔═╡ 9de4a551-9069-4eff-a972-e28b3fb0d8c0
-begin
-	plot()
-
-	for k in 1:length(rates)
-
-		β = rates[k]
-		color = palette([:blue, :green], n_points)[k]
-		xx, yy = transcription_rates[β]
-
-		plot!(xx, yy, linestyle=:dash, label="", color=color)
-		scatter!(xx, yy, label="β=$(round(β; digits=2))", color=color)
-		# plot!(xx, β*xx, label="", color="gray" )
-		
-	end
-
-	# plotting the analytical solution
-	plot!(
-		max_α*rates./rates[end], 
-		J.(max_α*rates, rates[end], 1)./rates[end], 
-		label="Theory", linewidth=3,
-		color=:firebrick
-	)
-
-
-	
-	title!("Transcription rate/β [a.u.] as a function of α/β [-]")
-	xlabel!("α/β [-]")
-	ylabel!("Transcription rate/β [a.u]")
-	xlims!(0.0, max_α)
-	plot!(legend=:bottomright)
-	# ylims!(0., .25)
-end
-
-# ╔═╡ 39e2dd29-9cdd-40bf-8719-efdb03edb06a
-md"""
-You can associate some notion of transcription to the average number of exits. It has to be divided by the timestep to get really quantitative, though. 
-"""
-
-# ╔═╡ f812bf5e-f260-4403-b267-6562154f164d
+# ╔═╡ bfe95384-e816-4ae8-afc2-631fc824bbef
 md"""We can analyze the limit regimes from (Klumpp, Hwa - 2008). 
 
 $J(α) = α (ε - α) / (ε + α (L-1)),$
@@ -512,31 +52,83 @@ $J_{max}= ε/(1+L^{1/2})^2.$
 
 In the above: 
 - L is the object size
-- ε is the attempt rate of transcription
+- ε is the attempt rate of elongation
 - α is the initiation rate
 """
 
-# ╔═╡ 99278156-8be3-4dae-9bdd-e65a86184aa2
+# ╔═╡ b5342ffd-0d37-44d1-9656-7929e0418156
+#illustration of the theoretical transcription rate curves
+
+let
+
+	plot()
+
+	rates = collect(LinRange(0.01, 0.1, 20))
+	for k in 1:length(rates)
+
+		β = rates[k]
+		color = palette([:blue, :green], length(rates))[k]
+		plot!(rates/β, base.J.(vec(rates), β, 1)/β, label="", linestyle=:dash, color=color)	
+		scatter!(rates/β, base.J.(vec(rates), β, 1)/β, label="", color=color)
+	end
+	
+	ylims!(0, .5)
+	xlabel!("α")
+	ylabel!("Current J")
+	title!("Currents")
+	
+end
+
+# ╔═╡ c4edf93a-b67e-415c-8d73-43d2c44050ee
 md"""
-A few things to check: 
-- how does the simulation scale with β? 
-- how does the analytical model from K,H2008 scale with β? 
-- how does the model actually work? 
-- why does the phase transition not occur at the same point for them and for us? 
+The invariance can be understood because 
+$J(α)/ε = α/ε (1 - α/ε) / (1 + α/ε (L-1)).$
+
+This is the case regardless of $L$.
 """
+
+# ╔═╡ fa5c763f-04e0-4adc-9ebb-88b15f7e5148
+md"""
+### Comparison of $L=1$ vs $L=35$
+"""
+
+# ╔═╡ 973744f4-2dd8-482c-a8b6-bcc3cfca615b
+md"""
+Here we want to compare the expected transcription rate as a function of the footprint. 
+"""
+
+# ╔═╡ 185b360b-2aae-400c-9f20-0f81e69d6a44
+let
+
+	Ls = [1, 35]
+
+	plot()
+	npoints = 30
+	β = 0.1
+	ratios = collect(10 .^(LinRange(-2, 1, npoints)))
+	αs = ratios .* β
+
+	
+	for L in Ls
+		plot!(αs/(β*L), base.J.(αs, β*L, L)/β, label="L=$L")
+	end
+
+
+	plot!(legend=:bottomright)
+	xlabel!("α/β [-]")
+	ylabel!("Transcription rate/β [-]")
+	
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
-PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
 [compat]
-Distributions = "~0.25.70"
-Plots = "~1.32.0"
-PlutoUI = "~0.7.40"
+Distributions = "~0.25.75"
+Plots = "~1.34.4"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -546,18 +138,6 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 julia_version = "1.7.2"
 manifest_format = "2.0"
 
-[[deps.AbstractPlutoDingetjes]]
-deps = ["Pkg"]
-git-tree-sha1 = "8eaf9f1b4921132a4cff3f36a1d9ba923b14a481"
-uuid = "6e696c72-6542-2067-7265-42206c756150"
-version = "1.1.4"
-
-[[deps.Adapt]]
-deps = ["LinearAlgebra"]
-git-tree-sha1 = "195c5505521008abea5aee4f96930717958eac6f"
-uuid = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
-version = "3.4.0"
-
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
 
@@ -566,6 +146,11 @@ uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
 
 [[deps.Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
+
+[[deps.BitFlags]]
+git-tree-sha1 = "84259bb6172806304b9101094a7cc4bc6f56dbc6"
+uuid = "d1d4a3ce-64b1-5f1a-9ba4-7e7e69966f35"
+version = "0.1.5"
 
 [[deps.Bzip2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -587,9 +172,9 @@ version = "0.5.1"
 
 [[deps.ChainRulesCore]]
 deps = ["Compat", "LinearAlgebra", "SparseArrays"]
-git-tree-sha1 = "8a494fe0c4ae21047f28eb48ac968f0b8a6fcaa7"
+git-tree-sha1 = "e7ff6cadf743c098e08fca25c91103ee4303c9bb"
 uuid = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-version = "1.15.4"
+version = "1.15.6"
 
 [[deps.ChangesOfVariables]]
 deps = ["ChainRulesCore", "LinearAlgebra", "Test"]
@@ -643,20 +228,15 @@ uuid = "d38c429a-6771-53c6-b99e-75d170b6e991"
 version = "0.6.2"
 
 [[deps.DataAPI]]
-git-tree-sha1 = "fb5f5316dd3fd4c5e7c30a24d50643b73e37cd40"
+git-tree-sha1 = "1106fa7e1256b402a86a8e7b15c00c85036fef49"
 uuid = "9a962f9c-6df0-11e9-0e5d-c546b8b5ee8a"
-version = "1.10.0"
+version = "1.11.0"
 
 [[deps.DataStructures]]
 deps = ["Compat", "InteractiveUtils", "OrderedCollections"]
 git-tree-sha1 = "d1fff3a548102f48987a52a2e0d114fa97d730f0"
 uuid = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 version = "0.18.13"
-
-[[deps.DataValueInterfaces]]
-git-tree-sha1 = "bfc1187b79289637fa0ef6d4436ebdfe6905cbd6"
-uuid = "e2d170a0-9d28-54be-80f0-106bbe20a464"
-version = "1.0.0"
 
 [[deps.Dates]]
 deps = ["Printf"]
@@ -674,9 +254,9 @@ version = "0.4.0"
 
 [[deps.Distributions]]
 deps = ["ChainRulesCore", "DensityInterface", "FillArrays", "LinearAlgebra", "PDMats", "Printf", "QuadGK", "Random", "SparseArrays", "SpecialFunctions", "Statistics", "StatsBase", "StatsFuns", "Test"]
-git-tree-sha1 = "8579b5cdae93e55c0cff50fbb0c2d1220efd5beb"
+git-tree-sha1 = "0d7d213133d948c56e8c2d9f4eab0293491d8e4a"
 uuid = "31c24e10-a181-5473-b8eb-7969acd0382f"
-version = "0.25.70"
+version = "0.25.75"
 
 [[deps.DocStringExtensions]]
 deps = ["LibGit2"]
@@ -694,22 +274,11 @@ git-tree-sha1 = "5837a837389fccf076445fce071c8ddaea35a566"
 uuid = "fa6b7ba4-c1ee-5f82-b5fc-ecf0adba8f74"
 version = "0.6.8"
 
-[[deps.EarCut_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "3f3a2501fa7236e9b911e0f7a588c657e822bb6d"
-uuid = "5ae413db-bbd1-5e63-b57d-d24a61df00f5"
-version = "2.2.3+0"
-
 [[deps.Expat_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "bad72f730e9e91c08d9427d5e8db95478a3c323d"
 uuid = "2e619515-83b5-522b-bb60-26c02a35a201"
 version = "2.4.8+0"
-
-[[deps.Extents]]
-git-tree-sha1 = "5e1e4c53fa39afe63a7d356e30452249365fba99"
-uuid = "411431e0-e8b7-467b-b5e0-f676ba4f2910"
-version = "0.1.1"
 
 [[deps.FFMPEG]]
 deps = ["FFMPEG_jll"]
@@ -767,27 +336,15 @@ version = "3.3.8+0"
 
 [[deps.GR]]
 deps = ["Base64", "DelimitedFiles", "GR_jll", "HTTP", "JSON", "Libdl", "LinearAlgebra", "Pkg", "Printf", "Random", "RelocatableFolders", "Serialization", "Sockets", "Test", "UUIDs"]
-git-tree-sha1 = "cf0a9940f250dc3cb6cc6c6821b4bf8a4286cf9c"
+git-tree-sha1 = "0ac6f27e784059c68b987f42b909ade0bcfabe69"
 uuid = "28b8d3ca-fb5f-59d9-8090-bfdbd6d07a71"
-version = "0.66.2"
+version = "0.68.0"
 
 [[deps.GR_jll]]
 deps = ["Artifacts", "Bzip2_jll", "Cairo_jll", "FFMPEG_jll", "Fontconfig_jll", "GLFW_jll", "JLLWrappers", "JpegTurbo_jll", "Libdl", "Libtiff_jll", "Pixman_jll", "Pkg", "Qt5Base_jll", "Zlib_jll", "libpng_jll"]
-git-tree-sha1 = "2d908286d120c584abbe7621756c341707096ba4"
+git-tree-sha1 = "bc9f7725571ddb4ab2c4bc74fa397c1c5ad08943"
 uuid = "d2c73de3-f751-5644-a686-071e5b155ba9"
-version = "0.66.2+0"
-
-[[deps.GeoInterface]]
-deps = ["Extents"]
-git-tree-sha1 = "fb28b5dc239d0174d7297310ef7b84a11804dfab"
-uuid = "cf35fbd7-0cd7-5166-be24-54bfbe79505f"
-version = "1.0.1"
-
-[[deps.GeometryBasics]]
-deps = ["EarCut_jll", "GeoInterface", "IterTools", "LinearAlgebra", "StaticArrays", "StructArrays", "Tables"]
-git-tree-sha1 = "a7a97895780dab1085a97769316aa348830dc991"
-uuid = "5c1252a2-5f33-56bf-86c9-59e7332b4326"
-version = "0.4.3"
+version = "0.69.1+0"
 
 [[deps.Gettext_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "Libiconv_jll", "Pkg", "XML2_jll"]
@@ -796,10 +353,10 @@ uuid = "78b55507-aeef-58d4-861c-77aaff3498b1"
 version = "0.21.0+0"
 
 [[deps.Glib_jll]]
-deps = ["Artifacts", "Gettext_jll", "JLLWrappers", "Libdl", "Libffi_jll", "Libiconv_jll", "Libmount_jll", "PCRE_jll", "Pkg", "Zlib_jll"]
-git-tree-sha1 = "a32d672ac2c967f3deb8a81d828afc739c838a06"
+deps = ["Artifacts", "Gettext_jll", "JLLWrappers", "Libdl", "Libffi_jll", "Libiconv_jll", "Libmount_jll", "PCRE2_jll", "Pkg", "Zlib_jll"]
+git-tree-sha1 = "fb83fbe02fe57f2c068013aa94bcdf6760d3a7a7"
 uuid = "7746bdde-850d-59dc-9ae8-88ece973131d"
-version = "2.68.3+2"
+version = "2.74.0+1"
 
 [[deps.Graphite2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -813,10 +370,10 @@ uuid = "42e2da0e-8278-4e71-bc24-59509adca0fe"
 version = "1.0.2"
 
 [[deps.HTTP]]
-deps = ["Base64", "CodecZlib", "Dates", "IniFile", "Logging", "LoggingExtras", "MbedTLS", "NetworkOptions", "Random", "SimpleBufferStream", "Sockets", "URIs", "UUIDs"]
-git-tree-sha1 = "59ba44e0aa49b87a8c7a8920ec76f8afe87ed502"
+deps = ["Base64", "CodecZlib", "Dates", "IniFile", "Logging", "LoggingExtras", "MbedTLS", "NetworkOptions", "OpenSSL", "Random", "SimpleBufferStream", "Sockets", "URIs", "UUIDs"]
+git-tree-sha1 = "4abede886fcba15cd5fd041fef776b230d004cee"
 uuid = "cd3eb016-35fb-5094-929b-558a96fad6f3"
-version = "1.3.3"
+version = "1.4.0"
 
 [[deps.HarfBuzz_jll]]
 deps = ["Artifacts", "Cairo_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "Graphite2_jll", "JLLWrappers", "Libdl", "Libffi_jll", "Pkg"]
@@ -830,24 +387,6 @@ git-tree-sha1 = "709d864e3ed6e3545230601f94e11ebc65994641"
 uuid = "34004b35-14d8-5ef3-9330-4cdb6864b03a"
 version = "0.3.11"
 
-[[deps.Hyperscript]]
-deps = ["Test"]
-git-tree-sha1 = "8d511d5b81240fc8e6802386302675bdf47737b9"
-uuid = "47d2ed2b-36de-50cf-bf87-49c2cf4b8b91"
-version = "0.0.4"
-
-[[deps.HypertextLiteral]]
-deps = ["Tricks"]
-git-tree-sha1 = "c47c5fa4c5308f27ccaac35504858d8914e102f9"
-uuid = "ac1192a8-f4b3-4bfe-ba22-af5b92cd3ab2"
-version = "0.9.4"
-
-[[deps.IOCapture]]
-deps = ["Logging", "Random"]
-git-tree-sha1 = "f7be53659ab06ddc986428d3a9dcc95f6fa6705a"
-uuid = "b5f81e59-6552-4d32-b1f0-c071b021bf89"
-version = "0.2.2"
-
 [[deps.IniFile]]
 git-tree-sha1 = "f550e6e32074c939295eb5ea6de31849ac2c9625"
 uuid = "83e8ac13-25f8-5344-8a64-a9f2b223428f"
@@ -859,24 +398,20 @@ uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 
 [[deps.InverseFunctions]]
 deps = ["Test"]
-git-tree-sha1 = "b3364212fb5d870f724876ffcd34dd8ec6d98918"
+git-tree-sha1 = "49510dfcb407e572524ba94aeae2fced1f3feb0f"
 uuid = "3587e190-3f89-42d0-90ee-14403ec27112"
-version = "0.1.7"
+version = "0.1.8"
 
 [[deps.IrrationalConstants]]
 git-tree-sha1 = "7fd44fd4ff43fc60815f8e764c0f352b83c49151"
 uuid = "92d709cd-6900-40b7-9082-c6be49f344b6"
 version = "0.1.1"
 
-[[deps.IterTools]]
-git-tree-sha1 = "fa6287a4469f5e048d763df38279ee729fbd44e5"
-uuid = "c8e1da08-722c-5040-9ed9-7db0dc04731e"
-version = "1.4.0"
-
-[[deps.IteratorInterfaceExtensions]]
-git-tree-sha1 = "a3f24677c21f5bbe9d2a714f95dcd58337fb2856"
-uuid = "82899510-4779-5014-852e-03e436cf321d"
-version = "1.0.0"
+[[deps.JLFzf]]
+deps = ["Pipe", "REPL", "Random", "fzf_jll"]
+git-tree-sha1 = "f377670cda23b6b7c1c0b3893e37451c5c1a2185"
+uuid = "1019f520-868f-41f5-a6de-eb00f4b6a39c"
+version = "0.1.5"
 
 [[deps.JLLWrappers]]
 deps = ["Preferences"]
@@ -920,10 +455,10 @@ uuid = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 version = "1.3.0"
 
 [[deps.Latexify]]
-deps = ["Formatting", "InteractiveUtils", "LaTeXStrings", "MacroTools", "Markdown", "Printf", "Requires"]
-git-tree-sha1 = "1a43be956d433b5d0321197150c2f94e16c0aaa0"
+deps = ["Formatting", "InteractiveUtils", "LaTeXStrings", "MacroTools", "Markdown", "OrderedCollections", "Printf", "Requires"]
+git-tree-sha1 = "ab9aa169d2160129beb241cb2750ca499b4e90e9"
 uuid = "23fbe1c1-3f47-55db-b15f-69d7ec21a316"
-version = "0.15.16"
+version = "0.15.17"
 
 [[deps.LibCURL]]
 deps = ["LibCURL_jll", "MozillaCACerts_jll"]
@@ -1023,9 +558,9 @@ uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
 
 [[deps.MbedTLS]]
 deps = ["Dates", "MbedTLS_jll", "MozillaCACerts_jll", "Random", "Sockets"]
-git-tree-sha1 = "ae6676d5f576ccd21b6789c2cbe2ba24fcc8075d"
+git-tree-sha1 = "6872f9594ff273da6d13c7c1a1545d5a8c7d0c1c"
 uuid = "739be429-bea8-5141-9913-cc70e7f3736d"
-version = "1.1.5"
+version = "1.1.6"
 
 [[deps.MbedTLS_jll]]
 deps = ["Artifacts", "Libdl"]
@@ -1071,6 +606,12 @@ uuid = "4536629a-c528-5b80-bd46-f80d51c5b363"
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
 
+[[deps.OpenSSL]]
+deps = ["BitFlags", "Dates", "MozillaCACerts_jll", "OpenSSL_jll", "Sockets"]
+git-tree-sha1 = "02be9f845cb58c2d6029a6d5f67f4e0af3237814"
+uuid = "4d8831e6-92b7-49fb-bdf8-b643e874388c"
+version = "1.1.3"
+
 [[deps.OpenSSL_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "e60321e3f2616584ff98f0a4f18d98ae6f89bbb3"
@@ -1098,12 +639,6 @@ version = "1.4.1"
 deps = ["Artifacts", "Libdl"]
 uuid = "efcefdf7-47ab-520b-bdef-62a2eaa19f15"
 
-[[deps.PCRE_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "b2a7af664e098055a7529ad1a900ded962bca488"
-uuid = "2f80f16e-611a-54ab-bc61-aa92de5b98fc"
-version = "8.44.0+0"
-
 [[deps.PDMats]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse"]
 git-tree-sha1 = "cf494dca75a69712a72b80bc48f59dcf3dea63ec"
@@ -1115,6 +650,11 @@ deps = ["Dates"]
 git-tree-sha1 = "3d5bf43e3e8b412656404ed9466f1dcbf7c50269"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
 version = "2.4.0"
+
+[[deps.Pipe]]
+git-tree-sha1 = "6842804e7867b115ca9de748a0cf6b364523c16d"
+uuid = "b98c9c47-44ae-5843-9183-064241ee97a0"
+version = "1.3.0"
 
 [[deps.Pixman_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1133,22 +673,16 @@ uuid = "ccf2f8ad-2431-5c83-bf29-c5338b663b6a"
 version = "3.0.0"
 
 [[deps.PlotUtils]]
-deps = ["ColorSchemes", "Colors", "Dates", "Printf", "Random", "Reexport", "Statistics"]
-git-tree-sha1 = "9888e59493658e476d3073f1ce24348bdc086660"
+deps = ["ColorSchemes", "Colors", "Dates", "Printf", "Random", "Reexport", "SnoopPrecompile", "Statistics"]
+git-tree-sha1 = "21303256d239f6b484977314674aef4bb1fe4420"
 uuid = "995b91a9-d308-5afd-9ec6-746e21dbc043"
-version = "1.3.0"
+version = "1.3.1"
 
 [[deps.Plots]]
-deps = ["Base64", "Contour", "Dates", "Downloads", "FFMPEG", "FixedPointNumbers", "GR", "GeometryBasics", "JSON", "LaTeXStrings", "Latexify", "LinearAlgebra", "Measures", "NaNMath", "Pkg", "PlotThemes", "PlotUtils", "Printf", "REPL", "Random", "RecipesBase", "RecipesPipeline", "Reexport", "Requires", "Scratch", "Showoff", "SparseArrays", "Statistics", "StatsBase", "UUIDs", "UnicodeFun", "Unzip"]
-git-tree-sha1 = "3f9b0706d6051d8edf9959e2422666703080722a"
+deps = ["Base64", "Contour", "Dates", "Downloads", "FFMPEG", "FixedPointNumbers", "GR", "JLFzf", "JSON", "LaTeXStrings", "Latexify", "LinearAlgebra", "Measures", "NaNMath", "Pkg", "PlotThemes", "PlotUtils", "Printf", "REPL", "Random", "RecipesBase", "RecipesPipeline", "Reexport", "RelocatableFolders", "Requires", "Scratch", "Showoff", "SnoopPrecompile", "SparseArrays", "Statistics", "StatsBase", "UUIDs", "UnicodeFun", "Unzip"]
+git-tree-sha1 = "284a353a34a352a95fca1d61ea28a0d48feaf273"
 uuid = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
-version = "1.32.0"
-
-[[deps.PlutoUI]]
-deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "Markdown", "Random", "Reexport", "UUIDs"]
-git-tree-sha1 = "a602d7b0babfca89005da04d89223b867b55319f"
-uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-version = "0.7.40"
+version = "1.34.4"
 
 [[deps.Preferences]]
 deps = ["TOML"]
@@ -1181,9 +715,10 @@ deps = ["SHA", "Serialization"]
 uuid = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
 [[deps.RecipesBase]]
-git-tree-sha1 = "6bf3f380ff52ce0832ddd3a2a7b9538ed1bcca7d"
+deps = ["SnoopPrecompile"]
+git-tree-sha1 = "612a4d76ad98e9722c8ba387614539155a59e30c"
 uuid = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
-version = "1.2.1"
+version = "1.3.0"
 
 [[deps.RecipesPipeline]]
 deps = ["Dates", "NaNMath", "PlotUtils", "RecipesBase"]
@@ -1198,9 +733,9 @@ version = "1.2.2"
 
 [[deps.RelocatableFolders]]
 deps = ["SHA", "Scratch"]
-git-tree-sha1 = "22c5201127d7b243b9ee1de3b43c408879dff60f"
+git-tree-sha1 = "90bc7a7c96410424509e4263e277e43250c05691"
 uuid = "05181044-ff0b-4ac5-8273-598c1e38db00"
-version = "0.3.0"
+version = "1.0.0"
 
 [[deps.Requires]]
 deps = ["UUIDs"]
@@ -1243,6 +778,11 @@ git-tree-sha1 = "874e8867b33a00e784c8a7e4b60afe9e037b74e1"
 uuid = "777ac1f9-54b0-4bf8-805c-2214025038e7"
 version = "1.1.0"
 
+[[deps.SnoopPrecompile]]
+git-tree-sha1 = "f604441450a3c0569830946e5b33b78c928e1a85"
+uuid = "66db9d55-30c0-4569-8b51-7e840670fc0c"
+version = "1.0.1"
+
 [[deps.Sockets]]
 uuid = "6462fe0b-24de-5631-8697-dd941f90decc"
 
@@ -1261,17 +801,6 @@ deps = ["ChainRulesCore", "IrrationalConstants", "LogExpFunctions", "OpenLibm_jl
 git-tree-sha1 = "d75bda01f8c31ebb72df80a46c88b25d1c79c56d"
 uuid = "276daf66-3868-5448-9aa4-cd146d93841b"
 version = "2.1.7"
-
-[[deps.StaticArrays]]
-deps = ["LinearAlgebra", "Random", "StaticArraysCore", "Statistics"]
-git-tree-sha1 = "dfec37b90740e3b9aa5dc2613892a3fc155c3b42"
-uuid = "90137ffa-7385-5640-81b9-e52037218182"
-version = "1.5.6"
-
-[[deps.StaticArraysCore]]
-git-tree-sha1 = "ec2bd695e905a3c755b33026954b119ea17f2d22"
-uuid = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
-version = "1.3.0"
 
 [[deps.Statistics]]
 deps = ["LinearAlgebra", "SparseArrays"]
@@ -1295,12 +824,6 @@ git-tree-sha1 = "5783b877201a82fc0014cbf381e7e6eb130473a4"
 uuid = "4c63d2b9-4356-54db-8cca-17b64c39e42c"
 version = "1.0.1"
 
-[[deps.StructArrays]]
-deps = ["Adapt", "DataAPI", "StaticArraysCore", "Tables"]
-git-tree-sha1 = "8c6ac65ec9ab781af05b08ff305ddc727c25f680"
-uuid = "09ab397b-f2b6-538f-b94a-2f83cf4a842a"
-version = "0.6.12"
-
 [[deps.SuiteSparse]]
 deps = ["Libdl", "LinearAlgebra", "Serialization", "SparseArrays"]
 uuid = "4607b0f0-06f3-5cda-b6b1-a6196a1729e9"
@@ -1308,18 +831,6 @@ uuid = "4607b0f0-06f3-5cda-b6b1-a6196a1729e9"
 [[deps.TOML]]
 deps = ["Dates"]
 uuid = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
-
-[[deps.TableTraits]]
-deps = ["IteratorInterfaceExtensions"]
-git-tree-sha1 = "c06b2f539df1c6efa794486abfb6ed2022561a39"
-uuid = "3783bdb8-4a98-5b6b-af9a-565f29a5fe9c"
-version = "1.0.1"
-
-[[deps.Tables]]
-deps = ["DataAPI", "DataValueInterfaces", "IteratorInterfaceExtensions", "LinearAlgebra", "OrderedCollections", "TableTraits", "Test"]
-git-tree-sha1 = "5ce79ce186cc678bbb5c5681ca3379d1ddae11a1"
-uuid = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
-version = "1.7.0"
 
 [[deps.Tar]]
 deps = ["ArgTools", "SHA"]
@@ -1340,11 +851,6 @@ deps = ["Random", "Test"]
 git-tree-sha1 = "8a75929dcd3c38611db2f8d08546decb514fcadf"
 uuid = "3bb67fe8-82b1-5028-8e26-92a6c54297fa"
 version = "0.9.9"
-
-[[deps.Tricks]]
-git-tree-sha1 = "6bac775f2d42a611cdfcd1fb217ee719630c4175"
-uuid = "410a4b4d-49e4-4fbc-ab6d-cb71b17b3775"
-version = "0.1.6"
 
 [[deps.URIs]]
 git-tree-sha1 = "e59ecc5a41b000fa94423a578d29290c7266fc10"
@@ -1529,6 +1035,12 @@ git-tree-sha1 = "e45044cd873ded54b6a5bac0eb5c971392cf1927"
 uuid = "3161d3a3-bdf6-5164-811a-617609db77b4"
 version = "1.5.2+0"
 
+[[deps.fzf_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
+git-tree-sha1 = "868e669ccb12ba16eaf50cb2957ee2ff61261c56"
+uuid = "214eeab7-80f7-51ab-84ad-2988db7cef09"
+version = "0.29.0+0"
+
 [[deps.libaom_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "3a2ea60308f0996d26f1e5354e10c24e9ef905d4"
@@ -1591,83 +1103,17 @@ version = "1.4.1+0"
 """
 
 # ╔═╡ Cell order:
-# ╠═6b8ce4f6-2e0f-11ed-0f46-0f9f7243a38c
-# ╠═1c2be8f8-763f-4cc6-9b2d-28bad768eca8
-# ╠═8dc7d859-cbd0-49a9-8440-7faea8898671
-# ╠═13fd8e1c-d0aa-4938-ab41-2a146d65003b
-# ╠═e343e2d6-0b22-4f43-b112-cc72f8fb76fd
-# ╠═a41f5e4c-d1eb-4065-9c61-5695dc151b00
-# ╠═282f03d7-acf5-40e4-8cae-222b398602ae
-# ╠═b4890915-71c2-4a52-9152-34c163be9c7b
-# ╟─f4af7844-459e-44ca-b5a7-79093f77d76a
-# ╟─b4fddea7-fecc-4db8-8288-6ad4f8b31780
-# ╟─e9521f7e-3940-436d-946c-17a97f269898
-# ╟─a71561a8-2fc5-44e9-92ab-8a182cd9c7c8
-# ╟─83326b9a-55bb-4c1d-8eb2-596bb5ed2944
-# ╟─ea70ff75-a7fa-4524-876b-15d49088cf2c
-# ╟─7f09ab21-108c-42a1-a35d-66058c622be7
-# ╠═87105a65-9ad9-4721-9890-94471728a122
-# ╠═dac33505-de73-4a6d-90e4-95a1b497bece
-# ╠═5cf87f0a-7709-49e4-a69e-dd06c55ba255
-# ╟─4c27380f-db77-45d5-b94b-3c867fb7b0ec
-# ╠═b80c2e10-ab9c-4a2b-9a94-6026e5128239
-# ╠═467f0b3e-339b-4903-8678-4fc43e8c7794
-# ╠═d44b4a39-e4e1-4214-b5ed-6f96cfe770f0
-# ╠═1f3e8bff-0d9f-44f5-ae49-a351c127b73e
-# ╠═0ab5b956-6a50-4705-95ea-b957d072c2cf
-# ╠═a5f9dd3a-12c4-4f7e-8d4e-ebda5162128e
-# ╟─4dd0a89c-9704-4e6b-8858-7811c5ad0412
-# ╠═be513688-8b7e-42b5-8da4-3d97ad103a10
-# ╠═1e46b7aa-4b61-4107-97a2-e114249386dc
-# ╟─f5c5126a-35ee-4b35-8f1b-38e2a5d2392e
-# ╠═3423594f-380e-4797-b017-30a1c49b39b0
-# ╟─8f9a6b1c-8e78-4982-8d89-400f9f47d429
-# ╟─7838a04f-b983-47f1-b68b-46f2c6d43f88
-# ╠═384e5ef0-a361-438d-b0b9-7abda0412656
-# ╟─4a85f56e-cc55-4aa2-a7b5-1512dd3aa5bf
-# ╟─639f69df-4fe9-4e7a-8303-7d179225327e
-# ╟─408896d5-0235-4277-b53c-401c634e6c6c
-# ╟─02978832-045c-4acb-bced-5a9a5ca6f001
-# ╟─8217efed-3083-406b-ade5-fc7481837120
-# ╟─2429bd43-05f7-4a80-b2b3-492b03d281ce
-# ╟─831bf83b-5238-4a4e-ade7-0f682d45d65a
-# ╠═cfc4da6c-c276-434e-8aa1-02976adbc30c
-# ╟─90b2e83a-585b-46b4-a0cd-f79f52dc6489
-# ╠═c21a9c67-9f1c-419f-95c4-fa5c58dd2fa5
-# ╠═2186a6dc-f3bb-40ca-8fb6-6dc20576f8e4
-# ╠═23dc6a2e-7c38-45c4-83df-f6e0c46960d0
-# ╠═f395a88c-f6d9-4001-94a6-d702725d188b
-# ╟─a67336a0-b55b-4345-b725-2d363a97f559
-# ╠═f5819935-73c9-4035-9895-30407e7401f9
-# ╟─94373d86-e5d8-4c6d-b37f-1d5abb88d346
-# ╟─1c05f490-bc7c-4eb8-abf5-fab38d2508c6
-# ╟─4e497931-2e75-4fbc-b334-d279bd262b43
-# ╠═ad232aca-df0d-4ffd-8388-f25a3d0f8b8d
-# ╠═f87ef88f-fc56-47e6-a548-9c9d243fbbb4
-# ╟─095a8ff7-0e22-46ee-b59c-5966154e0031
-# ╟─646132cb-b3ac-4e94-b9d2-9c185d4d1623
-# ╟─a55151a4-e4d0-4cbd-8f14-c4d2acef4405
-# ╠═40bf01f6-7c9c-43a4-a4c1-64557893f86b
-# ╠═54d011f4-b78d-4d53-9a69-6aa53f61b387
-# ╠═bc012aed-9c67-414e-bf81-945aa232155d
-# ╟─28eb8e07-1c90-433c-a73b-02fb6b036bf7
-# ╠═f63924f9-2afc-43e4-8999-904d16a3595c
-# ╠═e104bed1-58d9-4ba4-9cab-f0928b3e4aac
-# ╠═1d3eafb0-f691-4434-9c1e-645ff050aa0a
-# ╠═84b537d3-865a-446a-bfb1-6a3b63e73677
-# ╟─17d9f3cf-b42b-45d1-9fe6-36b55713f72b
-# ╟─7d0b166b-4bf6-48ee-8357-330018e482da
-# ╟─0c8cc16a-514e-4839-83bd-d70c10ebd0aa
-# ╟─7ede41b0-e284-45ee-9bfd-50a9f12a7fc2
-# ╟─eb6d48d1-09ce-4638-9d16-8db07b8fdec9
-# ╠═c9b5a16d-b4e9-4bae-ac76-9dba063a1844
-# ╠═45f03028-2e5e-44d4-a9da-669727ad996a
-# ╠═ca1107aa-5987-4bda-99d0-bc6d35c0e4a4
-# ╠═d918cb5f-936e-40f7-9384-1ade707c1184
-# ╠═4fa9548c-7840-4019-9cf8-52bc0e19777a
-# ╠═9de4a551-9069-4eff-a972-e28b3fb0d8c0
-# ╟─39e2dd29-9cdd-40bf-8719-efdb03edb06a
-# ╠═f812bf5e-f260-4403-b267-6562154f164d
-# ╠═99278156-8be3-4dae-9bdd-e65a86184aa2
+# ╠═aebb31ae-400e-11ed-1439-21415b393a87
+# ╠═a9736d4a-0c92-4de0-a443-82d153b49ccf
+# ╠═4f1a72a1-59f9-45c5-a302-3e8b53dfdb1b
+# ╠═258591f9-68fd-46db-a5ad-3fc60668170f
+# ╟─9c79970a-f98c-40fb-bd47-65a6164699bf
+# ╠═ca87554a-0149-446a-99e9-443ca7dfd389
+# ╠═bfe95384-e816-4ae8-afc2-631fc824bbef
+# ╠═b5342ffd-0d37-44d1-9656-7929e0418156
+# ╠═c4edf93a-b67e-415c-8d73-43d2c44050ee
+# ╟─fa5c763f-04e0-4adc-9ebb-88b15f7e5148
+# ╟─973744f4-2dd8-482c-a8b6-bcc3cfca615b
+# ╠═185b360b-2aae-400c-9f20-0f81e69d6a44
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
