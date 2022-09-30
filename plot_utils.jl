@@ -4,7 +4,7 @@ using Statistics
 function plot_tracker_end(tracker_end, params)
 	histogram(tracker_end["terminated"], label="Data", normed=true)
 	vline!([mean(tracker_end["terminated"])], linewidth=3., label="Mean")
-	vline!([1/params.δ/params.Δt], linewidth=3., label="Expected mean")
+	vline!([1/params.δ/params.Δt], linewidth=3., linestyle=:dash, label="Expected mean")
 
 	xlabel!("Number of steps taken by RNAs")
 	ylabel!("Count")

@@ -20,11 +20,11 @@ Runs the walker for a specified number of steps.
 """
 function run_walker(
 	α, β, δ, Δt, n_steps, n_sites, n_end_sites; 
-	β2=nothing, model="continuous_detachment"
+	β2=nothing, model="continuous_detachment", ratio_β2=5
 )
 
-	if β2==nothing
-		β2 = β/5 #slower rate in the second part
+	if β2===nothing
+		β2 = β/ratio_β2 #slower rate in the second part
 	end
 
 	exits = zeros(n_steps)
@@ -76,12 +76,12 @@ function step(
 	# iterate on the termination strand
 	if model == "continuous_detachment"
 		
-		# detachment can occur at any point, with increasing probability with time
+		# detachment can occur at any point
 		for j in length(gene):-1:n_sites+1
-			x = j - n_sites
-			p = 1 - exp(-δ/β2*x)
+
+			p_detach = δ*Δt
 	
-			if (gene[j]==1) & (rand(Bernoulli(p))) # detach
+			if (gene[j]==1) & (rand(Bernoulli(p_detach))) # detach
 				gene[j] = 0
 
 				push!(tracker_end["terminated"], tracker_end["current"][j-n_sites])
