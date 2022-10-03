@@ -29,19 +29,20 @@ end
 # ╔═╡ 258591f9-68fd-46db-a5ad-3fc60668170f
 base = ingredients("model.jl")
 
+# ╔═╡ 09ac2539-1e95-4ab9-9465-225dc5cb6b18
+theory = ingredients("theory.jl")
+
 # ╔═╡ 9c79970a-f98c-40fb-bd47-65a6164699bf
 md"""
 # Questions
 
-* There are also analytical solutions for the densities on the strand. I should review them because they will be very useful as we care about densities and there are probably interesting statements to extract from these. 
+* What can we really extract from the analytical models: scaling of the current, critical parameters, scaling of the densities, ...? 
 
-* How to really use the general solution with $L>1$? Do I need to scale up β and α as a function of L, so that the total rate is conserved, or no? 
+* What is the impact of the termination rate? Do we **really** care about the way the end is modeled? I don't think so. However, if we want to model the occupancy, we probably need it, right? Or we approximate densities from Eqs (25) in Lazaros, Chou and take ρ_(N/2) as an approximation for the steady-state density and ignore the boundary effects. 
 """
 
-# ╔═╡ ca87554a-0149-446a-99e9-443ca7dfd389
-md"""
-# Transcription rates
-"""
+# ╔═╡ 94c158e1-4de0-4b20-89e8-b318b6ca3923
+md"""# Models"""
 
 # ╔═╡ bfe95384-e816-4ae8-afc2-631fc824bbef
 md"""We can analyze the limit regimes from (Klumpp, Hwa - 2008). 
@@ -56,23 +57,34 @@ In the above:
 - α is the initiation rate
 """
 
+# ╔═╡ 7359697b-cc44-47b6-8a8c-2230dbee2eeb
+md"""
+**Note**: the general model is actually derived in Lakatos, Chou, 2003. 
+"""
+
+# ╔═╡ ca87554a-0149-446a-99e9-443ca7dfd389
+md"""
+### Transcription rates for d = 1
+"""
+
 # ╔═╡ b5342ffd-0d37-44d1-9656-7929e0418156
-#illustration of the theoretical transcription rate curves
+#illustration of the theoretical transcription rate curves for large γ 
 
 let
 
 	plot()
+
 
 	rates = collect(LinRange(0.01, 0.1, 20))
 	for k in 1:length(rates)
 
 		β = rates[k]
 		color = palette([:blue, :green], length(rates))[k]
-		plot!(rates/β, base.J.(vec(rates), β, 1)/β, label="", linestyle=:dash, color=color)	
-		scatter!(rates/β, base.J.(vec(rates), β, 1)/β, label="", color=color)
+		plot!(rates/β, theory.J.(vec(rates), β, 1)/β, label="", linestyle=:dash, color=color)	
+		scatter!(rates/β, theory.J.(vec(rates), β, 1)/β, label="", color=color)
 	end
 	
-	ylims!(0, .5)
+	# ylims!(0, .5)
 	xlabel!("α")
 	ylabel!("Current J")
 	title!("Currents")
@@ -87,38 +99,281 @@ $J(α)/ε = α/ε (1 - α/ε) / (1 + α/ε (L-1)).$
 This is the case regardless of $L$.
 """
 
-# ╔═╡ fa5c763f-04e0-4adc-9ebb-88b15f7e5148
+# ╔═╡ a2fc5a3f-d5c8-4a74-8d83-c9639cc08a32
 md"""
-### Comparison of $L=1$ vs $L=35$
+### Parameter study for different L, same β
 """
 
-# ╔═╡ 973744f4-2dd8-482c-a8b6-bcc3cfca615b
+# ╔═╡ 21f9f9a1-bc6a-4de2-99d6-b48738caca2c
 md"""
-Here we want to compare the expected transcription rate as a function of the footprint. 
+The critical parameter is expressed as
+
+$$α_c = \frac{β}{1 + \sqrt{L}}$$
 """
 
-# ╔═╡ 185b360b-2aae-400c-9f20-0f81e69d6a44
+# ╔═╡ 4173cf58-f5fc-4758-b1cd-1919cd34265e
+md"""
+Therefore, there is a very strong dependence on the size of the particle for the critical rate at which we expect current to reach a maximum, for a same value of β. Namely, for a size $L' = δL$, we have that $α_c'/α_c = \frac{1 + \sqrt{L}}{1+ \sqrt{δL}} \sim 1/\sqrt{δ}$ for large L. 
+"""
+
+# ╔═╡ b4b30449-3d6f-438e-a398-57d799888a68
+md"""
+Here below we assume that the rate β does not change (i.e. the translation from one site to the next keeps the same rate/probability). We only change the size/footprint of the particle of interest. 
+"""
+
+# ╔═╡ f067ebdf-3ab8-4efd-ad93-e26ecadfe11a
+# current in regimes across α (assume γ is large)
+let
+	L_vec = [1, 2, 5, 10, 20]
+
+	β = .1
+
+	α_vec = collect(LinRange(0.01, 1, 30)) .* β
+
+	p = plot()
+
+	for L in L_vec
+		plot!(α_vec/β, theory.J.(α_vec, β, L)/β, label="L=$L")
+	end
+	xlabel!("α/β")
+	ylabel!("J/β")
+	p
+end
+
+# ╔═╡ c463821d-8a79-4fca-b59f-b4a354ceb606
+md"""We see that the transition point decreases with $L$ and that the current is smaller with increasing L"""
+
+# ╔═╡ 5275d868-09ab-43ea-a336-7267e2084353
+md"""
+### Different L, rescaled β
+"""
+
+# ╔═╡ 2e9e5fd9-9e3e-44dd-8a47-61a647097325
+md"""
+Here we want to grasp the impact of introducing granularity into the model. 
+
+Right now we are assuming that the particles take 35 bp jumps. That is, all spatial coordinates have been rescaled by 35 (x' = x/35). Such that β is actually 35 x too small (it moves slower because takes larger steps). 
+
+Therefore, we have to compare three results: 
+* L = 1, β = β̄/L: everything scaled by L (what we are modelling now)
+* L = L, β = β̄: large particles moving at the given proper rate (what we should be modelling to be really accurate)
+* L = 1, β = β̄: what the impact of the extent really is
+"""
+
+# ╔═╡ fd8625d5-0065-43a8-9dcf-1f0dabf043a7
+# currents, again assuming that we are not in γ limited regime
+
 let
 
-	Ls = [1, 35]
+	β = .1
+	L_ref = 30
 
-	plot()
-	npoints = 30
-	β = 0.1
-	ratios = collect(10 .^(LinRange(-2, 1, npoints)))
-	αs = ratios .* β
+	α_vec = collect(LinRange(0.01, 10, 1000))
+
+	p = plot()
 
 	
-	for L in Ls
-		plot!(αs/(β*L), base.J.(αs, β*L, L)/β, label="L=$L")
+	plot!(
+		α_vec.*β/L_ref, theory.J.(α_vec.*β/L_ref, β/L_ref, 1), 
+		label="L=1, β=$(round(β/L_ref; digits=3))"
+	)
+	plot!(
+		α_vec.*β, theory.J.(α_vec.*β, β, L_ref), linestyle=:dash,
+		label="L=$L_ref, β=$β"
+	)
+	# plot!(
+	# 	α_vec.*β, theory.J.(α_vec.*β, β, 1), linestyle=:dash,
+	# 	label="L=1, β=$β"
+	# )
+	
+	xlabel!("α")
+	ylabel!("J")
+	plot!(legend=:bottomright)
+	# plot!(yscale=:log)
+	xlims!(0, .05)
+	p
+end
+
+# ╔═╡ 21d06d82-4f36-472c-b74c-30699056976a
+md"""
+We see that we make a gross mistake (about 4 fold) in the current densities if we reduce the resolution and represent it wrongly. Similarly, we underestimate the critical initiation rate.
+"""
+
+# ╔═╡ 54bf5fb0-c219-4385-8ee6-88411821ac32
+md"""
+# Densities
+"""
+
+# ╔═╡ 772e015a-fa71-4cab-83d9-ac24762b132b
+md"""
+there must be something useful/interesting to extract regarding densities, even if it is only the limit + medium densities. You can probably make some assumptions purely from the theoretical models. 
+"""
+
+# ╔═╡ c2062357-22d5-48e5-976a-8cb2b473d0f0
+md"""### Entry limited"""
+
+# ╔═╡ 4cfa3406-a838-4449-9ec6-ebe033d4fae6
+# for γ very large
+
+let
+	
+	β =.1
+	γ = 1000
+
+	x = [0, .5, 1]
+
+	color_palette = palette([:blue, :green], 3)
+
+	plots = []
+	
+	for (k,α) in enumerate([.1, 1, 10] .* β)
+		p = plot()
+		
+		for (i,L) in enumerate([1, 10, 30])
+			ρL, ρN, ρR = theory.ρ(α, β, γ, L)
+			hline!([L*ρN], linestyle=:dash, color=color_palette[i], label="α/β=$(round(α/β; digits=2)), L=$L")
+			scatter!(x, [L*ρL, L*ρN, L*ρR], color=color_palette[i], label="", alpha=.3)
+		end
+		xlabel!("Relative length")
+		ylabel!("Lρ")
+		plot!(legend=:outertopright)
+		xlims!(-.1, 1.1)
+		ylims!(-.1, 1.1)
+
+		push!(plots, p)
+	
 	end
 
-
-	plot!(legend=:bottomright)
-	xlabel!("α/β [-]")
-	ylabel!("Transcription rate/β [-]")
+	plot(plots..., layout = (length(plots), 1))
 	
 end
+
+# ╔═╡ 42312f09-54d6-4ae9-a67b-d06f11c85c31
+md"""
+**Note** I don't understand why the densities are very low at the beginning if α is very large...? I would expect the opposite... 
+"""
+
+# ╔═╡ 4a9578ac-1580-40ce-a72d-26815fea6129
+md"""### Exit limited"""
+
+# ╔═╡ de58ca4e-7134-4910-9532-6defa8e7689c
+# for α very large
+
+let
+	
+	β =.1
+	α = 1000
+
+	x = [0, .5, 1]
+
+	color_palette = palette([:blue, :green], 3)
+
+	plots = []
+	
+	for (k,γ) in enumerate([.1, 1, 10] .* β)
+		p = plot()
+		
+		for (i,L) in enumerate([1, 20, 30])
+			ρL, ρN, ρR = theory.ρ(α, β, γ, L)
+			hline!([L*ρN], linestyle=:dash, color=color_palette[i], label="γ/β=$(round(γ/β; digits=2)), L=$L")
+			scatter!(x, [L*ρL, L*ρN, L*ρR], color=color_palette[i], label="", alpha=.3)
+		end
+		xlabel!("Relative length")
+		ylabel!("Lρ")
+		plot!(legend=:outertopright)
+		xlims!(-.1, 1.1)
+		ylims!(-.1, 1.1)
+
+		push!(plots, p)
+	
+	end
+
+	plot(plots..., layout = (length(plots), 1))
+	
+end
+
+# ╔═╡ 7e82dc32-10e0-4e55-84fd-80c6eca84514
+md"""### Occupancy
+
+Can we say anything about the occupancy over the strand, and whether or not we see this abrupt transition?"""
+
+# ╔═╡ 0fa2bc84-73d5-43fd-8661-e7a84554cca7
+md"""
+We have expression for $\rho_{N/2}$. Assuming the density is homogeneous, it is therefore directly proportional to the occupancy. 
+"""
+
+# ╔═╡ 2d2c0d45-5d3b-4256-a9d8-86a44675db01
+# do we observe the transition as in both models I have analyzed last week? 
+
+let
+	β = 1
+	γ = .1
+	Ls = [1, 10, 20, 30]
+	
+	color_palette = palette([:blue, :green], length(Ls))
+
+	αs = 10 .^collect(LinRange(-3, 1, 50)).*γ
+	p = plot()
+	
+	for (i,L) in enumerate(Ls)
+		ρs = theory.ρ.(αs, β, γ, L)
+		ρN = [ρ[2] for ρ in ρs]
+		plot!(
+			αs./γ, ρN, linestyle=:dash, label="L=$L", color=color_palette[i]
+		)
+		scatter!(
+			αs./γ, ρN, linestyle=:dash, label="", color=color_palette[i]
+		)
+	end
+
+	plot!(xscale=:log)
+	vline!([1], label="", color=:red)
+	plot!(legend=:topleft)
+
+	xlabel!("α/γ")
+	ylabel!("~ Occupancy")
+
+end
+
+# ╔═╡ fa404ca1-049b-49fe-b894-0cba3080dc01
+md"""
+## Where are we on the phase space? 
+
+We have values for all the parameters, can we make a statement about where we are in the phase space? 
+"""
+
+# ╔═╡ c7ca281b-e980-44f1-8963-f2c04290225d
+md"""
+The current parameters are: 
+* β = 20
+* γ = 1/70
+* α = 0.0033
+* L = 35
+"""
+
+# ╔═╡ d15931d9-2263-4b34-b972-6cb1c7a7ae1b
+md"""
+Therefore, the normalized parameters (wrt β) have the following value:
+
+* α = 0.000165
+* γ = 0.0007
+* L = 35
+"""
+
+# ╔═╡ 32741bf0-ef1a-4ba1-9a48-2363bdb52e57
+md"""
+According to (Lakatos, Chou) the critical parameter values for α and γ are
+
+$α_c = γ_c = \frac{1}{\sqrt{d} + 1} = 0.15$
+
+Therefore, we see that $α \ll α_c$ and $\gamma \ll \gamma_c$. 
+"""
+
+# ╔═╡ a0fb1d2c-56a8-42e1-bfeb-aae5040df1cd
+md"""To determine whether we are in the entry or exit limited regime, we have to determine whether $α \lesseqgtr \gamma$.
+
+Basically, it really seems that $\gamma$ will act as the threshold rate at which we get a strong change in density.
+""" 
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1107,13 +1362,38 @@ version = "1.4.1+0"
 # ╠═a9736d4a-0c92-4de0-a443-82d153b49ccf
 # ╠═4f1a72a1-59f9-45c5-a302-3e8b53dfdb1b
 # ╠═258591f9-68fd-46db-a5ad-3fc60668170f
+# ╠═09ac2539-1e95-4ab9-9465-225dc5cb6b18
 # ╟─9c79970a-f98c-40fb-bd47-65a6164699bf
-# ╠═ca87554a-0149-446a-99e9-443ca7dfd389
-# ╠═bfe95384-e816-4ae8-afc2-631fc824bbef
-# ╠═b5342ffd-0d37-44d1-9656-7929e0418156
-# ╠═c4edf93a-b67e-415c-8d73-43d2c44050ee
-# ╟─fa5c763f-04e0-4adc-9ebb-88b15f7e5148
-# ╟─973744f4-2dd8-482c-a8b6-bcc3cfca615b
-# ╠═185b360b-2aae-400c-9f20-0f81e69d6a44
+# ╟─94c158e1-4de0-4b20-89e8-b318b6ca3923
+# ╟─bfe95384-e816-4ae8-afc2-631fc824bbef
+# ╟─7359697b-cc44-47b6-8a8c-2230dbee2eeb
+# ╟─ca87554a-0149-446a-99e9-443ca7dfd389
+# ╟─b5342ffd-0d37-44d1-9656-7929e0418156
+# ╟─c4edf93a-b67e-415c-8d73-43d2c44050ee
+# ╟─a2fc5a3f-d5c8-4a74-8d83-c9639cc08a32
+# ╟─21f9f9a1-bc6a-4de2-99d6-b48738caca2c
+# ╟─4173cf58-f5fc-4758-b1cd-1919cd34265e
+# ╟─b4b30449-3d6f-438e-a398-57d799888a68
+# ╟─f067ebdf-3ab8-4efd-ad93-e26ecadfe11a
+# ╟─c463821d-8a79-4fca-b59f-b4a354ceb606
+# ╟─5275d868-09ab-43ea-a336-7267e2084353
+# ╟─2e9e5fd9-9e3e-44dd-8a47-61a647097325
+# ╠═fd8625d5-0065-43a8-9dcf-1f0dabf043a7
+# ╟─21d06d82-4f36-472c-b74c-30699056976a
+# ╟─54bf5fb0-c219-4385-8ee6-88411821ac32
+# ╟─772e015a-fa71-4cab-83d9-ac24762b132b
+# ╟─c2062357-22d5-48e5-976a-8cb2b473d0f0
+# ╟─4cfa3406-a838-4449-9ec6-ebe033d4fae6
+# ╟─42312f09-54d6-4ae9-a67b-d06f11c85c31
+# ╟─4a9578ac-1580-40ce-a72d-26815fea6129
+# ╟─de58ca4e-7134-4910-9532-6defa8e7689c
+# ╟─7e82dc32-10e0-4e55-84fd-80c6eca84514
+# ╟─0fa2bc84-73d5-43fd-8661-e7a84554cca7
+# ╟─2d2c0d45-5d3b-4256-a9d8-86a44675db01
+# ╟─fa404ca1-049b-49fe-b894-0cba3080dc01
+# ╟─c7ca281b-e980-44f1-8963-f2c04290225d
+# ╟─d15931d9-2263-4b34-b972-6cb1c7a7ae1b
+# ╟─32741bf0-ef1a-4ba1-9a48-2363bdb52e57
+# ╟─a0fb1d2c-56a8-42e1-bfeb-aae5040df1cd
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

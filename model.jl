@@ -153,16 +153,3 @@ get_t_d(params) = get_t_d(params.δ, params.n_end_sites, params.β2)
 get_trans_rate(exits, β, Δt) = mean(exits)/β/Δt
 
 get_trans_rate(exits, params) = get_trans_rate(exits, params.β, params.Δt)
-
-"""
-Theoretical model for infinite termination rate
-"""
-function J(α, β, L)
-	αc = β/(1+L^(1/2))
-
-	if α<αc
-		return α.*(β.-α) ./ (β .+ α.*(L-1))
-	else 
-		return β./(1 .+L^(1/2)).^2
-	end
-end
