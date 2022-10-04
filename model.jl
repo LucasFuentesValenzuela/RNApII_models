@@ -18,7 +18,7 @@ end
 Params(
 	α, β, γ, Δt, n_steps, n_sites, n_end_sites, β2
 ) = Params(
-	α, β, γ, Δt, 1, n_steps, n_sites, n_end_sites, β2
+	α, β, γ, 1, Δt, n_steps, n_sites, n_end_sites, β2
 )
 
 """
@@ -63,6 +63,8 @@ run_walker(params, model) = run_walker(
 	params.n_end_sites; β2=params.β2, model=model
 )
 
+run_walker(params) = run_walker(params, "continuous_detachment")
+
 """
 Takes a step forward, for a given model. The kwarg `model` defines the behavior of the RNAs on the second strand. 
 
@@ -79,7 +81,7 @@ function step(
 
 	# update tracker for RNAs present on the second strand
 	tracker_end["current"][tracker_end["current"].>0] .+= 1
-	
+
 	# iterate on the termination strand
 	if model == "continuous_detachment"
 		
@@ -130,7 +132,7 @@ function step(
 	end
 
 	# entrance of new RNAp
-	if (rand(Bernoulli(α*Δt))) & all(gene[1:L]==0.)
+	if (rand(Bernoulli(α*Δt))) & all(gene[1:L].==0.)
 		gene[1]=1.
 	end
 
@@ -138,10 +140,66 @@ function step(
 	
 end
 
-get_t_d(δ, n_end_sites, β2) = 1/γ - (n_end_sites)/β2
+get_t_d(γ, n_end_sites, β2) = 1/γ - (n_end_sites)/β2
 
 get_t_d(params) = get_t_d(params.γ, params.n_end_sites, params.β2)
 
 get_trans_rate(exits, β, Δt) = mean(exits)/β/Δt
 
 get_trans_rate(exits, params) = get_trans_rate(exits, params.β, params.Δt)
+
+function sweep_params(α_vec, p_vec, DEFAULT_PARAMS, param_name)
+
+	params_dict = Dict()
+	trans_rates = Dict()
+	residence_times = Dict() # in number of steps
+	densities = Dict()
+
+	for p in p_vec 
+
+		params_dict[p] = []
+		trans_rates[p] = []
+		residence_times[p] = []
+		densities[p] = Dict()
+	
+		for α in α_vec
+
+			if param_name == "γ"
+				params = Params(
+					α, 
+					DEFAULT_PARAMS.β, 
+					p, 
+					DEFAULT_PARAMS.L, 
+					DEFAULT_PARAMS.Δt, 
+					DEFAULT_PARAMS.n_steps, 
+					DEFAULT_PARAMS.n_sites, 
+					DEFAULT_PARAMS.n_end_sites,
+					DEFAULT_PARAMS.β2
+				)
+			elseif param_name == "L"
+				params = Params(
+					α, 
+					DEFAULT_PARAMS.β*p, 
+					DEFAULT_PARAMS.γ,
+					p, 
+					DEFAULT_PARAMS.Δt, 
+					DEFAULT_PARAMS.n_steps, 
+					DEFAULT_PARAMS.n_sites, 
+					DEFAULT_PARAMS.n_end_sites,
+					DEFAULT_PARAMS.β2
+				)
+			end
+			
+			exits_, density_, _, tracker_ = run_walker(params);
+
+			push!(params_dict[p], params)
+			push!(trans_rates[p], get_trans_rate(exits_, DEFAULT_PARAMS))
+			push!(residence_times[p], mean(tracker_["terminated"]))
+			densities[p][α] = density_
+		
+		end
+		
+	end
+
+	return params_dict, trans_rates, residence_times, densities
+end
