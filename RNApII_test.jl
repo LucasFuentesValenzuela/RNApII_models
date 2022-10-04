@@ -48,16 +48,74 @@ base = ingredients("model.jl")
 # ╔═╡ 1abad75d-7734-4d53-913d-6dade18e7c4c
 plot_utils = ingredients("plot_utils.jl")
 
+# ╔═╡ a71cc83b-85bc-48ce-9c48-d08f979e573a
+md"""### Simple tests"""
+
+# ╔═╡ 37fcfd81-cbba-4ad4-be0b-55cd034c9bf8
+model_test = "continuous_detachment"
+
+# ╔═╡ a269a5a0-4c82-4b8f-80ba-a5e8e029c6fc
+n_steps_test = 40
+
+# ╔═╡ ff3a9dc9-8b86-477f-b302-63460352d7ea
+# test parameters
+begin
+	α_test = 1.
+	β_test = 1.
+	γ_test = 1.
+	L_test = 3
+	Δt_test = 1.
+	n_sites_test = 10
+	n_end_sites_test = 5
+	β2_test = 1.
+end;
+
+# ╔═╡ d6f8b410-ac38-4292-94c1-9d899f98daec
+params_test = base.Params(α_test, β_test, γ_test, L_test, Δt_test, n_steps_test, n_sites_test, n_end_sites_test, β2_test)
+
+# ╔═╡ ad4d5d82-3b19-4770-b6fa-2b510532918f
+exits_test, density_test, gene_test, tracker_end = base.run_walker(params_test, model_test);
+
+# ╔═╡ 6b91e008-0fc1-447c-b2ea-00b2734115b1
+exits_test
+
+# ╔═╡ de8d555f-5738-4216-a97c-b9545394c52e
+plot(exits_test)
+
+# ╔═╡ 4c97eaf5-eb44-4fe8-8785-f65164f2e2fd
+density_test
+
+# ╔═╡ 8bff8bf9-e2a4-49f5-9c5e-a2a94453b0db
+gene_test
+
+# ╔═╡ dfd47ee3-4073-4f33-83da-61a040a482e3
+all(gene_test[1:1] .== 0)
+
+# ╔═╡ 0eea23be-3c99-4280-895f-e923f74facdc
+md"""
+* We expect that it takes on average $(round(1/params_test.γ;digits=2)/params_test.Δt) steps for the RNA to escape.
+* We have that the RNA on average takes $(round(mean(tracker_end["terminated"]); digits=2)) steps to escape.
+"""
+
+# ╔═╡ cd0083d0-cd0e-4423-a9b2-89feaaa8bd13
+plot_utils.plot_tracker_end(tracker_end, params_test)
+
+# ╔═╡ f5cdb4c3-7a40-411b-aa39-729e74b3c97d
+plot(gene_test)
+
+# ╔═╡ fe455a8f-382a-44c9-91f9-e868fbeba644
+md"""### Example model"""
+
 # ╔═╡ 5ce8f44e-9ac4-42b4-b31d-9d3d19986ab6
 begin
 	n_steps = 200000
 	Δt = .1 # [s]
-	n_sites = 40
+	n_sites = 200
 	n_end_sites = 10
 end;
 
 # ╔═╡ a9d79f9e-7c02-4b9d-a1a9-56b95ad91b44
-ranges = 10. .^([-4, -3, -2, -1, 0, 1, 2, 3])
+ranges = 10. .^([-4, -3, -2, -1, 0, 1])
 
 # ╔═╡ 1433755e-108c-40ff-ab6e-56908ce69051
 @bind α Slider(ranges; default=1.)
@@ -82,11 +140,23 @@ md"""β = $β"""
 # ╔═╡ 949142a6-133e-442c-9469-678136806e39
 md"""δ=$δ"""
 
+# ╔═╡ 4262d690-f4dc-4beb-bc4e-4bc46c3f9ca9
+@bind L Slider(1:5)
+
+# ╔═╡ 87f11209-4432-4eb4-bde0-494a4ec84aae
+md"""L = $L"""
+
 # ╔═╡ c312864f-cf98-4516-83ed-1c987ef15a66
-params = base.Params(α, β, δ, Δt, n_steps, n_sites, n_end_sites, β2)
+params = base.Params(α, β, δ, L, Δt, n_steps, n_sites, n_end_sites, β2)
 
 # ╔═╡ c0909a9d-7b57-4a1f-aaa9-3a7584c8acde
-exits, density, gene, tracker_end_ = base.run_walker(params, "continuous_detachment"); 
+exits, density, gene, tracker_end_ = base.run_walker(params); 
+
+# ╔═╡ ae8aa296-bdd1-4e7e-863f-bd976d9548a7
+md"""
+* We expect that it takes on average $(round(1/params.γ;digits=2)/params.Δt) steps for the RNA to escape.
+* We have that the RNA on average takes $(round(mean(tracker_end_["terminated"]); digits=2)) steps to escape.
+"""
 
 # ╔═╡ 768fdff5-5e08-4a62-9791-fce62e4094b6
 begin
@@ -1127,9 +1197,24 @@ version = "1.4.1+0"
 # ╠═a39f9447-f758-4164-bb51-51bc533ce643
 # ╠═904125e1-1f3a-4b0e-833b-543ee8e00552
 # ╠═d891d905-3ca8-4b76-a692-429b76859278
-# ╠═e4c9318d-53df-4747-a319-13cef91215ca
+# ╟─e4c9318d-53df-4747-a319-13cef91215ca
 # ╠═bf70e896-a5a1-47de-b6cc-b9f46438a793
 # ╠═1abad75d-7734-4d53-913d-6dade18e7c4c
+# ╟─a71cc83b-85bc-48ce-9c48-d08f979e573a
+# ╠═37fcfd81-cbba-4ad4-be0b-55cd034c9bf8
+# ╠═a269a5a0-4c82-4b8f-80ba-a5e8e029c6fc
+# ╠═ff3a9dc9-8b86-477f-b302-63460352d7ea
+# ╠═d6f8b410-ac38-4292-94c1-9d899f98daec
+# ╠═ad4d5d82-3b19-4770-b6fa-2b510532918f
+# ╠═6b91e008-0fc1-447c-b2ea-00b2734115b1
+# ╠═de8d555f-5738-4216-a97c-b9545394c52e
+# ╠═4c97eaf5-eb44-4fe8-8785-f65164f2e2fd
+# ╠═8bff8bf9-e2a4-49f5-9c5e-a2a94453b0db
+# ╠═dfd47ee3-4073-4f33-83da-61a040a482e3
+# ╠═0eea23be-3c99-4280-895f-e923f74facdc
+# ╠═cd0083d0-cd0e-4423-a9b2-89feaaa8bd13
+# ╠═f5cdb4c3-7a40-411b-aa39-729e74b3c97d
+# ╟─fe455a8f-382a-44c9-91f9-e868fbeba644
 # ╠═5ce8f44e-9ac4-42b4-b31d-9d3d19986ab6
 # ╠═a9d79f9e-7c02-4b9d-a1a9-56b95ad91b44
 # ╟─763acb42-a919-40f7-b701-8d6a05ccf192
@@ -1139,8 +1224,11 @@ version = "1.4.1+0"
 # ╟─bfe27015-c49a-4c00-92e3-ae63cc906e43
 # ╟─949142a6-133e-442c-9469-678136806e39
 # ╟─8c168e25-2f6b-4851-8f65-a2d2087ace2c
+# ╟─87f11209-4432-4eb4-bde0-494a4ec84aae
+# ╟─4262d690-f4dc-4beb-bc4e-4bc46c3f9ca9
 # ╠═c312864f-cf98-4516-83ed-1c987ef15a66
 # ╠═c0909a9d-7b57-4a1f-aaa9-3a7584c8acde
+# ╟─ae8aa296-bdd1-4e7e-863f-bd976d9548a7
 # ╠═768fdff5-5e08-4a62-9791-fce62e4094b6
 # ╠═5369db82-9609-4112-8842-b181c23077e6
 # ╟─00000000-0000-0000-0000-000000000001
