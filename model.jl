@@ -108,28 +108,6 @@ function step(
 			
 		end
 		
-	# elseif model == "end_site"
-
-	# 	t_d = get_t_d(δ, length(gene) - n_sites, β2)
-		
-	# 	# detachment can occur only at the end site, with increasing probability with time
-
-	# 	if (gene[end]==1) & (rand(Bernoulli(Δt/t_d)))
-	# 		gene[end] = 0
-	# 		push!(tracker_end["terminated"], tracker_end["current"][end])
-	# 		tracker_end["current"][end] = 0
-	# 	end
-
-	# 	for j in length(gene)-1:-1:n_sites+1
-	# 		if (gene[j]==1) & (gene[j+1]==0) * (rand(Bernoulli(β2*Δt)))
-	# 			gene[j+1] = 1
-	# 			gene[j] = 0
-
-	# 			tracker_end["current"][j-n_sites+1] = tracker_end["current"][j-n_sites]
-	# 			tracker_end["current"][j-n_sites] = 0
-	# 		end
-		# end
-		
 	end
 
 	
