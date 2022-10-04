@@ -184,8 +184,8 @@ function sweep_params(α_vec, p_vec, DEFAULT_PARAMS, param_name)
 					p, 
 					DEFAULT_PARAMS.Δt, 
 					DEFAULT_PARAMS.n_steps, 
-					DEFAULT_PARAMS.n_sites, 
-					DEFAULT_PARAMS.n_end_sites,
+					DEFAULT_PARAMS.n_sites*p, 
+					DEFAULT_PARAMS.n_end_sites*p,
 					DEFAULT_PARAMS.β2
 				)
 			end

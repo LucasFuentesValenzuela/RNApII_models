@@ -166,7 +166,7 @@ Therefore, we have to compare three results:
 let
 
 	β = .1
-	L_ref = 30
+	L_ref = 10
 
 	α_vec = collect(LinRange(0.01, 10, 1000))
 
@@ -189,10 +189,13 @@ let
 	xlabel!("α")
 	ylabel!("J")
 	plot!(legend=:bottomright)
-	# plot!(yscale=:log)
+	plot!(xscale=:log)
 	xlims!(0, .05)
 	p
 end
+
+# ╔═╡ d8833dd2-8294-48bf-bc33-736fdf893f1e
+
 
 # ╔═╡ 21d06d82-4f36-472c-b74c-30699056976a
 md"""
@@ -1379,6 +1382,7 @@ version = "1.4.1+0"
 # ╟─5275d868-09ab-43ea-a336-7267e2084353
 # ╟─2e9e5fd9-9e3e-44dd-8a47-61a647097325
 # ╠═fd8625d5-0065-43a8-9dcf-1f0dabf043a7
+# ╠═d8833dd2-8294-48bf-bc33-736fdf893f1e
 # ╟─21d06d82-4f36-472c-b74c-30699056976a
 # ╟─54bf5fb0-c219-4385-8ee6-88411821ac32
 # ╟─772e015a-fa71-4cab-83d9-ac24762b132b

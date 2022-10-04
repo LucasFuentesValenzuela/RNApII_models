@@ -17,20 +17,39 @@ elongation rate
 """
 function J(α, β, γ, L)
 
+    α_ = α/β
+    γ_ = γ/β
+
+    regime = get_regime(α, β, γ, L)
+
+	if regime == "entry-limited"
+		return β*(α_ * (1-α_)/(1+(L-1)*α_))
+    elseif regime == "exit-limited"
+		return β * (γ_*(1-γ_)/(1+ (L-1)*γ_))
+	elseif regime == "maxJ"
+		return β*1/(L^(1/2) + 1)^2
+	end
+end
+
+function get_regime(α, β, γ, L)
+
     # critical values
 	αc = 1/(1+L^(1/2))
     γc = αc
 
-    α_ = α/β
-    γ_ = γ/β
+    α = α/β
+    γ = γ/β
 
-	if (α_ < αc) & (γ_ > α_) # entry-limited
-		return β*(α_ * (1-α_)/(1+(L-1)*α_))
-    elseif (γ_ < γc) & (α_ > γ_) # exit-limited
-		return β * (γ_*(1-γ_)/(1+ (L-1)*γ_))
+	if (α < αc) & (γ > α) # entry-limited
+        regime = "entry-limited"
+    elseif (γ < γc) & (α > γ) # exit-limited
+        regime = "exit-limited"
 	else # (α, γ) >= (αc, γc) : maximum current regime
-		return β*1/(L^(1/2) + 1)^2
+        regime = "maxJ"
 	end
+
+    return regime
+
 end
 
 J(α, β, L) = J(α, β, 1000, L) # large γ

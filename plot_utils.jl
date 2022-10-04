@@ -40,12 +40,44 @@ function plot_transcription_rate_sweep(α_vec, p_vec, params, param_name, trans_
 	p1 = plot()
 
 	# Analytical solution
-	plot!(
-		α_vec, 
-		J.(α_vec, DEFAULT_PARAMS.β, LARGE_γ, DEFAULT_PARAMS.L), 
-		label="Theory with γ very large", linewidth=2,
-		color=:firebrick
-	)
+	if param_name=="γ"
+		plot!(
+			α_vec, 
+			J.(α_vec, DEFAULT_PARAMS.β, LARGE_γ, DEFAULT_PARAMS.L), 
+			label="Theory: γ >> 1, L=$(DEFAULT_PARAMS.L)", linewidth=2,
+			color=:firebrick
+		)
+
+	elseif param_name=="L"
+
+		plot!(
+			α_vec, 
+			J.(α_vec, DEFAULT_PARAMS.β, DEFAULT_PARAMS.γ, DEFAULT_PARAMS.L), 
+			label="Theory: L=$(DEFAULT_PARAMS.L)", linewidth=2,
+			color=:firebrick
+		)
+
+		plot!(
+			α_vec, 
+			J.(α_vec, DEFAULT_PARAMS.β, LARGE_γ, DEFAULT_PARAMS.L), 
+			label="Theory: L=$(DEFAULT_PARAMS.L), γ>>1", linewidth=2,
+		)
+
+		plot!(
+			α_vec, 
+			J.(α_vec, DEFAULT_PARAMS.β*p_vec[end], DEFAULT_PARAMS.γ, p_vec[end]), 
+			label="Theory:  L=$(p_vec[end])", linewidth=2,
+			color=:firebrick, linestyle=:dash
+		)
+
+		plot!(
+			α_vec, 
+			J.(α_vec, DEFAULT_PARAMS.β*p_vec[end], LARGE_γ, p_vec[end]), 
+			label="Theory:  L=$(p_vec[end]), γ>>1", linewidth=2,
+			linestyle=:dash
+		)
+
+	end
 
 	for (k, p) in enumerate(p_vec)
 
@@ -60,7 +92,7 @@ function plot_transcription_rate_sweep(α_vec, p_vec, params, param_name, trans_
 		)
 	end
 
-	vline!([DEFAULT_PARAMS.β], label="α = β")
+	# vline!([DEFAULT_PARAMS.β], label="α = β")
 
 	xlabel!("Initiation rate α [1/s]")
 	ylabel!("Transcription rate [1/s]")
@@ -81,8 +113,8 @@ function plot_density_sweep(α_vec, p_plot, params, param_name, densities)
 	
 	for (k, α) in enumerate(α_vec)
 
-		if k%3==0
-			label = "α=$(round(α; digits=3))"
+		if k%1==0
+			label = "α/β=$(round(α/(params[p_plot][1].β); digits=3))"
 		else
 			label=""
 		end
@@ -97,7 +129,7 @@ function plot_density_sweep(α_vec, p_plot, params, param_name, densities)
 		ylabel!("Steady-state density")
 		
 	end
-	# vline!([1, ], linestyle=:dash, label="", linewidth=2)
+	vline!([params[p_plot][1].n_sites/(params[p_plot][1].n_sites + params[p_plot][1].n_end_sites)], linestyle=:dash, label="", linewidth=2)
 
 	plot!(legend=:outertopright)
 

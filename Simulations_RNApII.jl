@@ -104,12 +104,12 @@ begin
 	α_default = 0.0033
 	β_default = 0.57
 	γ_default = 0.014
-	Δt_default = .1
+	Δt_default = .01
 	ratio_β2 = 5
 	β2_default = β_default/ratio_β2
 	L_default = 1
 
-	DEFAULT_nsteps = 200000
+	DEFAULT_nsteps = 2000000
 	DEFAULT_n_sites = 42
 	DEFAULT_n_end_sites = 5
 	
@@ -174,6 +174,9 @@ begin
 	)
 end;
 
+# ╔═╡ e4164e3f-7c1a-4860-9ce7-9bf342490173
+md""" γ plot : $(round(γ_plot; digits=3))"""
+
 # ╔═╡ f9588b9d-9c7d-4631-ac38-65829ec417f7
 pa
 
@@ -186,14 +189,11 @@ pc
 # ╔═╡ c2a259af-63a6-40d7-9ae3-967a3fa864df
 pd
 
-# ╔═╡ e4164e3f-7c1a-4860-9ce7-9bf342490173
-md""" γ plot : $(round(γ_plot; digits=3))"""
-
 # ╔═╡ f3d6cf41-a93c-4e95-aba7-2b62c048b77f
 md"""### Size sweeps"""
 
 # ╔═╡ 36421206-18d3-44b4-9a19-fdbd63bc8a72
-L_vec = [1, 2, 3]
+L_vec = [1, 2, 5, 10, 30]
 
 # ╔═╡ dfc1d340-faaf-4cc3-ae73-ea4e8aa79121
 params_dict_L, trans_rates_L, residence_times_L, densities_L = base.sweep_params(
@@ -221,6 +221,9 @@ end;
 
 # ╔═╡ 283a44c2-69e0-46d6-ba82-1e3a70604864
 md""" L plot = $(L_plot)"""
+
+# ╔═╡ 45de120a-3574-48ff-9a0b-89a266c1f112
+params_dict_L[L_plot][3].β
 
 # ╔═╡ 477600bd-7df7-495e-8600-6f3690c84365
 p1
@@ -1340,8 +1343,9 @@ version = "1.4.1+0"
 # ╠═8826e489-80d4-49e0-976d-5ca5aff1107e
 # ╟─283a44c2-69e0-46d6-ba82-1e3a70604864
 # ╟─687da5bd-8cc4-4e55-8465-53fdcf4676fd
+# ╠═45de120a-3574-48ff-9a0b-89a266c1f112
 # ╟─477600bd-7df7-495e-8600-6f3690c84365
-# ╟─76a16327-bf49-4a34-8048-10eeeffd08bb
+# ╠═76a16327-bf49-4a34-8048-10eeeffd08bb
 # ╟─47340ab9-75fa-4afb-ac6a-9056670827e3
 # ╟─4c958994-f8bd-46da-a90c-fcc7eacf931b
 # ╟─00000000-0000-0000-0000-000000000001
