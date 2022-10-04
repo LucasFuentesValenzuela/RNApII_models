@@ -48,6 +48,9 @@ base = ingredients("model.jl")
 # ╔═╡ 282f03d7-acf5-40e4-8cae-222b398602ae
 plot_utils = ingredients("plot_utils.jl")
 
+# ╔═╡ c638a833-c5cb-4ebe-9776-a072f3eaf8f6
+theory = ingredients("theory.jl")
+
 # ╔═╡ b4890915-71c2-4a52-9152-34c163be9c7b
 md"""
 # Questions: 
@@ -90,161 +93,6 @@ md"""
 We expect that the number of detachments per unit time is much higher than the number of attachments. i.e. α << δ. 
 """
 
-# ╔═╡ 7f09ab21-108c-42a1-a35d-66058c622be7
-md"""# Simple tests"""
-
-# ╔═╡ 87105a65-9ad9-4721-9890-94471728a122
-@bind model_test Select(["continuous_detachment", "end_site"])
-
-# ╔═╡ dac33505-de73-4a6d-90e4-95a1b497bece
-n_steps_test = 100000
-
-# ╔═╡ 5cf87f0a-7709-49e4-a69e-dd06c55ba255
-params_test = base.Params(.2, 1., .166, 1., n_steps_test, 5, 5, 1.)
-
-# ╔═╡ 4c27380f-db77-45d5-b94b-3c867fb7b0ec
-md""" 
-
-For the *end_site* model:
-* We expect that it takes on average $(round(1/params_test.δ;digits=2)/params_test.Δt) steps for the RNA to escape.
-* It should take $(round(params_test.n_end_sites/params_test.β2; digits=2)/params_test.Δt) steps for the RNA to walk through the entire second strand. 
-* The rest should be spend waiting to escape. ($(round(base.get_t_d(params_test)/params_test.Δt; digits=2)))
-"""
-
-# ╔═╡ b80c2e10-ab9c-4a2b-9a94-6026e5128239
-exits_test, density_test, gene_test, tracker_end = base.run_walker(params_test, model_test);
-
-# ╔═╡ 467f0b3e-339b-4903-8678-4fc43e8c7794
-exits_test
-
-# ╔═╡ d44b4a39-e4e1-4214-b5ed-6f96cfe770f0
-plot(exits_test)
-
-# ╔═╡ 1f3e8bff-0d9f-44f5-ae49-a351c127b73e
-density_test
-
-# ╔═╡ 0ab5b956-6a50-4705-95ea-b957d072c2cf
-plot(density_test)
-
-# ╔═╡ a5f9dd3a-12c4-4f7e-8d4e-ebda5162128e
-gene_test
-
-# ╔═╡ 4dd0a89c-9704-4e6b-8858-7811c5ad0412
-md"""
-* We expect that it takes on average $(round(1/params_test.δ;digits=2)/params_test.Δt) steps for the RNA to escape.
-* We have that the RNA on average takes $(round(mean(tracker_end["terminated"]); digits=2)) steps to escape.
-"""
-
-# ╔═╡ be513688-8b7e-42b5-8da4-3d97ad103a10
-plot_utils.plot_tracker_end(tracker_end, params_test)
-
-# ╔═╡ 1e46b7aa-4b61-4107-97a2-e114249386dc
-plot(gene_test)
-
-# ╔═╡ f5c5126a-35ee-4b35-8f1b-38e2a5d2392e
-md"""
-# Example
-"""
-
-# ╔═╡ 3423594f-380e-4797-b017-30a1c49b39b0
-begin
-	n_steps = 200000
-	Δt = .1 # [s]
-	n_sites = 40
-	n_end_sites = 10
-end;
-
-# ╔═╡ 8f9a6b1c-8e78-4982-8d89-400f9f47d429
-ranges = 10. .^([-4, -3, -2, -1, 0, 1, 2, 3])
-
-# ╔═╡ 7838a04f-b983-47f1-b68b-46f2c6d43f88
-md"""Choose the model:"""
-
-# ╔═╡ 384e5ef0-a361-438d-b0b9-7abda0412656
-@bind model Select(["continuous_detachment", "end_site"])
-
-# ╔═╡ 639f69df-4fe9-4e7a-8303-7d179225327e
-@bind α Slider(ranges; default=1.)
-
-# ╔═╡ 4a85f56e-cc55-4aa2-a7b5-1512dd3aa5bf
-md"""
-α = $α
-"""
-
-# ╔═╡ 02978832-045c-4acb-bced-5a9a5ca6f001
-@bind β Slider(ranges; default=1.)
-
-# ╔═╡ 408896d5-0235-4277-b53c-401c634e6c6c
-md"""β = $β"""
-
-# ╔═╡ 8217efed-3083-406b-ade5-fc7481837120
-β2 = β/5
-
-# ╔═╡ 831bf83b-5238-4a4e-ade7-0f682d45d65a
-@bind δ Slider(ranges; default=0.01)
-
-# ╔═╡ 2429bd43-05f7-4a80-b2b3-492b03d281ce
-md"""δ=$δ"""
-
-# ╔═╡ cfc4da6c-c276-434e-8aa1-02976adbc30c
-t_d = base.get_t_d(δ, n_end_sites, β2)
-
-# ╔═╡ 90b2e83a-585b-46b4-a0cd-f79f52dc6489
-md"""
-Characteristic timescales: 
-- α initiations per second
-- Traverse the main strand $(n_sites/β) s
-
-if model = "end_site"
-- Traverse the second strand in $(n_end_sites/β2) s
-- Detach from the end site: $t_d s 
-"""
-
-# ╔═╡ c21a9c67-9f1c-419f-95c4-fa5c58dd2fa5
-params = base.Params(α, β, δ, Δt, n_steps, n_sites, n_end_sites, β2)
-
-# ╔═╡ 2186a6dc-f3bb-40ca-8fb6-6dc20576f8e4
-exits, density, gene, tracker_end_ = base.run_walker(params, model); 
-
-# ╔═╡ 23dc6a2e-7c38-45c4-83df-f6e0c46960d0
-begin
-	p1 = plot_utils.plot_density(density, params)
-	p2 = scatter([1], [mean(exits)/β/Δt], label="")
-	ylims!(-.1, 1.1)
-	xlims!(.5, 1.5)
-	ylabel!("Transcription rate")
-
-	plot(p1, p2)
-end
-
-# ╔═╡ a67336a0-b55b-4345-b725-2d363a97f559
-md"""
-* We expect that it takes on average $(round(1/params.δ;digits=2)/params.Δt) steps for the RNA to escape.
-* We have that the RNA on average takes $(round(mean(tracker_end_["terminated"]); digits=2)) steps to escape.
-"""
-
-# ╔═╡ f5819935-73c9-4035-9895-30407e7401f9
-plot_utils.plot_tracker_end(tracker_end_, params)
-
-# ╔═╡ 94373d86-e5d8-4c6d-b37f-1d5abb88d346
-md"""
-**Transcription rate**:
-* The mean value of exits tells us how many genes are transcribed per timestep. 
-* We need to divide this by Δt to have the value per unit time
-* we further divide by β to collapse the curves 
-"""
-
-# ╔═╡ 1c05f490-bc7c-4eb8-abf5-fab38d2508c6
-md"""There seems to be a role of δ only in some regimes. need to figure out when it is actually impactful. 
-
-* β2/δ defines a given probability of disappearing
-* α/β defines the effective flow rate
-
-Therefore, we would expect that these parameters would compete with each other in order to define the ultimate flow rate... 
-
-
-"""
-
 # ╔═╡ 4e497931-2e75-4fbc-b334-d279bd262b43
 md"""
 # Analyzing real parameters
@@ -255,35 +103,27 @@ begin
 	# from Matt's review document
 	α_default = 0.0033
 	β_default = 0.57
-	δ_default = 0.014
+	γ_default = 0.014
 	Δt_default = .1
 	ratio_β2 = 5
 	β2_default = β_default/ratio_β2
+	L_default = 1
 
-	DEFAULT_nsteps = 2000000
+	DEFAULT_nsteps = 200000
 	DEFAULT_n_sites = 42
 	DEFAULT_n_end_sites = 5
 	
 	DEFAULT_PARAMS = base.Params(
-		α_default, β_default, δ_default, Δt_default, 
+		α_default, β_default, γ_default, Δt_default, 
 		DEFAULT_nsteps, DEFAULT_n_sites, DEFAULT_n_end_sites, β2_default
 	)
 end;
 
-# ╔═╡ f87ef88f-fc56-47e6-a548-9c9d243fbbb4
-t_d_default = base.get_t_d(DEFAULT_PARAMS)
-
-# ╔═╡ 095a8ff7-0e22-46ee-b59c-5966154e0031
-md"""Choose model:"""
-
-# ╔═╡ 646132cb-b3ac-4e94-b9d2-9c185d4d1623
-@bind CHOSEN_MODEL Select(["continuous_detachment", "end_site"])
-
-# ╔═╡ a55151a4-e4d0-4cbd-8f14-c4d2acef4405
+# ╔═╡ 4f59a07b-96b0-4f83-9c68-b2bd5e4838cf
 DEFAULT_PARAMS
 
 # ╔═╡ 40bf01f6-7c9c-43a4-a4c1-64557893f86b
-exits_def, density_def, _, tracker_def = base.run_walker(DEFAULT_PARAMS, CHOSEN_MODEL); 
+exits_def, density_def, _, tracker_def = base.run_walker(DEFAULT_PARAMS) 
 
 # ╔═╡ 54d011f4-b78d-4d53-9a69-6aa53f61b387
 trans_rate = base.get_trans_rate(exits_def, DEFAULT_PARAMS)
@@ -302,281 +142,97 @@ end
 md"""### Rate sweeps"""
 
 # ╔═╡ f63924f9-2afc-43e4-8999-904d16a3595c
-n_points_ = 20
+n_points_ = 5
 
 # ╔═╡ e104bed1-58d9-4ba4-9cab-f0928b3e4aac
 α_vec = 10. .^(LinRange(-3, 0, n_points_));
 
 # ╔═╡ ec1662f6-a139-42fc-b611-a77d309d112f
-# δ_vec = 10. .^(LinRange(-3, 0, 5));
-δ_vec = δ_default * 10 .^([-1, -.5, 0, .5, 1])
+γ_vec = γ_default * 10 .^([-1, -.5, 0, .5, 1])
 
-# ╔═╡ 1d3eafb0-f691-4434-9c1e-645ff050aa0a
-# loop for rate sweeps
-begin
-	trans_rates = Dict()
-	residence_times = Dict() # in number of steps
-	densities = Dict()
-
-	for δ in δ_vec 
-
-		trans_rates[δ] = []
-		residence_times[δ] = []
-		densities[δ] = Dict()
-	
-		for α in α_vec
-			
-			exits_, density_, _, tracker_ = base.run_walker(
-				α, 
-				DEFAULT_PARAMS.β, 
-				δ, 
-				DEFAULT_PARAMS.Δt, 
-				DEFAULT_PARAMS.n_steps, 
-				DEFAULT_PARAMS.n_sites, 
-				DEFAULT_PARAMS.n_end_sites;
-				β2=DEFAULT_PARAMS.β2, 
-				model=CHOSEN_MODEL
-			); 
-		
-			push!(trans_rates[δ], base.get_trans_rate(exits_, DEFAULT_PARAMS))
-			push!(residence_times[δ], mean(tracker_["terminated"]))
-			densities[δ][α] = density_
-		
-		end
-		
-	end
-end
-
-# ╔═╡ e9edf76a-dbc7-465a-afe6-443298415815
-δ_plot = δ_vec[1]
-
-# ╔═╡ 84b537d3-865a-446a-bfb1-6a3b63e73677
-let
-
-	color_palette = palette([:blue, :green], length(δ_vec)+1)
-
-	# Analytical solution
-	plot(
-		α_vec, 
-		base.J.(α_vec, DEFAULT_PARAMS.β, 1), 
-		label="Theory with γ very large", linewidth=2,
-		color=:firebrick
-	)
-
-	for (k, δ_plot) in enumerate(δ_vec)
-
-		plot!(α_vec, trans_rates[δ_plot]*DEFAULT_PARAMS.β, 
-			label="", linestyle=:dash, linewidth=2, color=color_palette[k]
-		)
-	
-		scatter!(
-			α_vec, trans_rates[δ_plot]*DEFAULT_PARAMS.β, 
-			label="γ = $(round(δ_plot; digits=3))", markersize=5, color=color_palette[k]
-		)
-	end
-
-	vline!([DEFAULT_PARAMS.δ], label="α = γ")
-	vline!([DEFAULT_PARAMS.β], label="α = β")
-
-	xlabel!("Initiation rate α [1/s]")
-	ylabel!("Transcription rate [1/s]")
-	plot!(legend=:topleft)
-	plot!(xscale=:log)
-	title!("Model: $CHOSEN_MODEL")
-end
+# ╔═╡ 5db3170a-2356-48de-bbc3-004b5691b99f
+params_dict_γ, trans_rates_γ, residence_times_γ, densities_γ = base.sweep_params(
+	α_vec, γ_vec, DEFAULT_PARAMS, "γ"
+);
 
 # ╔═╡ 05de9a3e-dbe1-4b2e-a052-04a9c05ff16b
-@bind δ_plot_ Slider(δ_vec)
+@bind γ_plot Slider(γ_vec)
+
+# ╔═╡ 3dee3fcb-d725-45b3-980d-8a71554b236a
+begin
+	pa = plot_utils.plot_transcription_rate_sweep(
+		α_vec, γ_vec, params_dict_γ, "γ", trans_rates_γ, DEFAULT_PARAMS
+	)
+	pb = plot_utils.plot_density_sweep(
+		α_vec, γ_plot, params_dict_γ, "γ", densities_γ
+	)
+	pc = plot_utils.plot_residence_times_sweep(
+		α_vec, γ_plot, params_dict_γ, "γ", residence_times_γ
+	)
+	pd = plot_utils.plot_occupancy_sweep(
+		α_vec, γ_plot, params_dict_γ, "γ", densities_γ
+	)
+end;
+
+# ╔═╡ f9588b9d-9c7d-4631-ac38-65829ec417f7
+pa
+
+# ╔═╡ 336974b6-804f-4d4c-96f2-ac9266c41c06
+pb
+
+# ╔═╡ 4b228656-84c1-4d5c-b276-4fb4242f2fee
+pc
+
+# ╔═╡ c2a259af-63a6-40d7-9ae3-967a3fa864df
+pd
 
 # ╔═╡ e4164e3f-7c1a-4860-9ce7-9bf342490173
-md""" $(round(δ_plot_; digits=3))"""
+md""" γ plot : $(round(γ_plot; digits=3))"""
 
-# ╔═╡ 17d9f3cf-b42b-45d1-9fe6-36b55713f72b
-let
-	p = plot()
-	
-	for k in 1:length(α_vec)
-		α = α_vec[k]
-		color = palette([:blue, :green], length(α_vec))[k]
+# ╔═╡ f3d6cf41-a93c-4e95-aba7-2b62c048b77f
+md"""### Size sweeps"""
 
-		if k%3==0
-			label = "α=$(round(α; digits=3))"
-		else
-			label=""
-		end
-		plot!(
-			densities[δ_plot_][α]/DEFAULT_PARAMS.n_steps, 
-			label=label, 
-			color=color, linewidth=2.
-		)
-		xlabel!("basepair")
-		ylabel!("Steady-state density")
-		
-	end
-	plot!(
-		[DEFAULT_PARAMS.n_sites, DEFAULT_PARAMS.n_sites], 
-		[0, 1], 
-		linestyle=:dash, 
-		label="TTS", 
-		linewidth=2.
-	)
-	plot!(
-		[1, 1], [0, 1], 
-		linestyle=:dash, 
-		label="TSS", 
-		linewidth=2.
-	)
-	plot!(legend=:outertopright)
-	title!("Occupancy as a function of α, γ = $(round(δ_plot_; digits=3))")
-	p
-end
+# ╔═╡ 36421206-18d3-44b4-9a19-fdbd63bc8a72
+L_vec = [1, 2, 3]
 
-# ╔═╡ 7d0b166b-4bf6-48ee-8357-330018e482da
-# residence time
-let
-	Expected = 1/δ_plot_/DEFAULT_PARAMS.Δt
+# ╔═╡ dfc1d340-faaf-4cc3-ae73-ea4e8aa79121
+params_dict_L, trans_rates_L, residence_times_L, densities_L = base.sweep_params(
+	α_vec, L_vec, DEFAULT_PARAMS, "L"
+);
 
-	plot(α_vec, residence_times[δ_plot_], label="", linestyle=:dash)
-	scatter!(α_vec, residence_times[δ_plot_], label="Data")
-	hline!(
-		[Expected], 
-		label="Expected", linestyle=:dash, linewidth=3, 
-	)
-	xlabel!("Initiation rate [1/s]")
-	ylabel!("Number of steps on second strand")
-	plot!(legend=:bottomright)
-	ylims!(.6*Expected, 1.4*Expected)
+# ╔═╡ 687da5bd-8cc4-4e55-8465-53fdcf4676fd
+@bind L_plot Slider(L_vec)
 
-	title!("Residence time for γ = $(round(δ_plot_; digits=3))")
-	
-end
-
-# ╔═╡ 0c8cc16a-514e-4839-83bd-d70c10ebd0aa
-let
-	p = plot()
-
-	total_occupancy = [
-		sum(densities[δ_plot_][α][1:DEFAULT_PARAMS.n_sites])/(DEFAULT_PARAMS.n_steps*DEFAULT_PARAMS.n_sites) for α in α_vec
-	]
-
-	plot!(α_vec, total_occupancy, linestyle=:dash, label="")
-	scatter!(α_vec, total_occupancy, linestyle=:dash, label="")
-	# vline!([1/t_d_default], label="α = 1/t_d")
-	vline!([δ_plot_], label="α = γ")
-	vline!([DEFAULT_PARAMS.β], label="α = β")
-
-	xlabel!("Initiation rate α [1/s]")
-	ylabel!("Total occupancy")
-	plot!(xscale=:log)
-	ylims!(-.1, 1.1)
-	plot!(legend=:bottomright)
-
-	title!("""Occupancy vs α, γ = $(round(δ_plot_; digits=3))""")
-end
-
-# ╔═╡ 7ede41b0-e284-45ee-9bfd-50a9f12a7fc2
-md"""
-**Note:** you really need to figure out the parameter landscape, to see what leads to jamming. I can't seem to see jaamming here at the end even in the case of low α. This probably has to do with γ/β. right? 
-"""
-
-# ╔═╡ eb6d48d1-09ce-4638-9d16-8db07b8fdec9
-md"""
-# OLD? 
-
-**I NEED TO FIX THIS**
-
-## Parameter study
-"""
-
-# ╔═╡ 45f03028-2e5e-44d4-a9da-669727ad996a
-n_points = 3
-
-# ╔═╡ c9b5a16d-b4e9-4bae-ac76-9dba063a1844
-rates = LinRange(0, 1, n_points)
-
-# ╔═╡ ca1107aa-5987-4bda-99d0-bc6d35c0e4a4
-max_α = 1.
-
-# ╔═╡ d918cb5f-936e-40f7-9384-1ade707c1184
-δ_=.01
-
-# ╔═╡ 4fa9548c-7840-4019-9cf8-52bc0e19777a
+# ╔═╡ 8826e489-80d4-49e0-976d-5ca5aff1107e
 begin
-	transcription_rates = Dict()
-	xx = Dict()
-	for β in rates
-		transcription_rates[β] = ([], [])
-		for α in LinRange(0., max_α*β, n_points)
-
-			params=Params(α, β, δ_, Δt, n_steps, n_sites, n_end_sites, nothing)
-			exits, density, gene = run_walker(params, "continuous_detachment"); 
-			push!(transcription_rates[β][1], α/β)
-			push!(transcription_rates[β][2], mean(exits)/Δt/β)
-
-		end
-	end
-end
-
-# ╔═╡ 9de4a551-9069-4eff-a972-e28b3fb0d8c0
-begin
-	plot()
-
-	for k in 1:length(rates)
-
-		β = rates[k]
-		color = palette([:blue, :green], n_points)[k]
-		xx, yy = transcription_rates[β]
-
-		plot!(xx, yy, linestyle=:dash, label="", color=color)
-		scatter!(xx, yy, label="β=$(round(β; digits=2))", color=color)
-		# plot!(xx, β*xx, label="", color="gray" )
-		
-	end
-
-	# plotting the analytical solution
-	plot!(
-		max_α*rates./rates[end], 
-		J.(max_α*rates, rates[end], 1)./rates[end], 
-		label="Theory", linewidth=3,
-		color=:firebrick
+	p1 = plot_utils.plot_transcription_rate_sweep(
+		α_vec, L_vec, params_dict_L, "L", trans_rates_L, DEFAULT_PARAMS
 	)
+	p2 = plot_utils.plot_density_sweep(
+		α_vec, L_plot, params_dict_L, "L", densities_L
+	)
+	p3 = plot_utils.plot_residence_times_sweep(
+		α_vec, L_plot, params_dict_L, "L", residence_times_L
+	)
+	p4 = plot_utils.plot_occupancy_sweep(
+		α_vec, L_plot, params_dict_L, "L", densities_L
+	)
+end;
 
+# ╔═╡ 283a44c2-69e0-46d6-ba82-1e3a70604864
+md""" L plot = $(L_plot)"""
 
-	
-	title!("Transcription rate/β [a.u.] as a function of α/β [-]")
-	xlabel!("α/β [-]")
-	ylabel!("Transcription rate/β [a.u]")
-	xlims!(0.0, max_α)
-	plot!(legend=:bottomright)
-	# ylims!(0., .25)
-end
+# ╔═╡ 477600bd-7df7-495e-8600-6f3690c84365
+p1
 
-# ╔═╡ 39e2dd29-9cdd-40bf-8719-efdb03edb06a
-md"""
-You can associate some notion of transcription to the average number of exits. It has to be divided by the timestep to get really quantitative, though. 
-"""
+# ╔═╡ 76a16327-bf49-4a34-8048-10eeeffd08bb
+p2
 
-# ╔═╡ f812bf5e-f260-4403-b267-6562154f164d
-md"""We can analyze the limit regimes from (Klumpp, Hwa - 2008). 
+# ╔═╡ 47340ab9-75fa-4afb-ac6a-9056670827e3
+p3
 
-$J(α) = α (ε - α) / (ε + α (L-1)),$
-
-$J_{max}= ε/(1+L^{1/2})^2.$ 
-
-In the above: 
-- L is the object size
-- ε is the attempt rate of transcription
-- α is the initiation rate
-"""
-
-# ╔═╡ 99278156-8be3-4dae-9bdd-e65a86184aa2
-md"""
-A few things to check: 
-- how does the simulation scale with β? 
-- how does the analytical model from K,H2008 scale with β? 
-- how does the model actually work? 
-- why does the phase transition not occur at the same point for them and for us? 
-"""
+# ╔═╡ 4c958994-f8bd-46da-a90c-fcc7eacf931b
+p4
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1648,57 +1304,20 @@ version = "1.4.1+0"
 # ╠═1c2be8f8-763f-4cc6-9b2d-28bad768eca8
 # ╠═8dc7d859-cbd0-49a9-8440-7faea8898671
 # ╠═13fd8e1c-d0aa-4938-ab41-2a146d65003b
-# ╠═e343e2d6-0b22-4f43-b112-cc72f8fb76fd
+# ╟─e343e2d6-0b22-4f43-b112-cc72f8fb76fd
 # ╠═a41f5e4c-d1eb-4065-9c61-5695dc151b00
 # ╠═282f03d7-acf5-40e4-8cae-222b398602ae
-# ╠═b4890915-71c2-4a52-9152-34c163be9c7b
+# ╠═c638a833-c5cb-4ebe-9776-a072f3eaf8f6
+# ╟─b4890915-71c2-4a52-9152-34c163be9c7b
 # ╟─f4af7844-459e-44ca-b5a7-79093f77d76a
 # ╟─b4fddea7-fecc-4db8-8288-6ad4f8b31780
 # ╟─e9521f7e-3940-436d-946c-17a97f269898
 # ╟─a71561a8-2fc5-44e9-92ab-8a182cd9c7c8
 # ╟─83326b9a-55bb-4c1d-8eb2-596bb5ed2944
 # ╟─ea70ff75-a7fa-4524-876b-15d49088cf2c
-# ╟─7f09ab21-108c-42a1-a35d-66058c622be7
-# ╠═87105a65-9ad9-4721-9890-94471728a122
-# ╠═dac33505-de73-4a6d-90e4-95a1b497bece
-# ╠═5cf87f0a-7709-49e4-a69e-dd06c55ba255
-# ╟─4c27380f-db77-45d5-b94b-3c867fb7b0ec
-# ╠═b80c2e10-ab9c-4a2b-9a94-6026e5128239
-# ╠═467f0b3e-339b-4903-8678-4fc43e8c7794
-# ╠═d44b4a39-e4e1-4214-b5ed-6f96cfe770f0
-# ╠═1f3e8bff-0d9f-44f5-ae49-a351c127b73e
-# ╠═0ab5b956-6a50-4705-95ea-b957d072c2cf
-# ╠═a5f9dd3a-12c4-4f7e-8d4e-ebda5162128e
-# ╟─4dd0a89c-9704-4e6b-8858-7811c5ad0412
-# ╠═be513688-8b7e-42b5-8da4-3d97ad103a10
-# ╠═1e46b7aa-4b61-4107-97a2-e114249386dc
-# ╟─f5c5126a-35ee-4b35-8f1b-38e2a5d2392e
-# ╠═3423594f-380e-4797-b017-30a1c49b39b0
-# ╠═8f9a6b1c-8e78-4982-8d89-400f9f47d429
-# ╠═7838a04f-b983-47f1-b68b-46f2c6d43f88
-# ╠═384e5ef0-a361-438d-b0b9-7abda0412656
-# ╠═4a85f56e-cc55-4aa2-a7b5-1512dd3aa5bf
-# ╠═639f69df-4fe9-4e7a-8303-7d179225327e
-# ╠═408896d5-0235-4277-b53c-401c634e6c6c
-# ╠═02978832-045c-4acb-bced-5a9a5ca6f001
-# ╠═8217efed-3083-406b-ade5-fc7481837120
-# ╠═2429bd43-05f7-4a80-b2b3-492b03d281ce
-# ╠═831bf83b-5238-4a4e-ade7-0f682d45d65a
-# ╠═cfc4da6c-c276-434e-8aa1-02976adbc30c
-# ╟─90b2e83a-585b-46b4-a0cd-f79f52dc6489
-# ╠═c21a9c67-9f1c-419f-95c4-fa5c58dd2fa5
-# ╠═2186a6dc-f3bb-40ca-8fb6-6dc20576f8e4
-# ╠═23dc6a2e-7c38-45c4-83df-f6e0c46960d0
-# ╟─a67336a0-b55b-4345-b725-2d363a97f559
-# ╠═f5819935-73c9-4035-9895-30407e7401f9
-# ╟─94373d86-e5d8-4c6d-b37f-1d5abb88d346
-# ╟─1c05f490-bc7c-4eb8-abf5-fab38d2508c6
 # ╟─4e497931-2e75-4fbc-b334-d279bd262b43
 # ╠═ad232aca-df0d-4ffd-8388-f25a3d0f8b8d
-# ╠═f87ef88f-fc56-47e6-a548-9c9d243fbbb4
-# ╟─095a8ff7-0e22-46ee-b59c-5966154e0031
-# ╟─646132cb-b3ac-4e94-b9d2-9c185d4d1623
-# ╟─a55151a4-e4d0-4cbd-8f14-c4d2acef4405
+# ╠═4f59a07b-96b0-4f83-9c68-b2bd5e4838cf
 # ╠═40bf01f6-7c9c-43a4-a4c1-64557893f86b
 # ╟─54d011f4-b78d-4d53-9a69-6aa53f61b387
 # ╟─b0a97388-96e4-4c04-be1a-76cb7f2e1d5f
@@ -1707,24 +1326,23 @@ version = "1.4.1+0"
 # ╠═f63924f9-2afc-43e4-8999-904d16a3595c
 # ╠═e104bed1-58d9-4ba4-9cab-f0928b3e4aac
 # ╠═ec1662f6-a139-42fc-b611-a77d309d112f
-# ╠═1d3eafb0-f691-4434-9c1e-645ff050aa0a
-# ╠═e9edf76a-dbc7-465a-afe6-443298415815
-# ╟─84b537d3-865a-446a-bfb1-6a3b63e73677
+# ╠═5db3170a-2356-48de-bbc3-004b5691b99f
+# ╠═3dee3fcb-d725-45b3-980d-8a71554b236a
 # ╟─e4164e3f-7c1a-4860-9ce7-9bf342490173
-# ╠═05de9a3e-dbe1-4b2e-a052-04a9c05ff16b
-# ╟─17d9f3cf-b42b-45d1-9fe6-36b55713f72b
-# ╟─7d0b166b-4bf6-48ee-8357-330018e482da
-# ╟─0c8cc16a-514e-4839-83bd-d70c10ebd0aa
-# ╟─7ede41b0-e284-45ee-9bfd-50a9f12a7fc2
-# ╟─eb6d48d1-09ce-4638-9d16-8db07b8fdec9
-# ╠═c9b5a16d-b4e9-4bae-ac76-9dba063a1844
-# ╠═45f03028-2e5e-44d4-a9da-669727ad996a
-# ╠═ca1107aa-5987-4bda-99d0-bc6d35c0e4a4
-# ╠═d918cb5f-936e-40f7-9384-1ade707c1184
-# ╠═4fa9548c-7840-4019-9cf8-52bc0e19777a
-# ╠═9de4a551-9069-4eff-a972-e28b3fb0d8c0
-# ╟─39e2dd29-9cdd-40bf-8719-efdb03edb06a
-# ╠═f812bf5e-f260-4403-b267-6562154f164d
-# ╠═99278156-8be3-4dae-9bdd-e65a86184aa2
+# ╟─05de9a3e-dbe1-4b2e-a052-04a9c05ff16b
+# ╟─f9588b9d-9c7d-4631-ac38-65829ec417f7
+# ╟─336974b6-804f-4d4c-96f2-ac9266c41c06
+# ╟─4b228656-84c1-4d5c-b276-4fb4242f2fee
+# ╟─c2a259af-63a6-40d7-9ae3-967a3fa864df
+# ╟─f3d6cf41-a93c-4e95-aba7-2b62c048b77f
+# ╠═36421206-18d3-44b4-9a19-fdbd63bc8a72
+# ╠═dfc1d340-faaf-4cc3-ae73-ea4e8aa79121
+# ╠═8826e489-80d4-49e0-976d-5ca5aff1107e
+# ╟─283a44c2-69e0-46d6-ba82-1e3a70604864
+# ╟─687da5bd-8cc4-4e55-8465-53fdcf4676fd
+# ╟─477600bd-7df7-495e-8600-6f3690c84365
+# ╟─76a16327-bf49-4a34-8048-10eeeffd08bb
+# ╟─47340ab9-75fa-4afb-ac6a-9056670827e3
+# ╟─4c958994-f8bd-46da-a90c-fcc7eacf931b
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
