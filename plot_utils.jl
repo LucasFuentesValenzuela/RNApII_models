@@ -29,7 +29,7 @@ end
 
 plot_density(density, params) = plot_density(density, params.n_steps, params.n_sites)
 
-# ======================= Plotting for param sweep
+# ======================= Plotting for param sweep ================================
 
 """
 """
@@ -57,25 +57,12 @@ function plot_transcription_rate_sweep(α_vec, p_vec, params, param_name, trans_
 			color=:firebrick
 		)
 
-		# plot!(
-		# 	α_vec, 
-		# 	J.(α_vec, DEFAULT_PARAMS.β, LARGE_γ, DEFAULT_PARAMS.L), 
-		# 	label="Theory: L=$(DEFAULT_PARAMS.L), γ>>1", linewidth=2,
-		# )
-
 		plot!(
 			α_vec, 
 			J.(α_vec, DEFAULT_PARAMS.β*p_vec[end], DEFAULT_PARAMS.γ, p_vec[end]), 
 			label="Theory:  L=$(p_vec[end])", linewidth=2,
 			color=:orange
 		)
-
-		# plot!(
-		# 	α_vec, 
-		# 	J.(α_vec, DEFAULT_PARAMS.β*p_vec[end], LARGE_γ, p_vec[end]), 
-		# 	label="Theory:  L=$(p_vec[end]), γ>>1", linewidth=2,
-		# 	linestyle=:dash
-		# )
 
 	end
 
@@ -92,8 +79,6 @@ function plot_transcription_rate_sweep(α_vec, p_vec, params, param_name, trans_
 		)
 	end
 
-	# vline!([DEFAULT_PARAMS.β], label="α = β")
-
 	xlabel!("Initiation rate α [1/s]")
 	ylabel!("Transcription rate [1/s]")
 	plot!(legend=:topleft)
@@ -101,6 +86,11 @@ function plot_transcription_rate_sweep(α_vec, p_vec, params, param_name, trans_
 
 	return p1
 end
+
+plot_transcription_rate_sweep(results, param_name, DEFAULT_PARAMS) = plot_transcription_rate_sweep(
+	results["α_vec"], results["p_vec"], results["params_dict"], param_name, results["trans_rates"], 
+	DEFAULT_PARAMS
+)
 
 """
 test
@@ -138,6 +128,10 @@ function plot_density_sweep(α_vec, p_plot, params, param_name, densities)
 	return p1
 end
 
+plot_density_sweep(results, p_plot, param_name) = plot_density_sweep(
+	results["α_vec"], p_plot, results["params_dict"], param_name, results["densities"]
+	)
+
 """
 """
 function plot_residence_times_sweep(α_vec, p, params, param_name, residence_times)
@@ -167,6 +161,10 @@ function plot_residence_times_sweep(α_vec, p, params, param_name, residence_tim
 
 	return p1
 end
+
+plot_residence_times_sweep(results, p, param_name) =  plot_residence_times_sweep(
+	results["α_vec"], p, results["params_dict"], param_name, results["residence_times"]
+	)
 
 """
 """
@@ -202,3 +200,7 @@ function plot_occupancy_sweep(α_vec, p, params, param_name, densities)
 	title!("""Occupancy vs α, $(param_name) = $(round(p; digits=3))""")
 	return p1
 end
+
+plot_occupancy_sweep(results, p, param_name) = plot_occupancy_sweep(
+	results["α_vec"], p, results["params_dict"], param_name, results["densities"]
+	)

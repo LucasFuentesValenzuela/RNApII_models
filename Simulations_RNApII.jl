@@ -26,6 +26,12 @@ using Distributions
 # ╔═╡ 13fd8e1c-d0aa-4938-ab41-2a146d65003b
 using PlutoUI
 
+# ╔═╡ e4104848-a87e-4da9-b3d4-1cce58aed193
+using HDF5
+
+# ╔═╡ 97f8ac6c-db53-4071-9129-68802f8bfed8
+using JLD2
+
 # ╔═╡ e343e2d6-0b22-4f43-b112-cc72f8fb76fd
 # replacement of the include statement
 function ingredients(path::String)
@@ -50,15 +56,6 @@ plot_utils = ingredients("plot_utils.jl")
 
 # ╔═╡ c638a833-c5cb-4ebe-9776-a072f3eaf8f6
 theory = ingredients("theory.jl")
-
-# ╔═╡ 3e7e95b8-adc6-4852-a36c-d2528672dbd6
-md"""
-## Todo
-
-Put all of this in scripts that you can easily execute and that save the data in JLD files. 
-
-The notebook should be only to process and viz result
-"""
 
 # ╔═╡ b4890915-71c2-4a52-9152-34c163be9c7b
 md"""
@@ -108,26 +105,7 @@ md"""
 """
 
 # ╔═╡ ad232aca-df0d-4ffd-8388-f25a3d0f8b8d
-begin
-	# from Matt's review document
-	α_default = 0.0033
-	β_default = 0.57
-	γ_default = 0.014
-	Δt_default = .01
-	ratio_β2 = 5
-	β2_default = β_default/ratio_β2
-	L_default = 1
-
-	DEFAULT_nsteps = 2000000
-	DEFAULT_n_sites = 42
-	# DEFAULT_n_end_sites = 5
-	DEFAULT_n_end_sites = 1
-	
-	DEFAULT_PARAMS = base.Params(
-		α_default, β_default, γ_default, Δt_default, 
-		DEFAULT_nsteps, DEFAULT_n_sites, DEFAULT_n_end_sites, β2_default
-	)
-end;
+DEFAULT_PARAMS = base.DEFAULT_PARAMS
 
 # ╔═╡ 4f59a07b-96b0-4f83-9c68-b2bd5e4838cf
 DEFAULT_PARAMS
@@ -151,125 +129,137 @@ end
 # ╔═╡ 28eb8e07-1c90-433c-a73b-02fb6b036bf7
 md"""### Rate sweeps"""
 
-# ╔═╡ f63924f9-2afc-43e4-8999-904d16a3595c
-n_points_ = 5
-
-# ╔═╡ e104bed1-58d9-4ba4-9cab-f0928b3e4aac
-α_vec = 10. .^(LinRange(-3, 0, n_points_));
-
-# ╔═╡ ec1662f6-a139-42fc-b611-a77d309d112f
-γ_vec = γ_default * 10 .^([-1, -.5, 0, .5, 1])
-
-# ╔═╡ 5db3170a-2356-48de-bbc3-004b5691b99f
-# ╠═╡ disabled = true
-#=╠═╡
-params_dict_γ, trans_rates_γ, residence_times_γ, densities_γ = base.sweep_params(
-	α_vec, γ_vec, DEFAULT_PARAMS, "γ"
-);
-  ╠═╡ =#
+# ╔═╡ de4afe62-319b-40a8-97d0-ebb927d3d68a
+rγ = JLD2.load(
+	"results/sweep_gamma_test.jld2"; 
+	typemap=Dict("Main.Params" => base.Params)
+)
 
 # ╔═╡ 05de9a3e-dbe1-4b2e-a052-04a9c05ff16b
-@bind γ_plot Slider(γ_vec)
+@bind γ_plot Slider(rγ["p_vec"])
 
 # ╔═╡ 3dee3fcb-d725-45b3-980d-8a71554b236a
-#=╠═╡
 begin
-	pa = plot_utils.plot_transcription_rate_sweep(
-		α_vec, γ_vec, params_dict_γ, "γ", trans_rates_γ, DEFAULT_PARAMS
+	p1 = plot_utils.plot_transcription_rate_sweep(
+		rγ, "γ", base.DEFAULT_PARAMS
 	)
-	pb = plot_utils.plot_density_sweep(
-		α_vec, γ_plot, params_dict_γ, "γ", densities_γ
+	p2 = plot_utils.plot_density_sweep(
+		rγ, γ_plot, "γ"
 	)
-	pc = plot_utils.plot_residence_times_sweep(
-		α_vec, γ_plot, params_dict_γ, "γ", residence_times_γ
+	p3 = plot_utils.plot_residence_times_sweep(
+		rγ, γ_plot, "γ"
 	)
-	pd = plot_utils.plot_occupancy_sweep(
-		α_vec, γ_plot, params_dict_γ, "γ", densities_γ
+	p4 = plot_utils.plot_occupancy_sweep(
+		rγ, γ_plot, "γ"
 	)
 end;
-  ╠═╡ =#
 
 # ╔═╡ e4164e3f-7c1a-4860-9ce7-9bf342490173
 md""" γ plot : $(round(γ_plot; digits=3))"""
 
 # ╔═╡ f9588b9d-9c7d-4631-ac38-65829ec417f7
-#=╠═╡
-pa
-  ╠═╡ =#
+p1
+
+# ╔═╡ 0f38187b-cf4c-4cbe-aada-db600ba9900d
+# plot showing the theory and the simulations converging as γ increases
+# and I am expecting the J to be higher for simulations than for theory
+# as the buffer is not there
+let
+	pe = plot()
+	α_vec = rγ["α_vec"]
+	params = rγ["params_dict"][γ_plot][1]
+	trans_rates = rγ["trans_rates"][γ_plot]
+	plot!(
+		α_vec, 
+		theory.J.(α_vec, DEFAULT_PARAMS.β, params.γ, DEFAULT_PARAMS.L), 
+		label="Theory: γ = $(params.γ), L=$(DEFAULT_PARAMS.L)", linewidth=2,
+		color=:firebrick
+	)
+
+# the below is assuming that all elements of list params[p] have the same β
+	plot!(α_vec, trans_rates*params.β, 
+		label="", linestyle=:dash, linewidth=2
+	)
+
+	scatter!(
+		α_vec, trans_rates*params.β, 
+		label="γ = $(round(γ_plot; digits=3))", markersize=5
+	)
+	plot!(legend=:bottomright)
+	xlabel!("α")
+	ylabel!("J")
+	
+end
 
 # ╔═╡ 336974b6-804f-4d4c-96f2-ac9266c41c06
-#=╠═╡
-pb
-  ╠═╡ =#
+p2
 
 # ╔═╡ 4b228656-84c1-4d5c-b276-4fb4242f2fee
-#=╠═╡
-pc
-  ╠═╡ =#
+p3
 
 # ╔═╡ c2a259af-63a6-40d7-9ae3-967a3fa864df
-#=╠═╡
-pd
-  ╠═╡ =#
+p4
 
 # ╔═╡ f3d6cf41-a93c-4e95-aba7-2b62c048b77f
 md"""### Size sweeps"""
 
-# ╔═╡ 36421206-18d3-44b4-9a19-fdbd63bc8a72
-L_vec = [1, 2, 5, 10]
+# ╔═╡ edf9d165-cd20-4884-81ad-2b03e4cdc08f
+rL = JLD2.load(
+	"results/sweep_L.jld2"; 
+	typemap=Dict("Main.Params" => base.Params)
+)
 
-# ╔═╡ dfc1d340-faaf-4cc3-ae73-ea4e8aa79121
-params_dict_L, trans_rates_L, residence_times_L, densities_L = base.sweep_params(
-	α_vec, L_vec, DEFAULT_PARAMS, "L"
-);
+# ╔═╡ 42a89a14-661e-48ae-9552-3933ad4bed23
+keys(rL["trans_rates"])
 
 # ╔═╡ 687da5bd-8cc4-4e55-8465-53fdcf4676fd
-@bind L_plot Slider(L_vec)
+@bind L_plot Slider(rL["p_vec"])
 
 # ╔═╡ 8826e489-80d4-49e0-976d-5ca5aff1107e
 begin
-	p1 = plot_utils.plot_transcription_rate_sweep(
-		α_vec, L_vec, params_dict_L, "L", trans_rates_L, DEFAULT_PARAMS
+	pa = plot_utils.plot_transcription_rate_sweep(
+		rL, "L", base.DEFAULT_PARAMS
 	)
-	p2 = plot_utils.plot_density_sweep(
-		α_vec, L_plot, params_dict_L, "L", densities_L
+	pb = plot_utils.plot_density_sweep(
+		rL, L_plot, "L"
 	)
-	p3 = plot_utils.plot_residence_times_sweep(
-		α_vec, L_plot, params_dict_L, "L", residence_times_L
+	pc = plot_utils.plot_residence_times_sweep(
+		rL, L_plot, "L"
 	)
-	p4 = plot_utils.plot_occupancy_sweep(
-		α_vec, L_plot, params_dict_L, "L", densities_L
+	pd = plot_utils.plot_occupancy_sweep(
+		rL, L_plot, "L"
 	)
 end;
 
 # ╔═╡ 283a44c2-69e0-46d6-ba82-1e3a70604864
 md""" L plot = $(L_plot)"""
 
-# ╔═╡ 45de120a-3574-48ff-9a0b-89a266c1f112
-params_dict_L[L_plot][3].β
-
 # ╔═╡ 477600bd-7df7-495e-8600-6f3690c84365
-p1
+pa
 
 # ╔═╡ 76a16327-bf49-4a34-8048-10eeeffd08bb
-p2
+pb
 
 # ╔═╡ 47340ab9-75fa-4afb-ac6a-9056670827e3
-p3
+pc
 
 # ╔═╡ 4c958994-f8bd-46da-a90c-fcc7eacf931b
-p4
+pd
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+HDF5 = "f67ccb44-e63f-5c2f-98bd-6dc0ccc4ba2f"
+JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
 [compat]
 Distributions = "~0.25.70"
+HDF5 = "~0.16.11"
+JLD2 = "~0.4.24"
 Plots = "~1.32.0"
 PlutoUI = "~0.7.40"
 """
@@ -458,6 +448,12 @@ git-tree-sha1 = "74faea50c1d007c85837327f6775bea60b5492dd"
 uuid = "b22a6f82-2f65-5046-a5b2-351ab43fb4e5"
 version = "4.4.2+2"
 
+[[deps.FileIO]]
+deps = ["Pkg", "Requires", "UUIDs"]
+git-tree-sha1 = "94f5101b96d2d968ace56f7f2db19d0a5f592e28"
+uuid = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
+version = "1.15.0"
+
 [[deps.FillArrays]]
 deps = ["LinearAlgebra", "Random", "SparseArrays", "Statistics"]
 git-tree-sha1 = "87519eb762f85534445f5cda35be12e32759ee14"
@@ -547,6 +543,18 @@ git-tree-sha1 = "53bb909d1151e57e2484c3d1b53e19552b887fb2"
 uuid = "42e2da0e-8278-4e71-bc24-59509adca0fe"
 version = "1.0.2"
 
+[[deps.HDF5]]
+deps = ["Compat", "HDF5_jll", "Libdl", "Mmap", "Random", "Requires"]
+git-tree-sha1 = "899f041bf330ebeead3637073b2ca7477760edde"
+uuid = "f67ccb44-e63f-5c2f-98bd-6dc0ccc4ba2f"
+version = "0.16.11"
+
+[[deps.HDF5_jll]]
+deps = ["Artifacts", "JLLWrappers", "LibCURL_jll", "Libdl", "OpenSSL_jll", "Pkg", "Zlib_jll"]
+git-tree-sha1 = "4cc2bb72df6ff40b055295fdef6d92955f9dede8"
+uuid = "0234f1f7-429e-5d53-9886-15a909be8d59"
+version = "1.12.2+2"
+
 [[deps.HTTP]]
 deps = ["Base64", "CodecZlib", "Dates", "IniFile", "Logging", "LoggingExtras", "MbedTLS", "NetworkOptions", "Random", "SimpleBufferStream", "Sockets", "URIs", "UUIDs"]
 git-tree-sha1 = "59ba44e0aa49b87a8c7a8920ec76f8afe87ed502"
@@ -612,6 +620,12 @@ version = "1.4.0"
 git-tree-sha1 = "a3f24677c21f5bbe9d2a714f95dcd58337fb2856"
 uuid = "82899510-4779-5014-852e-03e436cf321d"
 version = "1.0.0"
+
+[[deps.JLD2]]
+deps = ["FileIO", "MacroTools", "Mmap", "OrderedCollections", "Pkg", "Printf", "Reexport", "TranscodingStreams", "UUIDs"]
+git-tree-sha1 = "0d0ad913e827d13c5e88a73f9333d7e33c424576"
+uuid = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
+version = "0.4.24"
 
 [[deps.JLLWrappers]]
 deps = ["Preferences"]
@@ -1330,11 +1344,12 @@ version = "1.4.1+0"
 # ╠═1c2be8f8-763f-4cc6-9b2d-28bad768eca8
 # ╠═8dc7d859-cbd0-49a9-8440-7faea8898671
 # ╠═13fd8e1c-d0aa-4938-ab41-2a146d65003b
+# ╠═e4104848-a87e-4da9-b3d4-1cce58aed193
+# ╠═97f8ac6c-db53-4071-9129-68802f8bfed8
 # ╟─e343e2d6-0b22-4f43-b112-cc72f8fb76fd
 # ╠═a41f5e4c-d1eb-4065-9c61-5695dc151b00
 # ╠═282f03d7-acf5-40e4-8cae-222b398602ae
 # ╠═c638a833-c5cb-4ebe-9776-a072f3eaf8f6
-# ╠═3e7e95b8-adc6-4852-a36c-d2528672dbd6
 # ╟─b4890915-71c2-4a52-9152-34c163be9c7b
 # ╟─f4af7844-459e-44ca-b5a7-79093f77d76a
 # ╟─b4fddea7-fecc-4db8-8288-6ad4f8b31780
@@ -1350,24 +1365,21 @@ version = "1.4.1+0"
 # ╟─b0a97388-96e4-4c04-be1a-76cb7f2e1d5f
 # ╟─bc012aed-9c67-414e-bf81-945aa232155d
 # ╟─28eb8e07-1c90-433c-a73b-02fb6b036bf7
-# ╠═f63924f9-2afc-43e4-8999-904d16a3595c
-# ╠═e104bed1-58d9-4ba4-9cab-f0928b3e4aac
-# ╠═ec1662f6-a139-42fc-b611-a77d309d112f
-# ╠═5db3170a-2356-48de-bbc3-004b5691b99f
-# ╠═3dee3fcb-d725-45b3-980d-8a71554b236a
+# ╠═de4afe62-319b-40a8-97d0-ebb927d3d68a
+# ╟─3dee3fcb-d725-45b3-980d-8a71554b236a
 # ╟─e4164e3f-7c1a-4860-9ce7-9bf342490173
 # ╟─05de9a3e-dbe1-4b2e-a052-04a9c05ff16b
 # ╟─f9588b9d-9c7d-4631-ac38-65829ec417f7
+# ╟─0f38187b-cf4c-4cbe-aada-db600ba9900d
 # ╟─336974b6-804f-4d4c-96f2-ac9266c41c06
 # ╟─4b228656-84c1-4d5c-b276-4fb4242f2fee
 # ╟─c2a259af-63a6-40d7-9ae3-967a3fa864df
 # ╟─f3d6cf41-a93c-4e95-aba7-2b62c048b77f
-# ╠═36421206-18d3-44b4-9a19-fdbd63bc8a72
-# ╠═dfc1d340-faaf-4cc3-ae73-ea4e8aa79121
+# ╠═edf9d165-cd20-4884-81ad-2b03e4cdc08f
+# ╠═42a89a14-661e-48ae-9552-3933ad4bed23
 # ╠═8826e489-80d4-49e0-976d-5ca5aff1107e
 # ╟─283a44c2-69e0-46d6-ba82-1e3a70604864
 # ╟─687da5bd-8cc4-4e55-8465-53fdcf4676fd
-# ╠═45de120a-3574-48ff-9a0b-89a266c1f112
 # ╟─477600bd-7df7-495e-8600-6f3690c84365
 # ╟─76a16327-bf49-4a34-8048-10eeeffd08bb
 # ╟─47340ab9-75fa-4afb-ac6a-9056670827e3

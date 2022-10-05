@@ -34,8 +34,7 @@ L_default = 1
 
 DEFAULT_nsteps = 2000000
 DEFAULT_n_sites = 42
-# DEFAULT_n_end_sites = 5
-DEFAULT_n_end_sites = 1
+DEFAULT_n_end_sites = 5
 
 DEFAULT_PARAMS = Params(
 	α_default, β_default, γ_default, Δt_default, 
