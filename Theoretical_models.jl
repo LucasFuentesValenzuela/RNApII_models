@@ -4,11 +4,24 @@
 using Markdown
 using InteractiveUtils
 
+# This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
+macro bind(def, element)
+    quote
+        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
+        local el = $(esc(element))
+        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
+        el
+    end
+end
+
 # ╔═╡ aebb31ae-400e-11ed-1439-21415b393a87
 using Plots
 
 # ╔═╡ a9736d4a-0c92-4de0-a443-82d153b49ccf
 using Distributions
+
+# ╔═╡ 2d532c85-479b-41c2-96d4-a6a53f2bfee3
+using PlutoUI
 
 # ╔═╡ 4f1a72a1-59f9-45c5-a302-3e8b53dfdb1b
 # replacement of the include statement
@@ -99,6 +112,48 @@ $J(α)/ε = α/ε (1 - α/ε) / (1 + α/ε (L-1)).$
 This is the case regardless of $L$.
 """
 
+# ╔═╡ 6ee4187d-f8fb-4617-83fe-b7b38a43404d
+md"""
+### Playing with transcription rates
+"""
+
+# ╔═╡ e8577416-39cc-4dac-a5b3-e04ae43d3d7b
+rates = 10. .^[-3, -2, -1, 0, 1]
+
+# ╔═╡ a2780f8f-20e9-49d0-a181-46ad13def02d
+@bind β Slider(rates)
+
+# ╔═╡ 5d36ad32-3e1d-44a0-a524-998731ef0f27
+md"""β = $β"""
+
+# ╔═╡ ff9ea155-5664-433c-8a4d-3cc8f7f857b6
+@bind γ Slider(rates)
+
+# ╔═╡ 5a8876aa-4b87-487a-8e39-427e48a8e10d
+md"""γ = $γ"""
+
+# ╔═╡ 6c541268-e624-4ea6-be16-830b2e3fccc9
+@bind L Slider([1, 5, 10, 20, 30, 50])
+
+# ╔═╡ 93984140-86e3-4422-a96e-7a4f313030dd
+md"""L = $L"""
+
+# ╔═╡ 52cc9dc6-b816-4d30-a9b2-abe8599e9616
+let 
+	α_vec = 10. .^(collect(LinRange(-3, 1, 100))) .* β
+
+	J = theory.J.(α_vec, β, γ, L)
+
+	plot(α_vec ./β, J, linewidth=2, label="")
+
+	# plot!(xscale=:log)
+	vline!([1], label="α=β", linestyle=:dash)
+	xlabel!("α/β")
+	ylabel!("J")
+	plot!(legend=:bottomright)
+	
+end
+
 # ╔═╡ a2fc5a3f-d5c8-4a74-8d83-c9639cc08a32
 md"""
 ### Parameter study for different L, same β
@@ -143,6 +198,11 @@ end
 # ╔═╡ c463821d-8a79-4fca-b59f-b4a354ceb606
 md"""We see that the transition point decreases with $L$ and that the current is smaller with increasing L"""
 
+# ╔═╡ 21d06d82-4f36-472c-b74c-30699056976a
+md"""
+We see that we make a gross mistake (about 4 fold) in the current densities if we reduce the resolution and represent it wrongly. Similarly, we underestimate the critical initiation rate.
+"""
+
 # ╔═╡ 5275d868-09ab-43ea-a336-7267e2084353
 md"""
 ### Different L, rescaled β
@@ -160,46 +220,59 @@ Therefore, we have to compare three results:
 * L = 1, β = β̄: what the impact of the extent really is
 """
 
+# ╔═╡ 2adc96f0-aeae-4c8a-80e6-1ed6c9ddffcc
+@bind β_rescale Slider(rates)
+
+# ╔═╡ ef2863e3-ad2f-45fc-9bee-3846581818fe
+md""" β = $β_rescale"""
+
+# ╔═╡ 825da303-dd0b-494c-bc46-eb7b8cfaf444
+@bind γ_rescale Slider(rates)
+
+# ╔═╡ 8dfbb51d-5d37-4783-8467-6faec8111653
+md""" γ = $γ_rescale"""
+
 # ╔═╡ fd8625d5-0065-43a8-9dcf-1f0dabf043a7
 # currents, again assuming that we are not in γ limited regime
 
 let
-
-	β = .1
+	β = β_rescale
 	L_ref = 10
 
-	α_vec = collect(LinRange(0.01, 10, 1000))
+	α_vec = 10. .^(collect(LinRange(-3, 3, 1000)))
 
 	p = plot()
 
-	
-	plot!(
-		α_vec.*β/L_ref, theory.J.(α_vec.*β/L_ref, β/L_ref, 1), 
-		label="L=1, β=$(round(β/L_ref; digits=3))"
-	)
-	plot!(
-		α_vec.*β, theory.J.(α_vec.*β, β, L_ref), linestyle=:dash,
-		label="L=$L_ref, β=$β"
-	)
-	# plot!(
-	# 	α_vec.*β, theory.J.(α_vec.*β, β, 1), linestyle=:dash,
-	# 	label="L=1, β=$β"
-	# )
+	for L in [1, 2, 3]
+		plot!(
+			α_vec.*β*L, theory.J.(α_vec.*β*L, β*L, γ_rescale, L), 
+			label="L=$L, β=$(round(β*L; digits=3))", linewidth=2
+		)
+
+	end
 	
 	xlabel!("α")
 	ylabel!("J")
-	plot!(legend=:bottomright)
-	plot!(xscale=:log)
-	xlims!(0, .05)
+	plot!(legend=:topleft)
+	# plot!(xscale=:log)
+	xlims!(0, 5*β)
+	ylims!(0, β)
+	hline!([β], label="J=β", linestyle=:dash, linewidth=3)
 	p
 end
 
-# ╔═╡ d8833dd2-8294-48bf-bc33-736fdf893f1e
-
-
-# ╔═╡ 21d06d82-4f36-472c-b74c-30699056976a
+# ╔═╡ 425c6f37-936b-466a-acae-d5c2efdd5f3d
 md"""
-We see that we make a gross mistake (about 4 fold) in the current densities if we reduce the resolution and represent it wrongly. Similarly, we underestimate the critical initiation rate.
+We see that the maximum achievable J is higher for larger $L$. The reason is that the maximum current scales as 
+
+$J \propto β(L)/(\sqrt{L}+1)^2)$
+
+If we impose that β(L) = β̄L, then we see that
+
+$J \propto \bar{β}L/(\sqrt{L}+1)^2)$
+
+Therefore the current really maxes out at β, and gets there as $L$ increases
+
 """
 
 # ╔═╡ 54bf5fb0-c219-4385-8ee6-88411821ac32
@@ -383,10 +456,12 @@ PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 
 [compat]
 Distributions = "~0.25.75"
 Plots = "~1.34.4"
+PlutoUI = "~0.7.43"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -395,6 +470,12 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.7.2"
 manifest_format = "2.0"
+
+[[deps.AbstractPlutoDingetjes]]
+deps = ["Pkg"]
+git-tree-sha1 = "8eaf9f1b4921132a4cff3f36a1d9ba923b14a481"
+uuid = "6e696c72-6542-2067-7265-42206c756150"
+version = "1.1.4"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -644,6 +725,24 @@ deps = ["DualNumbers", "LinearAlgebra", "OpenLibm_jll", "SpecialFunctions", "Tes
 git-tree-sha1 = "709d864e3ed6e3545230601f94e11ebc65994641"
 uuid = "34004b35-14d8-5ef3-9330-4cdb6864b03a"
 version = "0.3.11"
+
+[[deps.Hyperscript]]
+deps = ["Test"]
+git-tree-sha1 = "8d511d5b81240fc8e6802386302675bdf47737b9"
+uuid = "47d2ed2b-36de-50cf-bf87-49c2cf4b8b91"
+version = "0.0.4"
+
+[[deps.HypertextLiteral]]
+deps = ["Tricks"]
+git-tree-sha1 = "c47c5fa4c5308f27ccaac35504858d8914e102f9"
+uuid = "ac1192a8-f4b3-4bfe-ba22-af5b92cd3ab2"
+version = "0.9.4"
+
+[[deps.IOCapture]]
+deps = ["Logging", "Random"]
+git-tree-sha1 = "f7be53659ab06ddc986428d3a9dcc95f6fa6705a"
+uuid = "b5f81e59-6552-4d32-b1f0-c071b021bf89"
+version = "0.2.2"
 
 [[deps.IniFile]]
 git-tree-sha1 = "f550e6e32074c939295eb5ea6de31849ac2c9625"
@@ -942,6 +1041,12 @@ git-tree-sha1 = "284a353a34a352a95fca1d61ea28a0d48feaf273"
 uuid = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 version = "1.34.4"
 
+[[deps.PlutoUI]]
+deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "Markdown", "Random", "Reexport", "UUIDs"]
+git-tree-sha1 = "2777a5c2c91b3145f5aa75b61bb4c2eb38797136"
+uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+version = "0.7.43"
+
 [[deps.Preferences]]
 deps = ["TOML"]
 git-tree-sha1 = "47e5f437cc0e7ef2ce8406ce1e7e24d44915f88d"
@@ -1109,6 +1214,11 @@ deps = ["Random", "Test"]
 git-tree-sha1 = "8a75929dcd3c38611db2f8d08546decb514fcadf"
 uuid = "3bb67fe8-82b1-5028-8e26-92a6c54297fa"
 version = "0.9.9"
+
+[[deps.Tricks]]
+git-tree-sha1 = "6bac775f2d42a611cdfcd1fb217ee719630c4175"
+uuid = "410a4b4d-49e4-4fbc-ab6d-cb71b17b3775"
+version = "0.1.6"
 
 [[deps.URIs]]
 git-tree-sha1 = "e59ecc5a41b000fa94423a578d29290c7266fc10"
@@ -1363,6 +1473,7 @@ version = "1.4.1+0"
 # ╔═╡ Cell order:
 # ╠═aebb31ae-400e-11ed-1439-21415b393a87
 # ╠═a9736d4a-0c92-4de0-a443-82d153b49ccf
+# ╠═2d532c85-479b-41c2-96d4-a6a53f2bfee3
 # ╠═4f1a72a1-59f9-45c5-a302-3e8b53dfdb1b
 # ╠═258591f9-68fd-46db-a5ad-3fc60668170f
 # ╠═09ac2539-1e95-4ab9-9465-225dc5cb6b18
@@ -1371,19 +1482,32 @@ version = "1.4.1+0"
 # ╟─bfe95384-e816-4ae8-afc2-631fc824bbef
 # ╟─7359697b-cc44-47b6-8a8c-2230dbee2eeb
 # ╟─ca87554a-0149-446a-99e9-443ca7dfd389
-# ╟─b5342ffd-0d37-44d1-9656-7929e0418156
+# ╠═b5342ffd-0d37-44d1-9656-7929e0418156
 # ╟─c4edf93a-b67e-415c-8d73-43d2c44050ee
+# ╟─6ee4187d-f8fb-4617-83fe-b7b38a43404d
+# ╠═e8577416-39cc-4dac-a5b3-e04ae43d3d7b
+# ╟─5d36ad32-3e1d-44a0-a524-998731ef0f27
+# ╟─a2780f8f-20e9-49d0-a181-46ad13def02d
+# ╟─5a8876aa-4b87-487a-8e39-427e48a8e10d
+# ╟─ff9ea155-5664-433c-8a4d-3cc8f7f857b6
+# ╟─93984140-86e3-4422-a96e-7a4f313030dd
+# ╟─6c541268-e624-4ea6-be16-830b2e3fccc9
+# ╟─52cc9dc6-b816-4d30-a9b2-abe8599e9616
 # ╟─a2fc5a3f-d5c8-4a74-8d83-c9639cc08a32
 # ╟─21f9f9a1-bc6a-4de2-99d6-b48738caca2c
 # ╟─4173cf58-f5fc-4758-b1cd-1919cd34265e
 # ╟─b4b30449-3d6f-438e-a398-57d799888a68
 # ╟─f067ebdf-3ab8-4efd-ad93-e26ecadfe11a
 # ╟─c463821d-8a79-4fca-b59f-b4a354ceb606
+# ╟─21d06d82-4f36-472c-b74c-30699056976a
 # ╟─5275d868-09ab-43ea-a336-7267e2084353
 # ╟─2e9e5fd9-9e3e-44dd-8a47-61a647097325
+# ╟─ef2863e3-ad2f-45fc-9bee-3846581818fe
+# ╟─2adc96f0-aeae-4c8a-80e6-1ed6c9ddffcc
+# ╟─8dfbb51d-5d37-4783-8467-6faec8111653
+# ╟─825da303-dd0b-494c-bc46-eb7b8cfaf444
 # ╠═fd8625d5-0065-43a8-9dcf-1f0dabf043a7
-# ╠═d8833dd2-8294-48bf-bc33-736fdf893f1e
-# ╟─21d06d82-4f36-472c-b74c-30699056976a
+# ╠═425c6f37-936b-466a-acae-d5c2efdd5f3d
 # ╟─54bf5fb0-c219-4385-8ee6-88411821ac32
 # ╟─772e015a-fa71-4cab-83d9-ac24762b132b
 # ╟─c2062357-22d5-48e5-976a-8cb2b473d0f0

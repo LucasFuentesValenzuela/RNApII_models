@@ -22,6 +22,27 @@ Params(
 )
 
 """
+Default parameters for the system at hand
+"""
+α_default = 0.0033
+β_default = 0.57
+γ_default = 0.014
+Δt_default = .01
+ratio_β2 = 5
+β2_default = β_default/ratio_β2
+L_default = 1
+
+DEFAULT_nsteps = 2000000
+DEFAULT_n_sites = 42
+# DEFAULT_n_end_sites = 5
+DEFAULT_n_end_sites = 1
+
+DEFAULT_PARAMS = Params(
+	α_default, β_default, γ_default, Δt_default, 
+	DEFAULT_nsteps, DEFAULT_n_sites, DEFAULT_n_end_sites, β2_default
+)
+
+"""
 Runs the walker for a specified number of steps.
 """
 function run_walker(
@@ -193,7 +214,7 @@ function sweep_params(α_vec, p_vec, DEFAULT_PARAMS, param_name)
 			exits_, density_, _, tracker_ = run_walker(params);
 
 			push!(params_dict[p], params)
-			push!(trans_rates[p], get_trans_rate(exits_, DEFAULT_PARAMS))
+			push!(trans_rates[p], get_trans_rate(exits_, params))
 			push!(residence_times[p], mean(tracker_["terminated"]))
 			densities[p][α] = density_
 		

@@ -51,6 +51,15 @@ plot_utils = ingredients("plot_utils.jl")
 # ╔═╡ c638a833-c5cb-4ebe-9776-a072f3eaf8f6
 theory = ingredients("theory.jl")
 
+# ╔═╡ 3e7e95b8-adc6-4852-a36c-d2528672dbd6
+md"""
+## Todo
+
+Put all of this in scripts that you can easily execute and that save the data in JLD files. 
+
+The notebook should be only to process and viz result
+"""
+
 # ╔═╡ b4890915-71c2-4a52-9152-34c163be9c7b
 md"""
 # Questions: 
@@ -111,7 +120,8 @@ begin
 
 	DEFAULT_nsteps = 2000000
 	DEFAULT_n_sites = 42
-	DEFAULT_n_end_sites = 5
+	# DEFAULT_n_end_sites = 5
+	DEFAULT_n_end_sites = 1
 	
 	DEFAULT_PARAMS = base.Params(
 		α_default, β_default, γ_default, Δt_default, 
@@ -151,14 +161,18 @@ n_points_ = 5
 γ_vec = γ_default * 10 .^([-1, -.5, 0, .5, 1])
 
 # ╔═╡ 5db3170a-2356-48de-bbc3-004b5691b99f
+# ╠═╡ disabled = true
+#=╠═╡
 params_dict_γ, trans_rates_γ, residence_times_γ, densities_γ = base.sweep_params(
 	α_vec, γ_vec, DEFAULT_PARAMS, "γ"
 );
+  ╠═╡ =#
 
 # ╔═╡ 05de9a3e-dbe1-4b2e-a052-04a9c05ff16b
 @bind γ_plot Slider(γ_vec)
 
 # ╔═╡ 3dee3fcb-d725-45b3-980d-8a71554b236a
+#=╠═╡
 begin
 	pa = plot_utils.plot_transcription_rate_sweep(
 		α_vec, γ_vec, params_dict_γ, "γ", trans_rates_γ, DEFAULT_PARAMS
@@ -173,27 +187,36 @@ begin
 		α_vec, γ_plot, params_dict_γ, "γ", densities_γ
 	)
 end;
+  ╠═╡ =#
 
 # ╔═╡ e4164e3f-7c1a-4860-9ce7-9bf342490173
 md""" γ plot : $(round(γ_plot; digits=3))"""
 
 # ╔═╡ f9588b9d-9c7d-4631-ac38-65829ec417f7
+#=╠═╡
 pa
+  ╠═╡ =#
 
 # ╔═╡ 336974b6-804f-4d4c-96f2-ac9266c41c06
+#=╠═╡
 pb
+  ╠═╡ =#
 
 # ╔═╡ 4b228656-84c1-4d5c-b276-4fb4242f2fee
+#=╠═╡
 pc
+  ╠═╡ =#
 
 # ╔═╡ c2a259af-63a6-40d7-9ae3-967a3fa864df
+#=╠═╡
 pd
+  ╠═╡ =#
 
 # ╔═╡ f3d6cf41-a93c-4e95-aba7-2b62c048b77f
 md"""### Size sweeps"""
 
 # ╔═╡ 36421206-18d3-44b4-9a19-fdbd63bc8a72
-L_vec = [1, 2, 5, 10, 30]
+L_vec = [1, 2, 5, 10]
 
 # ╔═╡ dfc1d340-faaf-4cc3-ae73-ea4e8aa79121
 params_dict_L, trans_rates_L, residence_times_L, densities_L = base.sweep_params(
@@ -1311,6 +1334,7 @@ version = "1.4.1+0"
 # ╠═a41f5e4c-d1eb-4065-9c61-5695dc151b00
 # ╠═282f03d7-acf5-40e4-8cae-222b398602ae
 # ╠═c638a833-c5cb-4ebe-9776-a072f3eaf8f6
+# ╠═3e7e95b8-adc6-4852-a36c-d2528672dbd6
 # ╟─b4890915-71c2-4a52-9152-34c163be9c7b
 # ╟─f4af7844-459e-44ca-b5a7-79093f77d76a
 # ╟─b4fddea7-fecc-4db8-8288-6ad4f8b31780
@@ -1345,7 +1369,7 @@ version = "1.4.1+0"
 # ╟─687da5bd-8cc4-4e55-8465-53fdcf4676fd
 # ╠═45de120a-3574-48ff-9a0b-89a266c1f112
 # ╟─477600bd-7df7-495e-8600-6f3690c84365
-# ╠═76a16327-bf49-4a34-8048-10eeeffd08bb
+# ╟─76a16327-bf49-4a34-8048-10eeeffd08bb
 # ╟─47340ab9-75fa-4afb-ac6a-9056670827e3
 # ╟─4c958994-f8bd-46da-a90c-fcc7eacf931b
 # ╟─00000000-0000-0000-0000-000000000001

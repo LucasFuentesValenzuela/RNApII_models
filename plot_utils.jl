@@ -57,25 +57,25 @@ function plot_transcription_rate_sweep(α_vec, p_vec, params, param_name, trans_
 			color=:firebrick
 		)
 
-		plot!(
-			α_vec, 
-			J.(α_vec, DEFAULT_PARAMS.β, LARGE_γ, DEFAULT_PARAMS.L), 
-			label="Theory: L=$(DEFAULT_PARAMS.L), γ>>1", linewidth=2,
-		)
+		# plot!(
+		# 	α_vec, 
+		# 	J.(α_vec, DEFAULT_PARAMS.β, LARGE_γ, DEFAULT_PARAMS.L), 
+		# 	label="Theory: L=$(DEFAULT_PARAMS.L), γ>>1", linewidth=2,
+		# )
 
 		plot!(
 			α_vec, 
 			J.(α_vec, DEFAULT_PARAMS.β*p_vec[end], DEFAULT_PARAMS.γ, p_vec[end]), 
 			label="Theory:  L=$(p_vec[end])", linewidth=2,
-			color=:firebrick, linestyle=:dash
+			color=:orange
 		)
 
-		plot!(
-			α_vec, 
-			J.(α_vec, DEFAULT_PARAMS.β*p_vec[end], LARGE_γ, p_vec[end]), 
-			label="Theory:  L=$(p_vec[end]), γ>>1", linewidth=2,
-			linestyle=:dash
-		)
+		# plot!(
+		# 	α_vec, 
+		# 	J.(α_vec, DEFAULT_PARAMS.β*p_vec[end], LARGE_γ, p_vec[end]), 
+		# 	label="Theory:  L=$(p_vec[end]), γ>>1", linewidth=2,
+		# 	linestyle=:dash
+		# )
 
 	end
 
