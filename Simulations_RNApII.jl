@@ -206,7 +206,24 @@ let
 	
 end
 
+# ╔═╡ 3cff1daf-9764-48f7-9935-39bf61bfe7c0
+plot_utils.plot_occupancy_fold_change_scaling(
+	rγ, γ_plot, "γ"; max_fold_change_α=3, colors = [:orange, :blue, :green]
+)
+
+# ╔═╡ eea48f4b-81b6-4e71-bb1f-fbb0b3490014
+md"""
+**Question** do these curves collapse? like occupancy/γ wrt α/γ
+"""
+
+# ╔═╡ ceef08e9-768e-4a61-991f-4eab049aba7c
+plot_utils.plot_occupancy_fold_change(
+	rγ, "γ"; max_fold_change_α=3
+)
+
 # ╔═╡ e3e57eb5-8564-4dc1-95be-e998b9993bee
+# ╠═╡ disabled = true
+#=╠═╡
 # figuring out what the fold change is from simulations
 let
 	fold_change_α = 3
@@ -233,119 +250,9 @@ let
 	title!("Final fold change for γ = $(round(γ_plot; digits=3))")
 	ylims!(0, 10)
 
-	#############################################
 	
-	max_fold_change_α = 3
-
-
-	# lower_ = max(rγ["α_vec"][1], γ_plot/10)
-	# α_interp = LinRange(, rγ["α_vec"][end]/max_fold_change_α, 5)
-
-	lower_ = rγ["α_vec"][1]/γ_plot * 1.1
-	upper_ = rγ["α_vec"][end]/γ_plot/(max_fold_change_α+.1)
-	α_interp = γ_plot .* 10. .^(
-		collect(
-			LinRange(
-				log10(lower_), 
-				log10(upper_), 
-				15
-			)
-		)
-	)
-
-	# α_interp = γ_plot .* 10. .^(
-	# 	[-1, -.5, 0, .5, .75, 1]
-	# )
-
-	# α_interp = LinRange(γ_plot * lower_, γ_plot * upper_, 10)
-	
-	color_palette = palette([:blue, :green], length(α_interp))
-
-	x = LinRange(1, max_fold_change_α, 30)
-
-	fold_changes = [
-		occupancy_interp.(x*α)./occupancy_interp.(α) for α in α_interp
-	]
-
-	# @show rγ["α_vec"][1], rγ["α_vec"][end]
-	# fold_changes = []
-	# for α in α_interp
-	# 	@show α
-	# 	push!(fold_changes, occupancy_interp.(x*α)./occupancy_interp.(α))
-	# end
-
-	pocc_x = plot()
-	for (k, α) in enumerate(α_interp)
-		plot!(
-			x, fold_changes[k], 
-			linestyle=:dash, label="α/γ = $(round(α/γ_plot; digits=3))",
-			color=color_palette[k]
-		)
-	end
-	# scatter!(α_interp, fold_changes)
-	# vline!([γ_plot], label="α = γ")
-	xlabel!("α fold change")
-	ylabel!("occupancy fold change")
-	plot!(legend=:outertopleft)
-	ylims!(0, 10)
-	title!("Occupancy fold change for γ = $(round(γ_plot; digits=3))")
-	# plot!(xscale=:log)
-
-	plot!([pocc, pocc_x]..., layout=(2, 1), size=(800, 800))
-
-	# pocc_x
 end
-
-# ╔═╡ eea48f4b-81b6-4e71-bb1f-fbb0b3490014
-md"""
-**Question** do these curves collapse? like occupancy/γ wrt α/γ
-"""
-
-# ╔═╡ 9b453474-f075-49fe-9839-83978ded4c07
-let
-	
-	fold_change_α = 3
-
-	α_interp = rγ["α_vec"][1] .* 10. .^(
-		LinRange(0, log10(rγ["α_vec"][end]/fold_change_α/rγ["α_vec"][1]), 100)
-	)
-
-	px = plot()
-
-	color_palette = palette([:orange, :green], length(rγ["p_vec"]))
-	
-	for (k,γ) in enumerate(rγ["p_vec"])
-		
-		occupancy = plot_utils.get_total_occupancy(
-		 	rγ["α_vec"], γ, rγ["densities"], rγ["params_dict"]
-		);
-		occupancy_interp = linear_interpolation(rγ["α_vec"], occupancy)
-
-		fold_changes = occupancy_interp.(3*α_interp)./occupancy_interp.(α_interp)
-
-		if k%trunc(Int, length(rγ["p_vec"])/5)==0
-			label = "γ = $(round(γ; digits=3))"
-		else
-			label=""
-		end
-		
-		plot!(
-			α_interp, fold_changes, linestyle=:dash, label=label, 
-			color = color_palette[k], linewidth=2
-		)
-	end
-
-	
-	# scatter!(α_interp, fold_changes)
-	# vline!([γ_plot], label="α = γ")
-	vline!([base.DEFAULT_PARAMS.α], label="α = α_default", color=:red)
-	xlabel!("α")
-	ylabel!("occupancy fold change")
-	plot!(xscale=:log)
-	# ylims!(0, 10)
-	plot!(yscale=:log)
-
-end
+  ╠═╡ =#
 
 # ╔═╡ f3d6cf41-a93c-4e95-aba7-2b62c048b77f
 md"""### Size sweeps"""
@@ -1552,9 +1459,10 @@ version = "1.4.1+0"
 # ╠═0480d46f-349e-4237-9080-e342492afdeb
 # ╟─54f71b99-74b0-4b9f-9e30-9911d46b9788
 # ╟─0f38187b-cf4c-4cbe-aada-db600ba9900d
-# ╠═e3e57eb5-8564-4dc1-95be-e998b9993bee
-# ╠═eea48f4b-81b6-4e71-bb1f-fbb0b3490014
-# ╠═9b453474-f075-49fe-9839-83978ded4c07
+# ╟─3cff1daf-9764-48f7-9935-39bf61bfe7c0
+# ╟─eea48f4b-81b6-4e71-bb1f-fbb0b3490014
+# ╟─ceef08e9-768e-4a61-991f-4eab049aba7c
+# ╟─e3e57eb5-8564-4dc1-95be-e998b9993bee
 # ╟─f3d6cf41-a93c-4e95-aba7-2b62c048b77f
 # ╠═edf9d165-cd20-4884-81ad-2b03e4cdc08f
 # ╠═8826e489-80d4-49e0-976d-5ca5aff1107e

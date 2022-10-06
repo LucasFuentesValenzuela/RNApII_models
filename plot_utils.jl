@@ -1,5 +1,6 @@
 using Plots
 using Statistics
+using Interpolations
 
 include("theory.jl")
 include("model.jl")
@@ -221,3 +222,109 @@ end
 plot_occupancy_sweep(results, p, param_name) = plot_occupancy_sweep(
 	results["α_vec"], p, results["params_dict"], param_name, results["densities"]
 	)
+
+
+function plot_occupancy_fold_change(
+		results, param_name; DEFAULT_PARAMS=DEFAULT_PARAMS, max_fold_change_α=3
+	)
+	
+		# values of α at which to evaluate the fold change
+		α_interp = results["α_vec"][1] .* 10. .^(
+			LinRange(
+				0, 
+				log10(results["α_vec"][end]/max_fold_change_α/results["α_vec"][1]), 
+				100
+			)
+		)
+	
+		
+		px = plot()
+	
+		color_palette = palette([:orange, :green], length(results["p_vec"]))
+		
+		for (k,p) in enumerate(results["p_vec"])
+			
+			occupancy = get_total_occupancy(
+				 results["α_vec"], p, results["densities"], results["params_dict"]
+			);
+			occupancy_interp = linear_interpolation(results["α_vec"], occupancy)
+	
+			fold_changes = occupancy_interp.(max_fold_change_α*α_interp)./occupancy_interp.(α_interp)
+	
+			if k%trunc(Int, length(results["p_vec"])/5)==0
+				label = "$param_name = $(round(p; digits=3))"
+			else
+				label=""
+			end
+			
+			plot!(
+				α_interp, fold_changes, linestyle=:dash, label=label, 
+				color = color_palette[k], linewidth=2
+			)
+		end
+		
+		vline!([DEFAULT_PARAMS.α], label="α = α_default", color=:red)
+		xlabel!("α")
+		ylabel!("Occupancy fold change")
+		plot!(xscale=:log)
+		plot!(yscale=:log)
+	
+	end
+
+
+function plot_occupancy_fold_change_scaling(
+		results, p, param_name; max_fold_change_α=3, colors = [:orange, :green]
+	)
+	
+		if param_name == "γ"
+			γ_plot = p
+		elseif param_name == "L"
+			γ_plot = results["params_dict"][p][1].γ
+		end
+	
+	
+		lower_ = results["α_vec"][1]/γ_plot * 1.1
+		upper_ = results["α_vec"][end]/γ_plot/(max_fold_change_α+.1)
+		
+		α_interp = γ_plot .* 10. .^(
+			collect(
+				LinRange(
+					log10(lower_), 
+					log10(upper_), 
+					15
+				)
+			)
+		)
+		
+		color_palette = palette(colors, length(α_interp))
+	
+		x = LinRange(1, max_fold_change_α, 30) # scaling factors
+	
+		occupancy = get_total_occupancy(
+			 results["α_vec"], p, results["densities"], results["params_dict"]
+		);
+	
+		occupancy_interp = linear_interpolation(results["α_vec"], occupancy)
+	
+		fold_changes = [
+			occupancy_interp.(x*α)./occupancy_interp.(α) for α in α_interp
+		]
+	
+		pocc_x = plot(size=(800, 400))
+		
+		for (k, α) in enumerate(α_interp)
+			plot!(
+				x, fold_changes[k], 
+				linestyle=:dash, label="α/γ = $(round(α/γ_plot; digits=3))",
+				color=color_palette[k]
+			)
+		end
+		
+		xlabel!("α fold change")
+		ylabel!("occupancy fold change")
+		plot!(legend=:outertopleft)
+		ylims!(0, 10)
+		title!("Occupancy fold change for $param_name = $(round(p; digits=3))")
+	
+		pocc_x
+	end
