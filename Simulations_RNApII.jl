@@ -63,8 +63,10 @@ theory = ingredients("theory.jl")
 # ╔═╡ cc9abe54-7ddf-41ac-b9ee-253d8a88fd3e
 md"""
 ## TODO
-* Clean the code, make it reusable
 * apply the same analysis across different $L$ to see if you get a different conclusion
+* We currently check that on average the RNAs stay the right amount of time on the second strand. **BUT** we do not check where on average they detach, and it should be about 200bp apparently...
+* I need to make the business with `DEFAULT_PARAMS` a bit less messy. Similarly, i need to rewrite the scripts to run the simulations so that it happens easily.
+* eliminate the reliance on DEFAULT PARAMS for plotting etc because you lose track, the default params might be modified, but you don't save them... so you need to just use the `params` that you have everywhere. Technically, if you do a `gamma` sweep, only `gamma` will change. if you do a `L` sweep, `L`, β, β2, and the lengths will change. KNowing that, you should be able to use the params appropriately
 """
 
 # ╔═╡ b4890915-71c2-4a52-9152-34c163be9c7b
@@ -141,7 +143,8 @@ md"""### Rate sweeps"""
 
 # ╔═╡ de4afe62-319b-40a8-97d0-ebb927d3d68a
 rγ = JLD2.load(
-	"results/sweep_gamma.jld2"; 
+	# "results/sweep_gamma.jld2";
+	"results/sweep_gamma_L35.jld2";
 	typemap=Dict("Main.Params" => base.Params)
 )
 
@@ -175,36 +178,8 @@ md"""
 We see that simulations yield much higher transcription rate because there is less jamming for limited γ
 """
 
-# ╔═╡ 0f38187b-cf4c-4cbe-aada-db600ba9900d
-# plot showing the theory and the simulations converging as γ increases
-# and I am expecting the J to be higher for simulations than for theory
-# as the buffer is not there
-let
-	pe = plot()
-	α_vec = rγ["α_vec"]
-	params = rγ["params_dict"][γ_plot][1]
-	trans_rates = rγ["trans_rates"][γ_plot]
-	plot!(
-		α_vec, 
-		theory.J.(α_vec, DEFAULT_PARAMS.β, params.γ, DEFAULT_PARAMS.L), 
-		label="Theory: γ = $(params.γ), L=$(DEFAULT_PARAMS.L)", linewidth=2,
-		color=:firebrick
-	)
-
-# the below is assuming that all elements of list params[p] have the same β
-	plot!(α_vec, trans_rates*params.β, 
-		label="", linestyle=:dash, linewidth=2
-	)
-
-	scatter!(
-		α_vec, trans_rates*params.β, 
-		label="γ = $(round(γ_plot; digits=3))", markersize=5
-	)
-	plot!(legend=:bottomright)
-	xlabel!("α")
-	ylabel!("J")
-	
-end
+# ╔═╡ d2a79eb9-9ab1-45ee-9461-250f91b45aeb
+plot_utils.plot_comparison_J_th_sim(rγ, γ_plot, "γ")
 
 # ╔═╡ 3cff1daf-9764-48f7-9935-39bf61bfe7c0
 plot_utils.plot_occupancy_fold_change_scaling(
@@ -255,11 +230,18 @@ end
   ╠═╡ =#
 
 # ╔═╡ f3d6cf41-a93c-4e95-aba7-2b62c048b77f
-md"""### Size sweeps"""
+md"""# Size sweeps"""
+
+# ╔═╡ 04cf95ef-2d95-4194-9e78-3bd5bd788dfa
+md"""
+### Notes
+* the difference between the behavior at low and large $L$s is strongly dependent on the value of γ. For large value of γ it seems that large L is more different from the theoretical model than low L. This is the converse for low values of γ
+"""
 
 # ╔═╡ edf9d165-cd20-4884-81ad-2b03e4cdc08f
 rL = JLD2.load(
 	"results/sweep_L.jld2"; 
+	# "results/sweep_L_gamma10.jld2";
 	typemap=Dict("Main.Params" => base.Params)
 )
 
@@ -285,11 +267,37 @@ end;
 # ╔═╡ 283a44c2-69e0-46d6-ba82-1e3a70604864
 md""" L plot = $(L_plot)"""
 
+# ╔═╡ 4d7e8dbd-f5a3-4fab-b3ef-f9cb121fc151
+plot_utils.plot_comparison_J_th_sim(rL, L_plot, "L")
+
 # ╔═╡ b4ce4ddd-f75f-4417-b805-5e71423d09b1
 plot([pa, pb, pc, pd]..., layout=(2, 2), size=(800, 800))
 
 # ╔═╡ 8ab75ef1-f192-4e19-9bb0-bf10a93ad426
 pb
+
+# ╔═╡ 8e6d336f-3d7a-4f0d-abbf-a248ce5fe850
+md"""
+**TODO**: you need to do a more detailed analysis of this occupancy, and why the frequency of oscillation is so small... I should expect to see this only at low γ... 
+"""
+
+# ╔═╡ bc338675-2d8c-4d13-8aaf-f9e69f1f3af8
+plot_utils.plot_occupancy_fold_change_scaling(
+	rL, L_plot, "L"; max_fold_change_α=3, colors = [:orange, :blue, :green]
+)
+
+# ╔═╡ 21a91ce2-a461-43c8-83d2-30a16c293964
+plot_utils.plot_occupancy_fold_change(
+	rL, "L"; max_fold_change_α=3
+)
+
+# ╔═╡ ad60c02a-a02d-4a24-9805-7579cf7cbcf7
+md"""
+**Large γ**: 
+we see that if γ is very large, nothing changes. (i.e. the curves are invariant between different values of L). However, if γ is smaller, then it can jam, and you have a higher probability of jamming when L is larger... 
+
+**Small γ**: the curves shift to the left with L increasing. That means that the point at which α reaches the transition in terms of occupancy occurs sooner with larger L
+"""
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1436,7 +1444,7 @@ version = "1.4.1+0"
 # ╠═a41f5e4c-d1eb-4065-9c61-5695dc151b00
 # ╠═282f03d7-acf5-40e4-8cae-222b398602ae
 # ╠═c638a833-c5cb-4ebe-9776-a072f3eaf8f6
-# ╟─cc9abe54-7ddf-41ac-b9ee-253d8a88fd3e
+# ╠═cc9abe54-7ddf-41ac-b9ee-253d8a88fd3e
 # ╟─b4890915-71c2-4a52-9152-34c163be9c7b
 # ╟─f4af7844-459e-44ca-b5a7-79093f77d76a
 # ╟─b4fddea7-fecc-4db8-8288-6ad4f8b31780
@@ -1458,17 +1466,23 @@ version = "1.4.1+0"
 # ╟─05de9a3e-dbe1-4b2e-a052-04a9c05ff16b
 # ╠═0480d46f-349e-4237-9080-e342492afdeb
 # ╟─54f71b99-74b0-4b9f-9e30-9911d46b9788
-# ╟─0f38187b-cf4c-4cbe-aada-db600ba9900d
-# ╟─3cff1daf-9764-48f7-9935-39bf61bfe7c0
+# ╠═d2a79eb9-9ab1-45ee-9461-250f91b45aeb
+# ╠═3cff1daf-9764-48f7-9935-39bf61bfe7c0
 # ╟─eea48f4b-81b6-4e71-bb1f-fbb0b3490014
-# ╟─ceef08e9-768e-4a61-991f-4eab049aba7c
+# ╠═ceef08e9-768e-4a61-991f-4eab049aba7c
 # ╟─e3e57eb5-8564-4dc1-95be-e998b9993bee
 # ╟─f3d6cf41-a93c-4e95-aba7-2b62c048b77f
+# ╠═04cf95ef-2d95-4194-9e78-3bd5bd788dfa
 # ╠═edf9d165-cd20-4884-81ad-2b03e4cdc08f
 # ╠═8826e489-80d4-49e0-976d-5ca5aff1107e
 # ╟─283a44c2-69e0-46d6-ba82-1e3a70604864
 # ╟─687da5bd-8cc4-4e55-8465-53fdcf4676fd
+# ╠═4d7e8dbd-f5a3-4fab-b3ef-f9cb121fc151
 # ╠═b4ce4ddd-f75f-4417-b805-5e71423d09b1
 # ╠═8ab75ef1-f192-4e19-9bb0-bf10a93ad426
+# ╟─8e6d336f-3d7a-4f0d-abbf-a248ce5fe850
+# ╠═bc338675-2d8c-4d13-8aaf-f9e69f1f3af8
+# ╠═21a91ce2-a461-43c8-83d2-30a16c293964
+# ╟─ad60c02a-a02d-4a24-9805-7579cf7cbcf7
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

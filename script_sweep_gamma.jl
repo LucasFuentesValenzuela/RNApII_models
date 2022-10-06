@@ -12,7 +12,7 @@ params_dict, trans_rates, residence_times, densities = sweep_params(
 );
 
 JLD2.jldsave(
-    "results/sweep_gamma.jld2";
+    "results/sweep_gamma_L35.jld2";
     α_vec, 
     p_vec,
     params_dict, 

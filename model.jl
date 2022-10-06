@@ -22,15 +22,19 @@ Params(
 )
 
 """
-Default parameters for the system at hand
+Default parameters for the system at hand. All the parameters are given for L=1. 
+
+	I need to rewrite something that modifies this instead of changing in the source
+	code when I want to change something...
 """
 α_default = 0.0033
 β_default = 0.57
-γ_default = 0.014
+# γ_default = 0.014
+γ_default = 10
 Δt_default = .05
 ratio_β2 = 8
 β2_default = β_default/ratio_β2
-L_default = 1
+L_default = 35
 
 DEFAULT_nsteps = 400000
 DEFAULT_n_sites = 42
@@ -187,14 +191,14 @@ function sweep_params(α_vec, p_vec, DEFAULT_PARAMS, param_name)
 			if param_name == "γ"
 				params = Params( 
 					α, 
-					DEFAULT_PARAMS.β, 
+					DEFAULT_PARAMS.β*DEFAULT_PARAMS.L, 
 					p, 
 					DEFAULT_PARAMS.L, 
 					DEFAULT_PARAMS.Δt, 
 					DEFAULT_PARAMS.n_steps, 
-					DEFAULT_PARAMS.n_sites, 
-					DEFAULT_PARAMS.n_end_sites,
-					DEFAULT_PARAMS.β2
+					DEFAULT_PARAMS.n_sites*DEFAULT_PARAMS.L, 
+					DEFAULT_PARAMS.n_end_sites*DEFAULT_PARAMS.L,
+					DEFAULT_PARAMS.β2*p
 				)
 			elseif param_name == "L"
 				params = Params(
@@ -206,7 +210,7 @@ function sweep_params(α_vec, p_vec, DEFAULT_PARAMS, param_name)
 					DEFAULT_PARAMS.n_steps, 
 					DEFAULT_PARAMS.n_sites*p, 
 					DEFAULT_PARAMS.n_end_sites*p,
-					DEFAULT_PARAMS.β2
+					DEFAULT_PARAMS.β2*p
 				)
 			end
 			

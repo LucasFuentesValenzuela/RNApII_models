@@ -45,8 +45,8 @@ function plot_transcription_rate_sweep(α_vec, p_vec, params, param_name, trans_
 	if param_name=="γ"
 		plot!(
 			α_vec, 
-			J.(α_vec, DEFAULT_PARAMS.β, LARGE_γ, DEFAULT_PARAMS.L), 
-			label="Theory: γ >> 1, L=$(DEFAULT_PARAMS.L)", linewidth=2,
+			J.(α_vec, DEFAULT_PARAMS.β, LARGE_γ, params[p_vec[1]][1].L), 
+			label="Theory: γ >> 1, L=$(params[p_vec[1]][1].L)", linewidth=2,
 			color=:firebrick
 		)
 
@@ -54,15 +54,15 @@ function plot_transcription_rate_sweep(α_vec, p_vec, params, param_name, trans_
 
 		plot!(
 			α_vec, 
-			J.(α_vec, DEFAULT_PARAMS.β, DEFAULT_PARAMS.γ, DEFAULT_PARAMS.L), 
-			label="Theory: L=$(DEFAULT_PARAMS.L)", linewidth=2,
+			J.(α_vec, DEFAULT_PARAMS.β, params[DEFAULT_PARAMS.L][1].γ, DEFAULT_PARAMS.L), 
+			label="Theory: L=$(DEFAULT_PARAMS.L), γ = $(params[1][1].γ)", linewidth=2,
 			color=:firebrick
 		)
 
 		plot!(
 			α_vec, 
-			J.(α_vec, DEFAULT_PARAMS.β*p_vec[end], DEFAULT_PARAMS.γ, p_vec[end]), 
-			label="Theory:  L=$(p_vec[end])", linewidth=2, linestyle=:dash,
+			J.(α_vec, DEFAULT_PARAMS.β*p_vec[end], params[p_vec[end]][1].γ, p_vec[end]), 
+			label="Theory:  L=$(p_vec[end]),  γ = $(params[1][end].γ)", linewidth=2,
 			color=:orange
 		)
 
@@ -70,7 +70,7 @@ function plot_transcription_rate_sweep(α_vec, p_vec, params, param_name, trans_
 
 	for (k, p) in enumerate(p_vec)
 
-		if k%trunc(Int, length(p_vec)/5)==0
+		if k%trunc(Int, length(p_vec)/4)==0
 			label = "$(param_name) = $(round(p; digits=3))"
 		else
 			label=""
@@ -181,8 +181,9 @@ function get_total_occupancy(density, params)
 
 	n_sites = params.n_sites
 	n_steps = params.n_steps
+	L = params.L
 
-	total_occupancy = sum(density[1:n_sites])/(n_steps*n_sites)
+	total_occupancy = sum(density[1:n_sites])/(n_steps*n_sites)*L
 
 	return total_occupancy
 end
@@ -251,7 +252,7 @@ function plot_occupancy_fold_change(
 	
 			fold_changes = occupancy_interp.(max_fold_change_α*α_interp)./occupancy_interp.(α_interp)
 	
-			if k%trunc(Int, length(results["p_vec"])/5)==0
+			if k%trunc(Int, length(results["p_vec"])/4)==0
 				label = "$param_name = $(round(p; digits=3))"
 			else
 				label=""
@@ -328,3 +329,40 @@ function plot_occupancy_fold_change_scaling(
 	
 		pocc_x
 	end
+
+
+"""
+"""
+function plot_comparison_J_th_sim(results, p, param_name)
+	
+	pe = plot()
+
+	# load results
+	α_vec = results["α_vec"]
+	params = results["params_dict"][p][1]
+	trans_rates = results["trans_rates"][p]
+
+	# plot
+	plot!(
+		α_vec, 
+		J.(α_vec, params.β, params.γ, params.L), 
+		label="Theory: γ = $(params.γ), L=$(params.L)", linewidth=2,
+		color=:firebrick
+	)
+
+	# the below is assuming that all elements of list params[p] have the same β
+	plot!(α_vec, trans_rates*params.β, 
+		label="", linestyle=:dash, linewidth=2
+	)
+
+	scatter!(
+		α_vec, trans_rates*params.β, 
+		label="$param_name = $(round(p; digits=3))", markersize=5
+	)
+	
+	plot!(legend=:bottomright)
+	xlabel!("α")
+	ylabel!("J")
+
+	return pe
+end
