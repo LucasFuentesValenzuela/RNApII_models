@@ -27,14 +27,14 @@ Default parameters for the system at hand
 α_default = 0.0033
 β_default = 0.57
 γ_default = 0.014
-Δt_default = .01
-ratio_β2 = 5
+Δt_default = .05
+ratio_β2 = 8
 β2_default = β_default/ratio_β2
 L_default = 1
 
-DEFAULT_nsteps = 2000000
+DEFAULT_nsteps = 400000
 DEFAULT_n_sites = 42
-DEFAULT_n_end_sites = 5
+DEFAULT_n_end_sites = 10
 
 DEFAULT_PARAMS = Params(
 	α_default, β_default, γ_default, Δt_default, 
@@ -185,7 +185,7 @@ function sweep_params(α_vec, p_vec, DEFAULT_PARAMS, param_name)
 		for α in α_vec
 
 			if param_name == "γ"
-				params = Params(
+				params = Params( 
 					α, 
 					DEFAULT_PARAMS.β, 
 					p, 

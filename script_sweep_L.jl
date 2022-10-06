@@ -2,10 +2,10 @@ using JLD2
 
 include("model.jl")
 
-n_points_ = 5
-α_vec = 10. .^(LinRange(-3, 0, n_points_));
+n_points_ = 15
+α_vec = 10. .^(LinRange(-3, 1, n_points_));
 param_name = "L"
-p_vec = [1, 2, 5, 10]
+p_vec = [1, 2, 10, 35]
 
 params_dict, trans_rates, residence_times, densities = sweep_params(
 	α_vec, p_vec, DEFAULT_PARAMS, param_name

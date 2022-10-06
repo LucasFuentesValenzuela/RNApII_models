@@ -32,6 +32,9 @@ using HDF5
 # ╔═╡ 97f8ac6c-db53-4071-9129-68802f8bfed8
 using JLD2
 
+# ╔═╡ fb0979a6-c08e-4dfb-bb99-b99be180b999
+using Interpolations
+
 # ╔═╡ e343e2d6-0b22-4f43-b112-cc72f8fb76fd
 # replacement of the include statement
 function ingredients(path::String)
@@ -56,6 +59,13 @@ plot_utils = ingredients("plot_utils.jl")
 
 # ╔═╡ c638a833-c5cb-4ebe-9776-a072f3eaf8f6
 theory = ingredients("theory.jl")
+
+# ╔═╡ cc9abe54-7ddf-41ac-b9ee-253d8a88fd3e
+md"""
+## TODO
+* Clean the code, make it reusable
+* apply the same analysis across different $L$ to see if you get a different conclusion
+"""
 
 # ╔═╡ b4890915-71c2-4a52-9152-34c163be9c7b
 md"""
@@ -131,7 +141,7 @@ md"""### Rate sweeps"""
 
 # ╔═╡ de4afe62-319b-40a8-97d0-ebb927d3d68a
 rγ = JLD2.load(
-	"results/sweep_gamma_test.jld2"; 
+	"results/sweep_gamma.jld2"; 
 	typemap=Dict("Main.Params" => base.Params)
 )
 
@@ -157,8 +167,13 @@ end;
 # ╔═╡ e4164e3f-7c1a-4860-9ce7-9bf342490173
 md""" γ plot : $(round(γ_plot; digits=3))"""
 
-# ╔═╡ f9588b9d-9c7d-4631-ac38-65829ec417f7
-p1
+# ╔═╡ 0480d46f-349e-4237-9080-e342492afdeb
+plot([p1, p2, p3, p4]..., layout=(2, 2), size=(800, 800))
+
+# ╔═╡ 54f71b99-74b0-4b9f-9e30-9911d46b9788
+md"""
+We see that simulations yield much higher transcription rate because there is less jamming for limited γ
+"""
 
 # ╔═╡ 0f38187b-cf4c-4cbe-aada-db600ba9900d
 # plot showing the theory and the simulations converging as γ increases
@@ -191,14 +206,146 @@ let
 	
 end
 
-# ╔═╡ 336974b6-804f-4d4c-96f2-ac9266c41c06
-p2
+# ╔═╡ e3e57eb5-8564-4dc1-95be-e998b9993bee
+# figuring out what the fold change is from simulations
+let
+	fold_change_α = 3
 
-# ╔═╡ 4b228656-84c1-4d5c-b276-4fb4242f2fee
-p3
+	occupancy = plot_utils.get_total_occupancy(
+	 	rγ["α_vec"], γ_plot, rγ["densities"], rγ["params_dict"]
+	);
 
-# ╔═╡ c2a259af-63a6-40d7-9ae3-967a3fa864df
-p4
+	occupancy_interp = linear_interpolation(rγ["α_vec"], occupancy)
+
+	α_interp = rγ["α_vec"][1] .* 10. .^(
+		LinRange(0, log10(rγ["α_vec"][end]/fold_change_α/rγ["α_vec"][1]), 100)
+	)
+
+	fold_changes = occupancy_interp.(3*α_interp)./occupancy_interp.(α_interp)
+
+	pocc = plot(α_interp ./ γ_plot, fold_changes, linestyle=:dash, label="")
+	# scatter!(α_interp, fold_changes)
+	vline!([1], label="α = γ")
+	vline!([base.DEFAULT_PARAMS.α], label="α = α_default")
+	xlabel!("α/γ")
+	ylabel!("occupancy fold change")
+	plot!(xscale=:log)
+	title!("Final fold change for γ = $(round(γ_plot; digits=3))")
+	ylims!(0, 10)
+
+	#############################################
+	
+	max_fold_change_α = 3
+
+
+	# lower_ = max(rγ["α_vec"][1], γ_plot/10)
+	# α_interp = LinRange(, rγ["α_vec"][end]/max_fold_change_α, 5)
+
+	lower_ = rγ["α_vec"][1]/γ_plot * 1.1
+	upper_ = rγ["α_vec"][end]/γ_plot/(max_fold_change_α+.1)
+	α_interp = γ_plot .* 10. .^(
+		collect(
+			LinRange(
+				log10(lower_), 
+				log10(upper_), 
+				15
+			)
+		)
+	)
+
+	# α_interp = γ_plot .* 10. .^(
+	# 	[-1, -.5, 0, .5, .75, 1]
+	# )
+
+	# α_interp = LinRange(γ_plot * lower_, γ_plot * upper_, 10)
+	
+	color_palette = palette([:blue, :green], length(α_interp))
+
+	x = LinRange(1, max_fold_change_α, 30)
+
+	fold_changes = [
+		occupancy_interp.(x*α)./occupancy_interp.(α) for α in α_interp
+	]
+
+	# @show rγ["α_vec"][1], rγ["α_vec"][end]
+	# fold_changes = []
+	# for α in α_interp
+	# 	@show α
+	# 	push!(fold_changes, occupancy_interp.(x*α)./occupancy_interp.(α))
+	# end
+
+	pocc_x = plot()
+	for (k, α) in enumerate(α_interp)
+		plot!(
+			x, fold_changes[k], 
+			linestyle=:dash, label="α/γ = $(round(α/γ_plot; digits=3))",
+			color=color_palette[k]
+		)
+	end
+	# scatter!(α_interp, fold_changes)
+	# vline!([γ_plot], label="α = γ")
+	xlabel!("α fold change")
+	ylabel!("occupancy fold change")
+	plot!(legend=:outertopleft)
+	ylims!(0, 10)
+	title!("Occupancy fold change for γ = $(round(γ_plot; digits=3))")
+	# plot!(xscale=:log)
+
+	plot!([pocc, pocc_x]..., layout=(2, 1), size=(800, 800))
+
+	# pocc_x
+end
+
+# ╔═╡ eea48f4b-81b6-4e71-bb1f-fbb0b3490014
+md"""
+**Question** do these curves collapse? like occupancy/γ wrt α/γ
+"""
+
+# ╔═╡ 9b453474-f075-49fe-9839-83978ded4c07
+let
+	
+	fold_change_α = 3
+
+	α_interp = rγ["α_vec"][1] .* 10. .^(
+		LinRange(0, log10(rγ["α_vec"][end]/fold_change_α/rγ["α_vec"][1]), 100)
+	)
+
+	px = plot()
+
+	color_palette = palette([:orange, :green], length(rγ["p_vec"]))
+	
+	for (k,γ) in enumerate(rγ["p_vec"])
+		
+		occupancy = plot_utils.get_total_occupancy(
+		 	rγ["α_vec"], γ, rγ["densities"], rγ["params_dict"]
+		);
+		occupancy_interp = linear_interpolation(rγ["α_vec"], occupancy)
+
+		fold_changes = occupancy_interp.(3*α_interp)./occupancy_interp.(α_interp)
+
+		if k%trunc(Int, length(rγ["p_vec"])/5)==0
+			label = "γ = $(round(γ; digits=3))"
+		else
+			label=""
+		end
+		
+		plot!(
+			α_interp, fold_changes, linestyle=:dash, label=label, 
+			color = color_palette[k], linewidth=2
+		)
+	end
+
+	
+	# scatter!(α_interp, fold_changes)
+	# vline!([γ_plot], label="α = γ")
+	vline!([base.DEFAULT_PARAMS.α], label="α = α_default", color=:red)
+	xlabel!("α")
+	ylabel!("occupancy fold change")
+	plot!(xscale=:log)
+	# ylims!(0, 10)
+	plot!(yscale=:log)
+
+end
 
 # ╔═╡ f3d6cf41-a93c-4e95-aba7-2b62c048b77f
 md"""### Size sweeps"""
@@ -208,9 +355,6 @@ rL = JLD2.load(
 	"results/sweep_L.jld2"; 
 	typemap=Dict("Main.Params" => base.Params)
 )
-
-# ╔═╡ 42a89a14-661e-48ae-9552-3933ad4bed23
-keys(rL["trans_rates"])
 
 # ╔═╡ 687da5bd-8cc4-4e55-8465-53fdcf4676fd
 @bind L_plot Slider(rL["p_vec"])
@@ -234,23 +378,18 @@ end;
 # ╔═╡ 283a44c2-69e0-46d6-ba82-1e3a70604864
 md""" L plot = $(L_plot)"""
 
-# ╔═╡ 477600bd-7df7-495e-8600-6f3690c84365
-pa
+# ╔═╡ b4ce4ddd-f75f-4417-b805-5e71423d09b1
+plot([pa, pb, pc, pd]..., layout=(2, 2), size=(800, 800))
 
-# ╔═╡ 76a16327-bf49-4a34-8048-10eeeffd08bb
+# ╔═╡ 8ab75ef1-f192-4e19-9bb0-bf10a93ad426
 pb
-
-# ╔═╡ 47340ab9-75fa-4afb-ac6a-9056670827e3
-pc
-
-# ╔═╡ 4c958994-f8bd-46da-a90c-fcc7eacf931b
-pd
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 HDF5 = "f67ccb44-e63f-5c2f-98bd-6dc0ccc4ba2f"
+Interpolations = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
@@ -259,6 +398,7 @@ Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 [compat]
 Distributions = "~0.25.70"
 HDF5 = "~0.16.11"
+Interpolations = "~0.14.5"
 JLD2 = "~0.4.24"
 Plots = "~1.32.0"
 PlutoUI = "~0.7.40"
@@ -288,6 +428,12 @@ uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
 
 [[deps.Artifacts]]
 uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
+
+[[deps.AxisAlgorithms]]
+deps = ["LinearAlgebra", "Random", "SparseArrays", "WoodburyMatrices"]
+git-tree-sha1 = "66771c8d21c8ff5e3a93379480a2307ac36863f7"
+uuid = "13072b0f-2c55-5437-9ae7-d433b7a33950"
+version = "1.0.1"
 
 [[deps.Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
@@ -396,6 +542,10 @@ deps = ["InverseFunctions", "Test"]
 git-tree-sha1 = "80c3e8639e3353e5d2912fb3a1916b8455e2494b"
 uuid = "b429d917-457f-4dbc-8f4c-0cc954292b1d"
 version = "0.4.0"
+
+[[deps.Distributed]]
+deps = ["Random", "Serialization", "Sockets"]
+uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 
 [[deps.Distributions]]
 deps = ["ChainRulesCore", "DensityInterface", "FillArrays", "LinearAlgebra", "PDMats", "Printf", "QuadGK", "Random", "SparseArrays", "SpecialFunctions", "Statistics", "StatsBase", "StatsFuns", "Test"]
@@ -599,6 +749,12 @@ version = "0.5.1"
 [[deps.InteractiveUtils]]
 deps = ["Markdown"]
 uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
+
+[[deps.Interpolations]]
+deps = ["Adapt", "AxisAlgorithms", "ChainRulesCore", "LinearAlgebra", "OffsetArrays", "Random", "Ratios", "Requires", "SharedArrays", "SparseArrays", "StaticArrays", "WoodburyMatrices"]
+git-tree-sha1 = "f67b55b6447d36733596aea445a9f119e83498b6"
+uuid = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
+version = "0.14.5"
 
 [[deps.InverseFunctions]]
 deps = ["Test"]
@@ -806,6 +962,12 @@ version = "1.0.1"
 [[deps.NetworkOptions]]
 uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
 
+[[deps.OffsetArrays]]
+deps = ["Adapt"]
+git-tree-sha1 = "1ea784113a6aa054c5ebd95945fa5e52c2f378e7"
+uuid = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
+version = "1.12.7"
+
 [[deps.Ogg_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "887579a3eb005446d514ab7aeac5d1d027658b8f"
@@ -929,6 +1091,12 @@ uuid = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
 deps = ["SHA", "Serialization"]
 uuid = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
+[[deps.Ratios]]
+deps = ["Requires"]
+git-tree-sha1 = "dc84268fe0e3335a62e315a3a7cf2afa7178a734"
+uuid = "c84ed2f1-dad5-54f0-aa8e-dbefe2724439"
+version = "0.4.3"
+
 [[deps.RecipesBase]]
 git-tree-sha1 = "6bf3f380ff52ce0832ddd3a2a7b9538ed1bcca7d"
 uuid = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
@@ -980,6 +1148,10 @@ version = "1.1.1"
 
 [[deps.Serialization]]
 uuid = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
+
+[[deps.SharedArrays]]
+deps = ["Distributed", "Mmap", "Random", "Serialization"]
+uuid = "1a1011a3-84de-559e-8e89-a11a2f7dc383"
 
 [[deps.Showoff]]
 deps = ["Dates", "Grisu"]
@@ -1129,6 +1301,12 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "4528479aa01ee1b3b4cd0e6faef0e04cf16466da"
 uuid = "2381bf8a-dfd0-557d-9999-79630e7b1b91"
 version = "1.25.0+0"
+
+[[deps.WoodburyMatrices]]
+deps = ["LinearAlgebra", "SparseArrays"]
+git-tree-sha1 = "de67fa59e33ad156a590055375a30b23c40299d3"
+uuid = "efce3f68-66dc-5838-9240-27a6d6f5f9b6"
+version = "0.5.5"
 
 [[deps.XML2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Libiconv_jll", "Pkg", "Zlib_jll"]
@@ -1346,10 +1524,12 @@ version = "1.4.1+0"
 # ╠═13fd8e1c-d0aa-4938-ab41-2a146d65003b
 # ╠═e4104848-a87e-4da9-b3d4-1cce58aed193
 # ╠═97f8ac6c-db53-4071-9129-68802f8bfed8
+# ╠═fb0979a6-c08e-4dfb-bb99-b99be180b999
 # ╟─e343e2d6-0b22-4f43-b112-cc72f8fb76fd
 # ╠═a41f5e4c-d1eb-4065-9c61-5695dc151b00
 # ╠═282f03d7-acf5-40e4-8cae-222b398602ae
 # ╠═c638a833-c5cb-4ebe-9776-a072f3eaf8f6
+# ╟─cc9abe54-7ddf-41ac-b9ee-253d8a88fd3e
 # ╟─b4890915-71c2-4a52-9152-34c163be9c7b
 # ╟─f4af7844-459e-44ca-b5a7-79093f77d76a
 # ╟─b4fddea7-fecc-4db8-8288-6ad4f8b31780
@@ -1366,23 +1546,21 @@ version = "1.4.1+0"
 # ╟─bc012aed-9c67-414e-bf81-945aa232155d
 # ╟─28eb8e07-1c90-433c-a73b-02fb6b036bf7
 # ╠═de4afe62-319b-40a8-97d0-ebb927d3d68a
-# ╟─3dee3fcb-d725-45b3-980d-8a71554b236a
+# ╠═3dee3fcb-d725-45b3-980d-8a71554b236a
 # ╟─e4164e3f-7c1a-4860-9ce7-9bf342490173
 # ╟─05de9a3e-dbe1-4b2e-a052-04a9c05ff16b
-# ╟─f9588b9d-9c7d-4631-ac38-65829ec417f7
+# ╠═0480d46f-349e-4237-9080-e342492afdeb
+# ╟─54f71b99-74b0-4b9f-9e30-9911d46b9788
 # ╟─0f38187b-cf4c-4cbe-aada-db600ba9900d
-# ╟─336974b6-804f-4d4c-96f2-ac9266c41c06
-# ╟─4b228656-84c1-4d5c-b276-4fb4242f2fee
-# ╟─c2a259af-63a6-40d7-9ae3-967a3fa864df
+# ╠═e3e57eb5-8564-4dc1-95be-e998b9993bee
+# ╠═eea48f4b-81b6-4e71-bb1f-fbb0b3490014
+# ╠═9b453474-f075-49fe-9839-83978ded4c07
 # ╟─f3d6cf41-a93c-4e95-aba7-2b62c048b77f
 # ╠═edf9d165-cd20-4884-81ad-2b03e4cdc08f
-# ╠═42a89a14-661e-48ae-9552-3933ad4bed23
 # ╠═8826e489-80d4-49e0-976d-5ca5aff1107e
 # ╟─283a44c2-69e0-46d6-ba82-1e3a70604864
 # ╟─687da5bd-8cc4-4e55-8465-53fdcf4676fd
-# ╟─477600bd-7df7-495e-8600-6f3690c84365
-# ╟─76a16327-bf49-4a34-8048-10eeeffd08bb
-# ╟─47340ab9-75fa-4afb-ac6a-9056670827e3
-# ╟─4c958994-f8bd-46da-a90c-fcc7eacf931b
+# ╠═b4ce4ddd-f75f-4417-b805-5e71423d09b1
+# ╠═8ab75ef1-f192-4e19-9bb0-bf10a93ad426
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

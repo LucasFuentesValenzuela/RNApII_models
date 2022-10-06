@@ -2,6 +2,7 @@ using Plots
 using Statistics
 
 include("theory.jl")
+include("model.jl")
 
 LARGE_γ = 1000
 
@@ -60,7 +61,7 @@ function plot_transcription_rate_sweep(α_vec, p_vec, params, param_name, trans_
 		plot!(
 			α_vec, 
 			J.(α_vec, DEFAULT_PARAMS.β*p_vec[end], DEFAULT_PARAMS.γ, p_vec[end]), 
-			label="Theory:  L=$(p_vec[end])", linewidth=2,
+			label="Theory:  L=$(p_vec[end])", linewidth=2, linestyle=:dash,
 			color=:orange
 		)
 
@@ -68,15 +69,21 @@ function plot_transcription_rate_sweep(α_vec, p_vec, params, param_name, trans_
 
 	for (k, p) in enumerate(p_vec)
 
+		if k%trunc(Int, length(p_vec)/5)==0
+			label = "$(param_name) = $(round(p; digits=3))"
+		else
+			label=""
+		end
+
 		# the below is assuming that all elements of list params[p] have the same β
 		plot!(α_vec, trans_rates[p]*params[p][1].β, 
-			label="", linestyle=:dash, linewidth=2, color=color_palette[k]
+			label=label, linestyle=:dash, linewidth=2, color=color_palette[k]
 		)
 
-		scatter!(
-			α_vec, trans_rates[p]*params[p][1].β, 
-			label="$(param_name) = $(round(p; digits=3))", markersize=5, color=color_palette[k]
-		)
+		# scatter!(
+		# 	α_vec, trans_rates[p]*params[p][1].β, 
+		# 	label="", markersize=5, color=color_palette[k]
+		# )
 	end
 
 	xlabel!("Initiation rate α [1/s]")
@@ -103,7 +110,7 @@ function plot_density_sweep(α_vec, p_plot, params, param_name, densities)
 	
 	for (k, α) in enumerate(α_vec)
 
-		if k%1==0
+		if k%trunc(Int, length(α_vec)/5)==0
 			label = "α/β=$(round(α/(params[p_plot][1].β); digits=3))"
 		else
 			label=""
@@ -168,16 +175,26 @@ plot_residence_times_sweep(results, p, param_name) =  plot_residence_times_sweep
 
 """
 """
+
+function get_total_occupancy(density, params)
+
+	n_sites = params.n_sites
+	n_steps = params.n_steps
+
+	total_occupancy = sum(density[1:n_sites])/(n_steps*n_sites)
+
+	return total_occupancy
+end
+
+get_total_occupancy(α_vec, p, densities, params) = [
+	get_total_occupancy(densities[p][α], params[p][1]) for α in α_vec
+]
+
 function plot_occupancy_sweep(α_vec, p, params, param_name, densities)
 
 	p1 = plot()
 
-	n_sites = params[p][1].n_sites
-	n_steps = params[p][1].n_steps
-
-	total_occupancy = [
-		sum(densities[p][α][1:n_sites])/(n_steps*n_sites) for α in α_vec
-	]
+	total_occupancy = get_total_occupancy(α_vec, p, densities, params)
 
 	plot!(α_vec, total_occupancy, linestyle=:dash, label="")
 	scatter!(α_vec, total_occupancy, linestyle=:dash, label="")
