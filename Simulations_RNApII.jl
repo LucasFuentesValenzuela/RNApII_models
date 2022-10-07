@@ -68,7 +68,7 @@ md"""
 ## TODO
 * apply the same analysis across different $L$ to see if you get a different conclusion
 * We currently check that on average the RNAs stay the right amount of time on the second strand. **BUT** we do not check where on average they detach, and it should be about 200bp apparently...
-* why is there an overshoot in the transcription rate...? It was never there before, and should not be there I think...? It does not make sense that increasing α would lead to any decrease in the transcription rate...
+* why is there an overshoot in the transcription rate...? It was never there before, and should not be there I think...? It does not make sense that increasing α would lead to any decrease in the transcription rate... I don't get it
 * Answer why the density profile with the DEFAULT PARAMS (beginning of the notebook) is so low...? 
 """
 
