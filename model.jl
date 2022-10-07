@@ -208,10 +208,6 @@ function sweep_params(α_vec, p_vec, param_name; params=DEFAULT_PARAMS)
 				α, β, γ, L, Δt, n_steps, n_sites, n_end_sites, β2
 			)
 
-			# @assert params_crt.α * params_crt.Δt <= .3
-			# @assert params_crt.β * params_crt.Δt <= .3
-			# @assert params_crt.γ * params_crt.Δt <= .3
-			
 			exits_, density_, _, tracker_ = run_walker(params_crt);
 
 			push!(params_dict[p], params_crt)

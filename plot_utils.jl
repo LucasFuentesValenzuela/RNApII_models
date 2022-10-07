@@ -106,6 +106,7 @@ function plot_transcription_rate_sweep(α_vec, p_vec, params, param_name, trans_
 	ylabel!("Transcription rate [1/s]")
 	plot!(legend=:topleft)
 	plot!(xscale=:log)
+	plot!(legend=false)
 
 	return p1
 end
@@ -131,9 +132,18 @@ function plot_density_sweep(α_vec, p_plot, params, param_name, densities)
 			label=""
 		end
 
+		# tmp fix: densities need to be rescaled
+		density_crt = copy(densities[p_plot][α])
+		L_crt = params[p_plot][1].L
+		for j in 1:length(densities[p_plot][α])-L_crt
+			for l in 1:L_crt-1
+				density_crt[j+l] += densities[p_plot][α][j]
+			end
+		end
+
 		plot!(
 			LinRange(0, 1, params[p_plot][1].n_sites + params[p_plot][1].n_end_sites),
-			densities[p_plot][α]/params[p_plot][1].n_steps, 
+			density_crt/params[p_plot][1].n_steps, 
 			label=label, 
 			color=color_palette[k], linewidth=2.
 		)
@@ -165,19 +175,20 @@ function plot_residence_times_sweep(α_vec, p, params, param_name, residence_tim
 	else
 		γ = params[p][1].γ
 	end
-	expected = 1/γ/params[p][1].Δt
+	expected = [1/γ/params[p][k].Δt for k in 1:length(params[p])]
 
 	plot!(α_vec, residence_times[p], label="", linestyle=:dash)
 	scatter!(α_vec, residence_times[p], label="Data")
-	hline!(
-		[expected], 
+	plot!(α_vec, expected,
 		label="Expected", linestyle=:dash, linewidth=3, 
 	)
 
 	xlabel!("Initiation rate [1/s]")
 	ylabel!("Number of steps on second strand")
-	plot!(legend=:bottomright)
-	ylims!(.6*expected, 1.4*expected)
+	plot!(legend=:topleft)
+	# ylims!(.6*expected, 1.4*expected)
+	plot!(xscale=:log)
+	plot!(yscale=:log)
 
 	title!("Residence time for γ = $(round(γ; digits=3))")
 
