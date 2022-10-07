@@ -5,7 +5,6 @@ using Interpolations
 include("theory.jl")
 include("model.jl")
 
-LARGE_γ = 1000
 
 function plot_tracker_end(tracker_end, params)
 	histogram(tracker_end["terminated"], label="Data", normed=true)
@@ -16,9 +15,9 @@ function plot_tracker_end(tracker_end, params)
 	ylabel!("Count")
 end
 
-function plot_density(density, n_steps, n_sites)
+function plot_density(density, n_steps, n_sites, L)
 
-	p = plot(density/n_steps, label="")
+	p = plot(density/n_steps*L, label="")
 	xlabel!("basepair")
 	ylabel!("Steady-state density")
 	vline!([n_sites], linestyle=:dash, label="")
@@ -29,13 +28,13 @@ function plot_density(density, n_steps, n_sites)
 	return p
 end
 
-plot_density(density, params) = plot_density(density, params.n_steps, params.n_sites)
+plot_density(density, params) = plot_density(density, params.n_steps, params.n_sites, params.L)
 
 # ======================= Plotting for param sweep ================================
 
 """
 """
-function plot_transcription_rate_sweep(α_vec, p_vec, params, param_name, trans_rates, DEFAULT_PARAMS)
+function plot_transcription_rate_sweep(α_vec, p_vec, params, param_name, trans_rates)
 
 	color_palette = palette([:blue, :green], length(p_vec)+1)
 
@@ -43,26 +42,41 @@ function plot_transcription_rate_sweep(α_vec, p_vec, params, param_name, trans_
 
 	# Analytical solution
 	if param_name=="γ"
+
+		β = params[p_vec[1]][1].β
+		γ = LARGE_γ
+		L = params[p_vec[1]][1].L
+
 		plot!(
 			α_vec, 
-			J.(α_vec, DEFAULT_PARAMS.β, LARGE_γ, params[p_vec[1]][1].L), 
-			label="Theory: γ >> 1, L=$(params[p_vec[1]][1].L)", linewidth=2,
+			J.(α_vec, β, γ, L), 
+			label="Theory: γ >> 1, L=$(L)", linewidth=2,
 			color=:firebrick
 		)
 
 	elseif param_name=="L"
 
-		plot!(
-			α_vec, 
-			J.(α_vec, DEFAULT_PARAMS.β, params[DEFAULT_PARAMS.L][1].γ, DEFAULT_PARAMS.L), 
-			label="Theory: L=$(DEFAULT_PARAMS.L), γ = $(params[1][1].γ)", linewidth=2,
-			color=:firebrick
-		)
+		# parameters for the small value of L
+		β = params[p_vec[1]][1].β
+		γ = params[p_vec[1]][1].γ
+		L = p_vec[1]
 
 		plot!(
 			α_vec, 
-			J.(α_vec, DEFAULT_PARAMS.β*p_vec[end], params[p_vec[end]][1].γ, p_vec[end]), 
-			label="Theory:  L=$(p_vec[end]),  γ = $(params[1][end].γ)", linewidth=2,
+			J.(α_vec, β, γ, L), 
+			label="Theory: L=$(L), γ = $(γ)", linewidth=2,
+			color=:firebrick
+		)
+
+		# parameters for the small value of L
+		βL = params[p_vec[end]][1].β
+		γL = params[p_vec[end]][1].γ
+		LL = p_vec[end]
+
+		plot!(
+			α_vec, 
+			J.(α_vec, βL, γL, LL), 
+			label="Theory:  L=$(LL),  γ = $(γL)", linewidth=2,
 			color=:orange
 		)
 
@@ -77,7 +91,8 @@ function plot_transcription_rate_sweep(α_vec, p_vec, params, param_name, trans_
 		end
 
 		# the below is assuming that all elements of list params[p] have the same β
-		plot!(α_vec, trans_rates[p]*params[p][1].β, 
+		plot!(
+			α_vec, trans_rates[p]*params[p][1].β, 
 			label=label, linestyle=:dash, linewidth=2, color=color_palette[k]
 		)
 
@@ -95,9 +110,8 @@ function plot_transcription_rate_sweep(α_vec, p_vec, params, param_name, trans_
 	return p1
 end
 
-plot_transcription_rate_sweep(results, param_name, DEFAULT_PARAMS) = plot_transcription_rate_sweep(
-	results["α_vec"], results["p_vec"], results["params_dict"], param_name, results["trans_rates"], 
-	DEFAULT_PARAMS
+plot_transcription_rate_sweep(results, param_name) = plot_transcription_rate_sweep(
+	results["α_vec"], results["p_vec"], results["params_dict"], param_name, results["trans_rates"]
 )
 
 """
@@ -226,7 +240,7 @@ plot_occupancy_sweep(results, p, param_name) = plot_occupancy_sweep(
 
 
 function plot_occupancy_fold_change(
-		results, param_name; DEFAULT_PARAMS=DEFAULT_PARAMS, max_fold_change_α=3
+		results, param_name; α_default=α_default, max_fold_change_α=3
 	)
 	
 		# values of α at which to evaluate the fold change
@@ -264,11 +278,13 @@ function plot_occupancy_fold_change(
 			)
 		end
 		
-		vline!([DEFAULT_PARAMS.α], label="α = α_default", color=:red)
+		vline!([α_default], label="α = α_default", color=:red)
 		xlabel!("α")
 		ylabel!("Occupancy fold change")
 		plot!(xscale=:log)
 		plot!(yscale=:log)
+
+		return px
 	
 	end
 

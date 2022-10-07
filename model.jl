@@ -1,4 +1,5 @@
 using Distributions
+using ProgressBars
 
 """
 Define a parameter object
@@ -22,21 +23,18 @@ Params(
 )
 
 """
-Default parameters for the system at hand. All the parameters are given for L=1. 
-
-	I need to rewrite something that modifies this instead of changing in the source
-	code when I want to change something...
 """
+LARGE_γ = 1000
+
 α_default = 0.0033
 β_default = 0.57
-# γ_default = 0.014
-γ_default = 10
-Δt_default = .05
+γ_default = 0.014
+Δt_default = .01
 ratio_β2 = 8
 β2_default = β_default/ratio_β2
-L_default = 35
+L_default = 1
 
-DEFAULT_nsteps = 400000
+DEFAULT_nsteps = 5e5
 DEFAULT_n_sites = 42
 DEFAULT_n_end_sites = 10
 
@@ -112,9 +110,7 @@ function step(
 		# detachment can occur at any point
 		for j in length(gene):-1:n_sites+1
 
-			p_detach = γ*Δt
-	
-			if (gene[j]==1) & (rand(Bernoulli(p_detach))) # detach
+			if (gene[j]==1) & (rand(Bernoulli(γ*Δt))) # detach
 				gene[j] = 0
 
 				push!(tracker_end["terminated"], tracker_end["current"][j-n_sites])
@@ -172,14 +168,14 @@ get_trans_rate(exits, β, Δt) = mean(exits)/β/Δt
 
 get_trans_rate(exits, params) = get_trans_rate(exits, params.β, params.Δt)
 
-function sweep_params(α_vec, p_vec, DEFAULT_PARAMS, param_name)
+function sweep_params(α_vec, p_vec, param_name; params=DEFAULT_PARAMS)
 
 	params_dict = Dict()
 	trans_rates = Dict()
 	residence_times = Dict() # in number of steps
 	densities = Dict()
 
-	for p in p_vec 
+	for p in ProgressBar(p_vec)
 
 		params_dict[p] = []
 		trans_rates[p] = []
@@ -189,35 +185,37 @@ function sweep_params(α_vec, p_vec, DEFAULT_PARAMS, param_name)
 		for α in α_vec
 
 			if param_name == "γ"
-				params = Params( 
-					α, 
-					DEFAULT_PARAMS.β*DEFAULT_PARAMS.L, 
-					p, 
-					DEFAULT_PARAMS.L, 
-					DEFAULT_PARAMS.Δt, 
-					DEFAULT_PARAMS.n_steps, 
-					DEFAULT_PARAMS.n_sites*DEFAULT_PARAMS.L, 
-					DEFAULT_PARAMS.n_end_sites*DEFAULT_PARAMS.L,
-					DEFAULT_PARAMS.β2*p
-				)
+				β = params.β*params.L
+				γ = p 
+				L = params.L
+				n_steps = params.n_steps
+				n_sites = params.n_sites*params.L
+				n_end_sites = params.n_end_sites*params.L
+				β2 = params.β2*params.L
 			elseif param_name == "L"
-				params = Params(
-					α, 
-					DEFAULT_PARAMS.β*p, 
-					DEFAULT_PARAMS.γ,
-					p, 
-					DEFAULT_PARAMS.Δt, 
-					DEFAULT_PARAMS.n_steps, 
-					DEFAULT_PARAMS.n_sites*p, 
-					DEFAULT_PARAMS.n_end_sites*p,
-					DEFAULT_PARAMS.β2*p
-				)
+				β = params.β*p
+				γ = params.γ
+				L = p 
+				n_steps = params.n_steps
+				n_sites = params.n_sites*p
+				n_end_sites = params.n_end_sites*p
+				β2 = params.β2*p
 			end
 			
-			exits_, density_, _, tracker_ = run_walker(params);
+			Δt = 1/3 * minimum([1/α, 1/β, 1/γ])
 
-			push!(params_dict[p], params)
-			push!(trans_rates[p], get_trans_rate(exits_, params))
+			params_crt = Params(
+				α, β, γ, L, Δt, n_steps, n_sites, n_end_sites, β2
+			)
+
+			# @assert params_crt.α * params_crt.Δt <= .3
+			# @assert params_crt.β * params_crt.Δt <= .3
+			# @assert params_crt.γ * params_crt.Δt <= .3
+			
+			exits_, density_, _, tracker_ = run_walker(params_crt);
+
+			push!(params_dict[p], params_crt)
+			push!(trans_rates[p], get_trans_rate(exits_, params_crt))
 			push!(residence_times[p], mean(tracker_["terminated"]))
 			densities[p][α] = density_
 		
