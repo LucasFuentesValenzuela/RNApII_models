@@ -35,6 +35,9 @@ using JLD2
 # ╔═╡ fb0979a6-c08e-4dfb-bb99-b99be180b999
 using Interpolations
 
+# ╔═╡ d62e1a26-8298-4d92-ba61-129c123cb6be
+using ProgressBars
+
 # ╔═╡ e343e2d6-0b22-4f43-b112-cc72f8fb76fd
 # replacement of the include statement
 function ingredients(path::String)
@@ -65,8 +68,8 @@ md"""
 ## TODO
 * apply the same analysis across different $L$ to see if you get a different conclusion
 * We currently check that on average the RNAs stay the right amount of time on the second strand. **BUT** we do not check where on average they detach, and it should be about 200bp apparently...
-* I need to make the business with `DEFAULT_PARAMS` a bit less messy. Similarly, i need to rewrite the scripts to run the simulations so that it happens easily.
-* eliminate the reliance on DEFAULT PARAMS for plotting etc because you lose track, the default params might be modified, but you don't save them... so you need to just use the `params` that you have everywhere. Technically, if you do a `gamma` sweep, only `gamma` will change. if you do a `L` sweep, `L`, β, β2, and the lengths will change. KNowing that, you should be able to use the params appropriately
+* why is there an overshoot in the transcription rate...? It was never there before, and should not be there I think...? It does not make sense that increasing α would lead to any decrease in the transcription rate...
+* Answer why the density profile with the DEFAULT PARAMS (beginning of the notebook) is so low...? 
 """
 
 # ╔═╡ b4890915-71c2-4a52-9152-34c163be9c7b
@@ -111,6 +114,27 @@ md"""
 We expect that the number of detachments per unit time is much higher than the number of attachments. i.e. α << δ. 
 """
 
+# ╔═╡ 0d73b78d-6c68-4da0-9185-953f41d07b64
+md"""## Load results"""
+
+# ╔═╡ 85ad08a6-4549-4b32-9586-0fe5160ae72d
+# splitting the results files according to which variable was varied
+
+begin
+
+	results_files = Dict(
+		"γ" => [], "L" => []
+	)
+
+	for f in readdir("results/")
+		if split(f, "_")[2] == "gamma"
+			push!(results_files["γ"], f)
+		else
+			push!(results_files["L"], f)
+		end
+	end
+end
+
 # ╔═╡ 4e497931-2e75-4fbc-b334-d279bd262b43
 md"""
 # Analyzing real parameters
@@ -141,10 +165,12 @@ end
 # ╔═╡ 28eb8e07-1c90-433c-a73b-02fb6b036bf7
 md"""### Rate sweeps"""
 
+# ╔═╡ 048398b5-c852-423f-9774-97716bab0bcd
+@bind γ_file Select(results_files["γ"])
+
 # ╔═╡ de4afe62-319b-40a8-97d0-ebb927d3d68a
 rγ = JLD2.load(
-	# "results/sweep_gamma.jld2";
-	"results/sweep_gamma_L35.jld2";
+	"results/$(γ_file)";
 	typemap=Dict("Main.Params" => base.Params)
 )
 
@@ -152,9 +178,10 @@ rγ = JLD2.load(
 @bind γ_plot Slider(rγ["p_vec"])
 
 # ╔═╡ 3dee3fcb-d725-45b3-980d-8a71554b236a
+# make plots
 begin
 	p1 = plot_utils.plot_transcription_rate_sweep(
-		rγ, "γ", base.DEFAULT_PARAMS
+		rγ, "γ"
 	)
 	p2 = plot_utils.plot_density_sweep(
 		rγ, γ_plot, "γ"
@@ -179,7 +206,10 @@ We see that simulations yield much higher transcription rate because there is le
 """
 
 # ╔═╡ d2a79eb9-9ab1-45ee-9461-250f91b45aeb
-plot_utils.plot_comparison_J_th_sim(rγ, γ_plot, "γ")
+begin
+	plot_utils.plot_comparison_J_th_sim(rγ, γ_plot, "γ")
+	plot!(xscale=:log)
+end
 
 # ╔═╡ 3cff1daf-9764-48f7-9935-39bf61bfe7c0
 plot_utils.plot_occupancy_fold_change_scaling(
@@ -238,10 +268,12 @@ md"""
 * the difference between the behavior at low and large $L$s is strongly dependent on the value of γ. For large value of γ it seems that large L is more different from the theoretical model than low L. This is the converse for low values of γ
 """
 
+# ╔═╡ 06449034-da8c-4f69-8c51-9a4be6bc7452
+@bind L_file Select(results_files["L"])
+
 # ╔═╡ edf9d165-cd20-4884-81ad-2b03e4cdc08f
 rL = JLD2.load(
-	"results/sweep_L.jld2"; 
-	# "results/sweep_L_gamma10.jld2";
+	"results/$(L_file)";
 	typemap=Dict("Main.Params" => base.Params)
 )
 
@@ -251,7 +283,7 @@ rL = JLD2.load(
 # ╔═╡ 8826e489-80d4-49e0-976d-5ca5aff1107e
 begin
 	pa = plot_utils.plot_transcription_rate_sweep(
-		rL, "L", base.DEFAULT_PARAMS
+		rL, "L"
 	)
 	pb = plot_utils.plot_density_sweep(
 		rL, L_plot, "L"
@@ -267,19 +299,11 @@ end;
 # ╔═╡ 283a44c2-69e0-46d6-ba82-1e3a70604864
 md""" L plot = $(L_plot)"""
 
-# ╔═╡ 4d7e8dbd-f5a3-4fab-b3ef-f9cb121fc151
-plot_utils.plot_comparison_J_th_sim(rL, L_plot, "L")
-
 # ╔═╡ b4ce4ddd-f75f-4417-b805-5e71423d09b1
 plot([pa, pb, pc, pd]..., layout=(2, 2), size=(800, 800))
 
-# ╔═╡ 8ab75ef1-f192-4e19-9bb0-bf10a93ad426
-pb
-
-# ╔═╡ 8e6d336f-3d7a-4f0d-abbf-a248ce5fe850
-md"""
-**TODO**: you need to do a more detailed analysis of this occupancy, and why the frequency of oscillation is so small... I should expect to see this only at low γ... 
-"""
+# ╔═╡ 4d7e8dbd-f5a3-4fab-b3ef-f9cb121fc151
+plot_utils.plot_comparison_J_th_sim(rL, L_plot, "L")
 
 # ╔═╡ bc338675-2d8c-4d13-8aaf-f9e69f1f3af8
 plot_utils.plot_occupancy_fold_change_scaling(
@@ -291,14 +315,6 @@ plot_utils.plot_occupancy_fold_change(
 	rL, "L"; max_fold_change_α=3
 )
 
-# ╔═╡ ad60c02a-a02d-4a24-9805-7579cf7cbcf7
-md"""
-**Large γ**: 
-we see that if γ is very large, nothing changes. (i.e. the curves are invariant between different values of L). However, if γ is smaller, then it can jam, and you have a higher probability of jamming when L is larger... 
-
-**Small γ**: the curves shift to the left with L increasing. That means that the point at which α reaches the transition in terms of occupancy occurs sooner with larger L
-"""
-
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
@@ -308,6 +324,7 @@ Interpolations = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+ProgressBars = "49802e3a-d2f1-5c88-81d8-b72133a6f568"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
 [compat]
@@ -317,6 +334,7 @@ Interpolations = "~0.14.5"
 JLD2 = "~0.4.24"
 Plots = "~1.32.0"
 PlutoUI = "~0.7.40"
+ProgressBars = "~1.4.1"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -986,6 +1004,12 @@ version = "1.3.0"
 deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
+[[deps.ProgressBars]]
+deps = ["Printf"]
+git-tree-sha1 = "806ebc92e1b4b4f72192369a28dfcaf688566b2b"
+uuid = "49802e3a-d2f1-5c88-81d8-b72133a6f568"
+version = "1.4.1"
+
 [[deps.Qt5Base_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Fontconfig_jll", "Glib_jll", "JLLWrappers", "Libdl", "Libglvnd_jll", "OpenSSL_jll", "Pkg", "Xorg_libXext_jll", "Xorg_libxcb_jll", "Xorg_xcb_util_image_jll", "Xorg_xcb_util_keysyms_jll", "Xorg_xcb_util_renderutil_jll", "Xorg_xcb_util_wm_jll", "Zlib_jll", "xkbcommon_jll"]
 git-tree-sha1 = "c6c0f690d0cc7caddb74cef7aa847b824a16b256"
@@ -1440,18 +1464,21 @@ version = "1.4.1+0"
 # ╠═e4104848-a87e-4da9-b3d4-1cce58aed193
 # ╠═97f8ac6c-db53-4071-9129-68802f8bfed8
 # ╠═fb0979a6-c08e-4dfb-bb99-b99be180b999
+# ╠═d62e1a26-8298-4d92-ba61-129c123cb6be
 # ╟─e343e2d6-0b22-4f43-b112-cc72f8fb76fd
 # ╠═a41f5e4c-d1eb-4065-9c61-5695dc151b00
 # ╠═282f03d7-acf5-40e4-8cae-222b398602ae
 # ╠═c638a833-c5cb-4ebe-9776-a072f3eaf8f6
 # ╠═cc9abe54-7ddf-41ac-b9ee-253d8a88fd3e
-# ╟─b4890915-71c2-4a52-9152-34c163be9c7b
+# ╠═b4890915-71c2-4a52-9152-34c163be9c7b
 # ╟─f4af7844-459e-44ca-b5a7-79093f77d76a
 # ╟─b4fddea7-fecc-4db8-8288-6ad4f8b31780
 # ╟─e9521f7e-3940-436d-946c-17a97f269898
 # ╟─a71561a8-2fc5-44e9-92ab-8a182cd9c7c8
 # ╟─83326b9a-55bb-4c1d-8eb2-596bb5ed2944
 # ╟─ea70ff75-a7fa-4524-876b-15d49088cf2c
+# ╟─0d73b78d-6c68-4da0-9185-953f41d07b64
+# ╠═85ad08a6-4549-4b32-9586-0fe5160ae72d
 # ╟─4e497931-2e75-4fbc-b334-d279bd262b43
 # ╠═ad232aca-df0d-4ffd-8388-f25a3d0f8b8d
 # ╠═4f59a07b-96b0-4f83-9c68-b2bd5e4838cf
@@ -1460,11 +1487,12 @@ version = "1.4.1+0"
 # ╟─b0a97388-96e4-4c04-be1a-76cb7f2e1d5f
 # ╟─bc012aed-9c67-414e-bf81-945aa232155d
 # ╟─28eb8e07-1c90-433c-a73b-02fb6b036bf7
-# ╠═de4afe62-319b-40a8-97d0-ebb927d3d68a
-# ╠═3dee3fcb-d725-45b3-980d-8a71554b236a
+# ╟─048398b5-c852-423f-9774-97716bab0bcd
+# ╟─de4afe62-319b-40a8-97d0-ebb927d3d68a
+# ╟─3dee3fcb-d725-45b3-980d-8a71554b236a
 # ╟─e4164e3f-7c1a-4860-9ce7-9bf342490173
 # ╟─05de9a3e-dbe1-4b2e-a052-04a9c05ff16b
-# ╠═0480d46f-349e-4237-9080-e342492afdeb
+# ╟─0480d46f-349e-4237-9080-e342492afdeb
 # ╟─54f71b99-74b0-4b9f-9e30-9911d46b9788
 # ╠═d2a79eb9-9ab1-45ee-9461-250f91b45aeb
 # ╠═3cff1daf-9764-48f7-9935-39bf61bfe7c0
@@ -1473,16 +1501,14 @@ version = "1.4.1+0"
 # ╟─e3e57eb5-8564-4dc1-95be-e998b9993bee
 # ╟─f3d6cf41-a93c-4e95-aba7-2b62c048b77f
 # ╠═04cf95ef-2d95-4194-9e78-3bd5bd788dfa
-# ╠═edf9d165-cd20-4884-81ad-2b03e4cdc08f
-# ╠═8826e489-80d4-49e0-976d-5ca5aff1107e
+# ╟─06449034-da8c-4f69-8c51-9a4be6bc7452
+# ╟─edf9d165-cd20-4884-81ad-2b03e4cdc08f
+# ╟─8826e489-80d4-49e0-976d-5ca5aff1107e
 # ╟─283a44c2-69e0-46d6-ba82-1e3a70604864
 # ╟─687da5bd-8cc4-4e55-8465-53fdcf4676fd
-# ╠═4d7e8dbd-f5a3-4fab-b3ef-f9cb121fc151
 # ╠═b4ce4ddd-f75f-4417-b805-5e71423d09b1
-# ╠═8ab75ef1-f192-4e19-9bb0-bf10a93ad426
-# ╟─8e6d336f-3d7a-4f0d-abbf-a248ce5fe850
+# ╟─4d7e8dbd-f5a3-4fab-b3ef-f9cb121fc151
 # ╠═bc338675-2d8c-4d13-8aaf-f9e69f1f3af8
 # ╠═21a91ce2-a461-43c8-83d2-30a16c293964
-# ╟─ad60c02a-a02d-4a24-9805-7579cf7cbcf7
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
