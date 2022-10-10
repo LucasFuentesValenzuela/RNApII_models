@@ -18,6 +18,10 @@ function parse_commandline()
             help = "value of γ"
             arg_type = Float64
             default = γ_default
+        "--beta2"
+            help = "value of β2 ratio with β"
+            arg_type = Int
+            default = 8
     end
     return parse_args(s)
 end
@@ -26,6 +30,7 @@ function edit_default_params(DEFAULT_PARAMS, parsed_args)
 
     L = parsed_args["L"]
     γ = parsed_args["gamma"]
+    ratio_β2 = parsed_args["beta2"]
 
     params = Params(
         DEFAULT_PARAMS.α, 
@@ -36,7 +41,7 @@ function edit_default_params(DEFAULT_PARAMS, parsed_args)
         DEFAULT_PARAMS.n_steps, 
         DEFAULT_PARAMS.n_sites, 
         DEFAULT_PARAMS.n_end_sites,
-        DEFAULT_PARAMS.β2
+        DEFAULT_PARAMS.β/ratio_β2
     )
 
     return params
@@ -54,11 +59,11 @@ function main()
     if parsed_args["param"] == "gamma"
         p_vec = DEFAULT_PARAMS.γ * 10. .^(collect(LinRange(-1.5, 1.5, 15)));
         param_name = "γ"
-        label = "$(parsed_args["param"])_L$(parsed_args["L"])"
+        label = "$(parsed_args["param"])_L$(parsed_args["L"])_rat$(parsed_args["beta2"])"
     elseif parsed_args["param"] == "L"
         p_vec = [1, 2, 10, 20, 35]
         param_name = "L"
-        label = "$(parsed_args["param"])_1000gamma$(trunc(Int, 1000*parsed_args["gamma"]))"
+        label = "$(parsed_args["param"])_1000gamma$(trunc(Int, 1000*parsed_args["gamma"]))_rat$(parsed_args["beta2"])"
     end
 
     # create params based on kwargs

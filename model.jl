@@ -30,8 +30,8 @@ LARGE_γ = 1000
 β_default = 0.57
 γ_default = 0.014
 Δt_default = .01
-ratio_β2 = 8
-β2_default = β_default/ratio_β2
+ratio_β2_default = 8
+β2_default = β_default/ratio_β2_default
 L_default = 1
 
 DEFAULT_nsteps = 5e5

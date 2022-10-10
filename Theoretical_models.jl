@@ -451,6 +451,53 @@ md"""To determine whether we are in the entry or exit limited regime, we have to
 Basically, it really seems that $\gamma$ will act as the threshold rate at which we get a strong change in density.
 """ 
 
+# ╔═╡ 29246f54-4220-421c-ae41-62d9593686cb
+md"""
+# Dependence of transcription rate on γ
+
+This can be useful to study the second strand problem
+"""
+
+# ╔═╡ e87db36e-70bf-4006-bd08-9eecb2f396d5
+ranges = 10. .^(collect(LinRange(-3, 1, 15)));
+
+# ╔═╡ ce96621b-bdf2-4a8c-b127-6306b395e5c9
+@bind α_ Slider(ranges)
+
+# ╔═╡ 5cdb2d51-257a-4f82-80c3-308a7d624d06
+md"""α_ = $α_"""
+
+# ╔═╡ e3bbb1f0-52f3-4279-b426-5c902305709b
+@bind β_ Slider(ranges)
+
+# ╔═╡ d22e249b-8bce-47d1-8dd9-dbb75fb15997
+md"""β_ = $β_"""
+
+# ╔═╡ 9560d375-ed9b-4ef6-8cf1-9f7b509f2af3
+# currents, again assuming that we are not in γ limited regime
+
+let
+
+	γ_vec = 10. .^(collect(LinRange(-3, 3, 1000)))
+
+	p = plot()
+
+	plot!(
+		γ_vec, theory.J.(α_, β_, γ_vec, 1), 
+		label="", linewidth=2
+	)
+
+	
+	xlabel!("γ")
+	ylabel!("J")
+	plot!(legend=:topleft)
+	plot!(xscale=:log)
+	# xlims!(0, )
+	ylims!(0, 1.)
+	hline!([α_], label="J=α", linestyle=:dash, linewidth=3)
+	p
+end
+
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
@@ -1506,8 +1553,8 @@ version = "1.4.1+0"
 # ╟─2adc96f0-aeae-4c8a-80e6-1ed6c9ddffcc
 # ╟─8dfbb51d-5d37-4783-8467-6faec8111653
 # ╟─825da303-dd0b-494c-bc46-eb7b8cfaf444
-# ╠═fd8625d5-0065-43a8-9dcf-1f0dabf043a7
-# ╠═425c6f37-936b-466a-acae-d5c2efdd5f3d
+# ╟─fd8625d5-0065-43a8-9dcf-1f0dabf043a7
+# ╟─425c6f37-936b-466a-acae-d5c2efdd5f3d
 # ╟─54bf5fb0-c219-4385-8ee6-88411821ac32
 # ╟─772e015a-fa71-4cab-83d9-ac24762b132b
 # ╟─c2062357-22d5-48e5-976a-8cb2b473d0f0
@@ -1523,5 +1570,12 @@ version = "1.4.1+0"
 # ╟─d15931d9-2263-4b34-b972-6cb1c7a7ae1b
 # ╟─32741bf0-ef1a-4ba1-9a48-2363bdb52e57
 # ╟─a0fb1d2c-56a8-42e1-bfeb-aae5040df1cd
+# ╠═29246f54-4220-421c-ae41-62d9593686cb
+# ╠═e87db36e-70bf-4006-bd08-9eecb2f396d5
+# ╟─5cdb2d51-257a-4f82-80c3-308a7d624d06
+# ╟─ce96621b-bdf2-4a8c-b127-6306b395e5c9
+# ╟─d22e249b-8bce-47d1-8dd9-dbb75fb15997
+# ╟─e3bbb1f0-52f3-4279-b426-5c902305709b
+# ╠═9560d375-ed9b-4ef6-8cf1-9f7b509f2af3
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
