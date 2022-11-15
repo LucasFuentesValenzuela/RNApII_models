@@ -84,7 +84,7 @@ ranges = 10. .^(collect(LinRange(-3, 1.5, 15)));
 begin
 	L=1
 	Δt = 0.01
-	n_steps = 5e5
+	n_steps = 10e5
 	n_sites = 1
 	n_end_sites = 40*L
 end;
@@ -110,6 +110,9 @@ md"""γ = $(round(γ; digits=4))"""
 # ╔═╡ 813bbe6b-13d7-43cd-a39b-ccf5a7fabd83
 ratio_β2 = 10
 
+# ╔═╡ ef49c246-6b91-44c8-a3b0-aea629054de5
+β2 = β/ratio_β2
+
 # ╔═╡ 7c735efb-e26e-4b69-acd6-505ea6f27db1
 params = base.Params(
 	α, β, γ, L, Δt, 
@@ -120,16 +123,70 @@ params = base.Params(
 exits, density, gene, tracker_end = base.run_walker(params)
 
 # ╔═╡ 5fb05452-c1a1-4bd1-bf70-2d6b81f3adc8
-base.get_trans_rate(exits, params)
+md"""Transcription rate is: $(base.get_trans_rate(exits, params)*β)"""
+
+# ╔═╡ b43b2665-68e3-436a-ac69-55625c691b30
+(1-(density/n_steps*L)[1])*α
+
+# ╔═╡ 80b8f5cb-befe-48f5-8856-ca20411f10f0
+pn(γ, β, pn_prev) = (1-γ .* (1-1/(β*pn_prev))).^(-1)
+
+# ╔═╡ 346378c1-cc8e-4d92-aba2-5e99cee03b13
+begin
+	xx = collect(LinRange(0, 1, 100))
+	plot(xx, 
+		pn.(γ, β/ratio_β2, xx)
+	)
+	plot!(xx, xx, linestyle=:dash, color=:grey)
+	xlims!(0, 1)
+	ylims!(0, 1)
+	xlabel!("pn-1")
+	ylabel!("pn")
+end
+
+# ╔═╡ 284194d8-a430-40d5-a9f5-7a2011534873
+begin
+	pns = [1.]
+	
+	for k in 1:n_end_sites
+		push!(pns, pn(γ, β/ratio_β2, pns[end]))
+	end
+end
 
 # ╔═╡ 429178f2-51a3-4ea9-bc7c-1ba8d6643671
-plot_utils.plot_density(density, params)
+let
+	plot_utils.plot_density(density, params)
+	plot!(pns/pns[1]*density[1]/n_steps*L, label="theory, recursion")
+	xx = collect(LinRange(0, n_end_sites, 100))
+	plot!(
+		xx .+ 1, 
+		density[1]/n_steps*L .*exp.(-γ/β2.*xx), 
+		label="p(x) = exp(-γ x /β2)"
+	)
+	xlims!(1, 20)
+	title!("β2 = $(round(β2; digits=4)), γ=$(round(γ;digits=4))")
+end
 
-# ╔═╡ 9f929ae2-6224-42a1-8589-6335cd01cf57
+# ╔═╡ 1d6e4e03-4e5c-475c-9071-8521fe16231f
 md"""
-**Notes**: We see a rather intuitive behavior. 
-* exponential scaling of the density
-* for the transcription rate, the trend is a bit more difficult to see I believe? 
+## Baseline translation model
+
+I am trying to figure out what the rules are that govern the density, and what the role of jamming is. 
+
+Intuitively, you would guess that increasing jamming (either by having a smaller γ or a smaller β2, as that would have them remain longer or move slower) would decrease the density over time. 
+
+A baseline model would be to have continuous translation of a temporal process. 
+
+I am expecting that the density would decrease as 
+
+$p \propto \exp(-\gamma x/β_2)$
+"""
+
+# ╔═╡ 3fac01ce-f842-4d64-8684-2487673f56f5
+md"""
+Now, what is the impact of jamming on this baseline solution? **With the same parameters**, and the same input rate α? 
+
+I guess it depends on the ratio of γ/β2. If γ is large compared to β2, translation does not really help in eliminating the jamming because there is not really any that forms. if γ is small compared to β2, you're expecting that there is significant translational effects before γ plays a role and disengorges it. >>> there you would have more jamming I am guessing? 
 """
 
 # ╔═╡ a713ef95-bb77-4c0c-8c32-f88a8114586f
@@ -142,6 +199,8 @@ begin
 end
 
 # ╔═╡ b73cd6e9-7685-4a91-87e6-274410942ab0
+# ╠═╡ disabled = true
+#=╠═╡
 begin
 all_trans_rates = []
 ratios = [1, 10, 100]
@@ -161,8 +220,10 @@ ratios = [1, 10, 100]
 	end
 	
 end
+  ╠═╡ =#
 
 # ╔═╡ 8cd45dbe-d560-403a-a4af-eddd965cd050
+#=╠═╡
 begin
 	p = plot()
 	for (k, trans_rates) in enumerate(all_trans_rates)
@@ -180,6 +241,7 @@ begin
 	vline!([α_], label="γ=α")
 	vline!([β_], label="γ=β")
 end
+  ╠═╡ =#
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1286,12 +1348,18 @@ version = "1.4.1+0"
 # ╟─7e346b03-062b-4a4a-b838-1c1aaa28295d
 # ╟─0f493c92-ba78-485e-88d9-0613034f7287
 # ╟─fa0f50ea-ac93-4e7f-b2b1-cb8eb4dbe433
-# ╠═813bbe6b-13d7-43cd-a39b-ccf5a7fabd83
-# ╠═7c735efb-e26e-4b69-acd6-505ea6f27db1
-# ╠═eefdec3d-5d60-412b-8274-2bd177d3df60
-# ╟─5fb05452-c1a1-4bd1-bf70-2d6b81f3adc8
+# ╟─813bbe6b-13d7-43cd-a39b-ccf5a7fabd83
+# ╟─ef49c246-6b91-44c8-a3b0-aea629054de5
 # ╠═429178f2-51a3-4ea9-bc7c-1ba8d6643671
-# ╠═9f929ae2-6224-42a1-8589-6335cd01cf57
+# ╠═346378c1-cc8e-4d92-aba2-5e99cee03b13
+# ╟─7c735efb-e26e-4b69-acd6-505ea6f27db1
+# ╠═eefdec3d-5d60-412b-8274-2bd177d3df60
+# ╠═5fb05452-c1a1-4bd1-bf70-2d6b81f3adc8
+# ╠═b43b2665-68e3-436a-ac69-55625c691b30
+# ╠═80b8f5cb-befe-48f5-8856-ca20411f10f0
+# ╠═284194d8-a430-40d5-a9f5-7a2011534873
+# ╟─1d6e4e03-4e5c-475c-9071-8521fe16231f
+# ╟─3fac01ce-f842-4d64-8684-2487673f56f5
 # ╟─a713ef95-bb77-4c0c-8c32-f88a8114586f
 # ╠═ec46386e-4bc3-4cda-92ad-a7036ad165c6
 # ╠═b73cd6e9-7685-4a91-87e6-274410942ab0

@@ -194,6 +194,36 @@ md""" γ plot : $(round(γ_plot; digits=3))"""
 # ╔═╡ 0480d46f-349e-4237-9080-e342492afdeb
 plot([p1, p2, p3, p4]..., layout=(2, 2), size=(800, 800))
 
+# ╔═╡ a923eb4d-1623-499a-99d6-8445436d7923
+rγ["p_vec"]
+
+# ╔═╡ ec53ffa3-f1fb-4d68-b96f-f6b1a6ee7bde
+keys(rγ["densities"])
+
+# ╔═╡ f607dd5e-4a42-4744-b509-187ae10acd4f
+keys(rγ)
+
+# ╔═╡ 9c1fe91a-8c2c-4f7a-909b-50b1a30ff4cb
+rγ["params_dict"][γ_plot]
+
+# ╔═╡ 82b68956-e049-4054-b8c8-4e0c2062a898
+let
+	# note: densities are not rescaled here!! 
+	p = plot()
+	color_palette = palette([:blue, :green], length(rγ["α_vec"]))
+	for (k,α) in enumerate(rγ["α_vec"])
+		
+		params_ = rγ["params_dict"][γ_plot][k]
+		density = rγ["densities"][γ_plot][α]
+		plot!(density/density[Int(length(density)/2)], label="", color=color_palette[k])
+	end
+	xlims!(35, 50)
+	title!("Normalized occupancy, γ=$(round(γ_plot; digits=2))")
+	xlabel!("basepair")
+	ylabel!("normalized occupancy")
+	p
+end
+
 # ╔═╡ 54f71b99-74b0-4b9f-9e30-9911d46b9788
 md"""
 We see that simulations yield much higher transcription rate because there is less jamming for limited γ
@@ -1006,9 +1036,9 @@ version = "1.4.1"
 
 [[deps.Qt5Base_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Fontconfig_jll", "Glib_jll", "JLLWrappers", "Libdl", "Libglvnd_jll", "OpenSSL_jll", "Pkg", "Xorg_libXext_jll", "Xorg_libxcb_jll", "Xorg_xcb_util_image_jll", "Xorg_xcb_util_keysyms_jll", "Xorg_xcb_util_renderutil_jll", "Xorg_xcb_util_wm_jll", "Zlib_jll", "xkbcommon_jll"]
-git-tree-sha1 = "c6c0f690d0cc7caddb74cef7aa847b824a16b256"
+git-tree-sha1 = "0c03844e2231e12fda4d0086fd7cbe4098ee8dc5"
 uuid = "ea2cea3b-5b76-57ae-a6ef-0a8af62496e1"
-version = "5.15.3+1"
+version = "5.15.3+2"
 
 [[deps.QuadGK]]
 deps = ["DataStructures", "LinearAlgebra"]
@@ -1486,6 +1516,11 @@ version = "1.4.1+0"
 # ╟─e4164e3f-7c1a-4860-9ce7-9bf342490173
 # ╟─05de9a3e-dbe1-4b2e-a052-04a9c05ff16b
 # ╟─0480d46f-349e-4237-9080-e342492afdeb
+# ╠═a923eb4d-1623-499a-99d6-8445436d7923
+# ╠═ec53ffa3-f1fb-4d68-b96f-f6b1a6ee7bde
+# ╠═f607dd5e-4a42-4744-b509-187ae10acd4f
+# ╠═9c1fe91a-8c2c-4f7a-909b-50b1a30ff4cb
+# ╠═82b68956-e049-4054-b8c8-4e0c2062a898
 # ╟─54f71b99-74b0-4b9f-9e30-9911d46b9788
 # ╠═d2a79eb9-9ab1-45ee-9461-250f91b45aeb
 # ╠═3cff1daf-9764-48f7-9935-39bf61bfe7c0

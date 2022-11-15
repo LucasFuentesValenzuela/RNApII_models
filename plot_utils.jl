@@ -15,15 +15,16 @@ function plot_tracker_end(tracker_end, params)
 	ylabel!("Count")
 end
 
-function plot_density(density, n_steps, n_sites, L)
+function plot_density(density, n_steps, n_sites, L; normalize=true)
 
 	p = plot(density/n_steps*L, label="")
 	xlabel!("basepair")
 	ylabel!("Steady-state density")
 	vline!([n_sites], linestyle=:dash, label="")
     vline!([1], linestyle=:dash, label="")
-	ylims!(0, 1)
-	# plot!(legend=:outertopleft)
+	if normalize
+		ylims!(0, 1)
+	end
 
 	return p
 end

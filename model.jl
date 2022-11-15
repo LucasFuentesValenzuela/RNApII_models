@@ -5,15 +5,15 @@ using ProgressBars
 Define a parameter object
 """
 struct Params
-	α::Float32
-	β::Float32
-	γ::Float32
-	L::Int
-	Δt::Float32
-	n_steps::Int
-	n_sites::Int
-	n_end_sites::Int
-	β2::Float32
+	α::Float32 # initiation rate from promoter to gene body
+	β::Float32 # elongation rate
+	γ::Float32 # termination rate
+	L::Int # footprint of the body
+	Δt::Float32 # timestep
+	n_steps::Int # number of steps in the simulation
+	n_sites::Int # number of sites on the gene
+	n_end_sites::Int # number of sites where termination is possible
+	β2::Float32 # elongation rate on the termination sites
 end
 
 Params(
