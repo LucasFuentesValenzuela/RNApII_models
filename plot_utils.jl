@@ -203,13 +203,13 @@ plot_residence_times_sweep(results, p, param_name) =  plot_residence_times_sweep
 """
 """
 
-function get_total_occupancy(density, params)
+function get_total_occupancy(density, params; start=1)
 
 	n_sites = params.n_sites
 	n_steps = params.n_steps
 	L = params.L
 
-	total_occupancy = sum(density[1:n_sites])/(n_steps*n_sites)*L
+	total_occupancy = sum(density[start:n_sites])/(n_steps*n_sites)*L
 
 	return total_occupancy
 end

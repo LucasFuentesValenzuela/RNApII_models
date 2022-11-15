@@ -29,6 +29,9 @@ using ProgressBars
 # ╔═╡ b37eb2a3-e7c6-46c3-be7f-6db44b0f2458
 using Interpolations
 
+# ╔═╡ 58cf31b0-ac62-4315-9e7b-46b5a33319bd
+using StatsBase
+
 # ╔═╡ fde65485-580c-4aab-b2be-104f35ea3e53
 using PlutoUI
 
@@ -96,14 +99,40 @@ min_Λ = min_Ψ - max_Ω
 # ╔═╡ 792db660-2da8-4899-9b6c-c83c2880c186
 max_Λ = max_Ψ - min_Ω
 
-# ╔═╡ ecf337a1-4ac1-463f-ab9d-468904e7d0f9
-α_tot = ρ_p * Λ * β / Ω / length_gene
+# ╔═╡ 2a5247d3-34e6-45fa-b6a6-1f74f076ff20
+k_on = ρ_p/(1-ρ_p)/Ω
 
-# ╔═╡ c9f43d38-a10e-40c1-a731-8c090a6457d4
-min_α = min_ρ_p * min_Λ * min_β / max_Ω / length_gene
+# ╔═╡ 3471018c-a49a-4b82-a495-6c0556b7f788
+begin
+	max_k_on = max_ρ_p/(1-max_ρ_p)/min_Ω
+	min_k_on = min_ρ_p/(1-min_ρ_p)/max_Ω
+end
 
-# ╔═╡ f0f30c36-7952-47ff-85fe-09e540241f6f
-max_α = max_ρ_p * max_Λ * max_β / min_Ω / length_gene
+# ╔═╡ 8557258a-876f-4bdb-b3ac-b85f25f06c3c
+begin
+	max_α = max_Λ * max_β/min_Ω/length_gene
+	min_α = min_Λ * min_β/max_Ω/length_gene
+
+	max_k_off = 1/min_Ω-min_α
+	min_k_off = max(0, 1/max_Ω - max_α)
+end
+
+# ╔═╡ 59cccfdc-f60b-4b2d-beb9-de1e7a0b5b10
+min_α
+
+# ╔═╡ ca4be0b6-f235-45c0-9423-eb4a0ec5fe71
+α = Λ*β/Ω/length_gene
+
+# ╔═╡ 3b6fbb8f-5fec-4cf3-b9ae-7ab2911a65d3
+k_off = 1/Ω-α
+
+# ╔═╡ 3c12bda3-6cf9-4d2b-be1d-444cf6583e94
+md"""We need to fix all of this for the average gene, especially k_off and α"""
+
+# ╔═╡ bb767ff4-ab56-4ee6-a23e-bf47543372f3
+md"""
+You basically expect that k_on = α is a threshold value beyond which increasing kon will only just load your promoter
+"""
 
 # ╔═╡ bece8c51-6421-48b4-94c5-d4bf8b006ae8
 md"""
@@ -111,30 +140,25 @@ md"""
 """
 
 # ╔═╡ 189e1fd0-9e79-4a6b-bb0f-9cdcac3c4a82
+begin
 γ = 10
-
-# ╔═╡ 0c0dfb13-d6a0-444d-a23d-207ed7c7696e
-Δt = 1e-2
-
-# ╔═╡ 35471daa-18f7-4012-8ae6-6888809c4500
 nsteps = 1e6
-
-# ╔═╡ f94cbc49-946e-493a-9bd4-0b056ef37bd4
 L = 1
-
-# ╔═╡ 678e53bc-b3f2-45e7-bb2d-cdbbc0bcee68
 δ = 35 / L # how much we "compress the phenomenon"
-
-# ╔═╡ b3c140a8-d8f1-416c-9678-c8c9dfaab1b3
 n_sites = Int(round(length_gene/δ))
+Δt = 1e-2
+end
 
 # ╔═╡ af83d27c-2749-4057-bc5b-53e53c0017cc
 params = base.Params(
-	α_tot, β/δ, γ, L, Δt, 
+	α, β/δ, γ, L, k_on, 0, Δt, 
 	nsteps, 
 	Int(round(length_gene/δ)), Int(round(300/δ)), 
 	β/8/δ
 )
+
+# ╔═╡ 8b9a24e7-64d2-4fee-9eb1-02b644714056
+k_on/α
 
 # ╔═╡ 89048309-0978-4ec4-b33e-86f6f38d94b1
 exits, density, _, tracker = base.run_walker(params);
@@ -143,7 +167,10 @@ exits, density, _, tracker = base.run_walker(params);
 density
 
 # ╔═╡ 61228c9b-d52f-4ce2-892e-b52a70e5b0c8
-plot_utils.plot_density(density, nsteps, n_sites, L; normalize=false)
+begin
+	plot_utils.plot_density(density, nsteps, n_sites, L; normalize=false)
+	plot!(ylim=(0, 1))
+end
 
 # ╔═╡ 16fac142-53b9-4039-867d-0e6fd1ca4510
 sum(density[1:n_sites]/nsteps * L)
@@ -157,61 +184,85 @@ md"""
 """
 
 # ╔═╡ 9e38b178-0198-4a1d-bfe0-908ade859b1b
-α_vec = 10 .^(LinRange(-1, 4, 15)) .* min_α;
+k_on_vec = 10 .^(LinRange(-1, 3, 10)) .* k_on;
 
 # ╔═╡ 00204d85-3727-4848-bd59-1190acbcc875
 begin
 	occupancy = []
-	
-	for α in α_vec
-	
-		params_crt = base.Params(
-		α, β/δ, γ, L, Δt, 
-		nsteps, 
-		Int(round(length_gene/δ)), Int(round(300/δ)), 
-		β/8/δ
-		)
-	
-		exits, density, _, tracker = base.run_walker(params_crt);
-	
-		push!(occupancy, plot_utils.get_total_occupancy(density, params_crt))
+	params_occ = []
+
+	for α in [max_α, min_α, (max_α+min_α)/2]
 		
+		for k_off in [max_k_off, min_k_off]
+
+			occupancy_crt = []
+	
+			for k_on in k_on_vec
+			
+				params_crt = base.Params(
+				α, β/δ, γ, L, k_on, k_off, 
+				Δt, nsteps, 
+				Int(round(length_gene/δ)), Int(round(300/δ)), 
+				β/8/δ
+				)
+			
+				exits, density, _, tracker = base.run_walker(params_crt);
+			
+				push!(occupancy_crt, plot_utils.get_total_occupancy(density, params_crt; start=2))
+				
+			end
+
+			push!(occupancy, occupancy_crt)
+			push!(params_occ, "α=$(round(α; digits=3)), koff=$(round(k_off; digits=3))")
+			
+		end
 	end
 end
 
 # ╔═╡ a4b4db5a-483a-4af2-90f9-5ed46c1892b8
 begin
-	plot(α_vec, occupancy*params.n_sites, label="")
-	scatter!(α_vec, occupancy*params.n_sites, label="")
-	xlabel!("α")
+	plot()
+
+	colors = palette([:orange, :forestgreen], length(occupancy))
+
+	for (k, occ) in enumerate(occupancy)
+		plot!(k_on_vec, occ*params.n_sites, label=params_occ[k], color=colors[k])
+		scatter!(k_on_vec, occ*params.n_sites, label="", color=colors[k])
+	end
+	xlabel!("k_on")
 	ylabel!("occupancy")
 	plot!(xscale=:log)
-	vline!([min_α, max_α], label="α, average gene")
-	hline!([min_ρ_g, max_ρ_g], label = "occupancy, average gene")
+	# vline!([min_α, max_α], label="α, average gene")
+	# hline!([min_ρ_g, max_ρ_g], label = "occupancy, average gene")
+	# vline!([α], label="α")
 	
 	plot!(legend=:topleft)
 end
 
+# ╔═╡ 51373682-15a4-4d14-9f11-7ff4cf82bb5d
+begin
+	idx_ref = 6
+	occupancy_ref = occupancy[idx_ref]
+	@show params_occ[idx_ref]
+end
+
 # ╔═╡ 098e32b4-0501-4dd0-ba66-7f6821c299db
-occupancy_interp = linear_interpolation(α_vec, occupancy)
+occupancy_interp = linear_interpolation(k_on_vec, occupancy_ref)
 
 # ╔═╡ 2e55fb0f-5f8a-46b4-a9ac-eaab460edc0e
 begin
-	max_fold_change = 2
+	max_fold_change = 3
 	x = LinRange(1, max_fold_change, 30)
 end
-
-# ╔═╡ 66d7b7f6-68a8-48a3-bd10-5845bea73ca3
-α_vec
 
 # ╔═╡ 6cb33f2a-3d7d-453e-b8fc-39d0ff3c59d0
 begin
 	
 	fold_changes = []
 
-	α_interp = 10 .^(LinRange(-2.5, 0, 10))
+	k_on_interp = 10 .^(LinRange(-2.5, 0, 10))
 	
-	fold_changes = [occupancy_interp.(x.*α) for α in α_interp]
+	fold_changes = [occupancy_interp.(x.*kon) for kon in k_on_interp]
 
 	final_fold_changes = [
 		fc[end]/fc[1] for fc in fold_changes
@@ -221,20 +272,20 @@ end
 
 # ╔═╡ 89763698-dca4-4e14-974a-1bf092fb0dee
 begin
-	plot(α_interp, final_fold_changes)
-	scatter!(α_interp, final_fold_changes)
+	plot(k_on_interp, final_fold_changes)
+	scatter!(k_on_interp, final_fold_changes)
 	plot!(xscale=:log)
 end
 
 # ╔═╡ 8366c3ef-637d-4a44-9885-f53dea90747d
 begin
-	color_palette = palette([:orange, :forestgreen], length(α_interp))
+	color_palette = palette([:orange, :forestgreen], length(k_on_interp))
 	p1 = plot()
 	for (k,fc) in enumerate(fold_changes)
 		plot!(x, fc/fc[1], color=color_palette[k], linewidth=2, label="")
 	end
 	plot!(legend=:topleft)
-	plot!(xlabel="α / α_0")
+	plot!(xlabel="kon / kon_0")
 	plot!(ylabel="occupancy fold change")
 
 	p2 = plot()
@@ -242,7 +293,7 @@ begin
 		plot!(x, fc, color=color_palette[k], linewidth=2, label="")
 	end
 	plot!(legend=:topleft)
-	plot!(xlabel="α / α_0")
+	plot!(xlabel="kon / kon_0")
 	plot!(ylabel="occupancy")
 	plot(p1, p2)
 end
@@ -256,6 +307,7 @@ Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 ProgressBars = "49802e3a-d2f1-5c88-81d8-b72133a6f568"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 
 [compat]
 Distributions = "~0.25.77"
@@ -263,6 +315,7 @@ Interpolations = "~0.14.6"
 Plots = "~1.36.1"
 PlutoUI = "~0.7.48"
 ProgressBars = "~1.4.1"
+StatsBase = "~0.33.21"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -1343,7 +1396,8 @@ version = "1.4.1+0"
 # ╠═bb5dd892-cde6-43a5-8a33-a29c7c2fe250
 # ╠═1c2a7676-73ad-4b44-97b6-3ca08d188f09
 # ╠═b37eb2a3-e7c6-46c3-be7f-6db44b0f2458
-# ╠═f2bb07a7-dd8c-4e70-a5df-3da0b73e0c24
+# ╟─f2bb07a7-dd8c-4e70-a5df-3da0b73e0c24
+# ╠═58cf31b0-ac62-4315-9e7b-46b5a33319bd
 # ╠═4a875422-e4cc-497d-a6e0-5e33eb292b17
 # ╠═6af56bf5-f552-4e0f-b61a-d46f3a212022
 # ╠═6c259a50-dbb1-4f03-bbb5-8a1238f6e8e0
@@ -1357,17 +1411,18 @@ version = "1.4.1+0"
 # ╠═867326a5-e17f-46d8-87fd-338ae15980d7
 # ╠═7136c4d3-8351-4372-82b7-f11167d978cd
 # ╠═792db660-2da8-4899-9b6c-c83c2880c186
-# ╠═ecf337a1-4ac1-463f-ab9d-468904e7d0f9
-# ╠═c9f43d38-a10e-40c1-a731-8c090a6457d4
-# ╠═f0f30c36-7952-47ff-85fe-09e540241f6f
+# ╠═2a5247d3-34e6-45fa-b6a6-1f74f076ff20
+# ╠═3471018c-a49a-4b82-a495-6c0556b7f788
+# ╠═8557258a-876f-4bdb-b3ac-b85f25f06c3c
+# ╠═59cccfdc-f60b-4b2d-beb9-de1e7a0b5b10
+# ╠═ca4be0b6-f235-45c0-9423-eb4a0ec5fe71
+# ╠═3b6fbb8f-5fec-4cf3-b9ae-7ab2911a65d3
+# ╠═3c12bda3-6cf9-4d2b-be1d-444cf6583e94
+# ╠═bb767ff4-ab56-4ee6-a23e-bf47543372f3
 # ╟─bece8c51-6421-48b4-94c5-d4bf8b006ae8
 # ╠═189e1fd0-9e79-4a6b-bb0f-9cdcac3c4a82
-# ╠═0c0dfb13-d6a0-444d-a23d-207ed7c7696e
-# ╠═35471daa-18f7-4012-8ae6-6888809c4500
-# ╠═f94cbc49-946e-493a-9bd4-0b056ef37bd4
-# ╠═678e53bc-b3f2-45e7-bb2d-cdbbc0bcee68
-# ╠═b3c140a8-d8f1-416c-9678-c8c9dfaab1b3
 # ╠═af83d27c-2749-4057-bc5b-53e53c0017cc
+# ╠═8b9a24e7-64d2-4fee-9eb1-02b644714056
 # ╠═89048309-0978-4ec4-b33e-86f6f38d94b1
 # ╠═7045a924-cb6d-4687-a755-0d085afe8205
 # ╠═61228c9b-d52f-4ce2-892e-b52a70e5b0c8
@@ -1377,9 +1432,9 @@ version = "1.4.1+0"
 # ╠═9e38b178-0198-4a1d-bfe0-908ade859b1b
 # ╠═00204d85-3727-4848-bd59-1190acbcc875
 # ╠═a4b4db5a-483a-4af2-90f9-5ed46c1892b8
+# ╠═51373682-15a4-4d14-9f11-7ff4cf82bb5d
 # ╠═098e32b4-0501-4dd0-ba66-7f6821c299db
 # ╠═2e55fb0f-5f8a-46b4-a9ac-eaab460edc0e
-# ╠═66d7b7f6-68a8-48a3-bd10-5845bea73ca3
 # ╠═6cb33f2a-3d7d-453e-b8fc-39d0ff3c59d0
 # ╠═89763698-dca4-4e14-974a-1bf092fb0dee
 # ╠═8366c3ef-637d-4a44-9885-f53dea90747d

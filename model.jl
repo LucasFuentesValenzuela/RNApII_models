@@ -1,5 +1,6 @@
 using Distributions
 using ProgressBars
+using StatsBase
 
 """
 Define a parameter object
@@ -9,6 +10,8 @@ struct Params
 	β::Float32 # elongation rate
 	γ::Float32 # termination rate
 	L::Int # footprint of the body
+	kon::Float32 # rate of binding to the promoter
+	koff::Float32 # rate of unbinding to the promoter
 	Δt::Float32 # timestep
 	n_steps::Int # number of steps in the simulation
 	n_sites::Int # number of sites on the gene
@@ -33,13 +36,15 @@ LARGE_γ = 1000
 ratio_β2_default = 8
 β2_default = β_default/ratio_β2_default
 L_default = 1
+kon_default = 1
+koff_default = 1
 
 DEFAULT_nsteps = 5e5
 DEFAULT_n_sites = 42
 DEFAULT_n_end_sites = 10
 
 DEFAULT_PARAMS = Params(
-	α_default, β_default, γ_default, Δt_default, 
+	α_default, β_default, γ_default, L_default, kon_default, koff_default, Δt_default, 
 	DEFAULT_nsteps, DEFAULT_n_sites, DEFAULT_n_end_sites, β2_default
 )
 
@@ -47,7 +52,7 @@ DEFAULT_PARAMS = Params(
 Runs the walker for a specified number of steps.
 """
 function run_walker(
-	α, β, γ, L, Δt, n_steps, n_sites, n_end_sites; 
+	α, β, γ, L, kon, koff, Δt, n_steps, n_sites, n_end_sites; 
 	β2=nothing, model="continuous_detachment", ratio_β2=5
 )
 
@@ -67,7 +72,7 @@ function run_walker(
 	for k in 1:n_steps # number of timesteps
 	
 		gene, finish_flag, tracker_end = step(
-			α, β, β2, γ, L, gene, n_sites, Δt, tracker_end; 
+			α, β, β2, γ, L, kon, koff, gene, n_sites, Δt, tracker_end; 
 			model=model
 		)
 		density += gene
@@ -81,7 +86,8 @@ function run_walker(
 end
 
 run_walker(params, model) = run_walker(
-	params.α, params.β, params.γ, params.L, params.Δt, params.n_steps, params.n_sites, 
+	params.α, params.β, params.γ, params.L, params.kon, params.koff,
+	params.Δt, params.n_steps, params.n_sites, 
 	params.n_end_sites; β2=params.β2, model=model
 )
 
@@ -97,7 +103,7 @@ Notes:
 * The RNAs are indicated by the left-most site they occupy
 """
 function step(
-	α, β, β2, γ, L, gene, n_sites, Δt, tracker_end; 
+	α, β, β2, γ, L, kon, koff, gene, n_sites, Δt, tracker_end; 
 	model="continuous_detachment"
 )
 
@@ -107,7 +113,7 @@ function step(
 	# iterate on the termination strand
 	if model == "continuous_detachment"
 		
-		# detachment can occur at any point
+		# detachment can occur at any point in the termination zone
 		for j in length(gene):-1:n_sites+1
 
 			if (gene[j]==1) & (rand(Bernoulli(γ*Δt))) # detach
@@ -135,7 +141,7 @@ function step(
 	
 	finish_flag = false
 	
-	for j in n_sites:-1:1
+	for j in n_sites:-1:2
 		if (gene[j]==1.) & (gene[j+L]==0.) & (rand(Bernoulli(β*Δt)))
 
 			@assert all(gene[j+1:j+L] .== 0)
@@ -151,8 +157,19 @@ function step(
 		end
 	end
 
+	# fix the thing with L > 1
+	if (gene[1]==1.)
+		s = wsample(["off", "init", "nothing"], [koff*Δt, α*Δt, 1-Δt*(koff+α)])
+		if s=="off"
+			gene[1]=0.
+		elseif s=="init"
+			gene[2]=1
+			gene[1]=0
+		end
+	end
+
 	# entrance of new RNAp
-	if (rand(Bernoulli(α*Δt))) & all(gene[1:L].==0.)
+	if (rand(Bernoulli(kon*Δt))) & all(gene[1:L].==0.)
 		gene[1]=1.
 	end
 
