@@ -1145,9 +1145,9 @@ version = "1.4.1"
 
 [[deps.Qt5Base_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Fontconfig_jll", "Glib_jll", "JLLWrappers", "Libdl", "Libglvnd_jll", "OpenSSL_jll", "Pkg", "Xorg_libXext_jll", "Xorg_libxcb_jll", "Xorg_xcb_util_image_jll", "Xorg_xcb_util_keysyms_jll", "Xorg_xcb_util_renderutil_jll", "Xorg_xcb_util_wm_jll", "Zlib_jll", "xkbcommon_jll"]
-git-tree-sha1 = "c6c0f690d0cc7caddb74cef7aa847b824a16b256"
+git-tree-sha1 = "0c03844e2231e12fda4d0086fd7cbe4098ee8dc5"
 uuid = "ea2cea3b-5b76-57ae-a6ef-0a8af62496e1"
-version = "5.15.3+1"
+version = "5.15.3+2"
 
 [[deps.QuadGK]]
 deps = ["DataStructures", "LinearAlgebra"]
@@ -1604,7 +1604,7 @@ version = "1.4.1+0"
 # ╟─de58ca4e-7134-4910-9532-6defa8e7689c
 # ╟─7e82dc32-10e0-4e55-84fd-80c6eca84514
 # ╟─0fa2bc84-73d5-43fd-8661-e7a84554cca7
-# ╟─2d2c0d45-5d3b-4256-a9d8-86a44675db01
+# ╠═2d2c0d45-5d3b-4256-a9d8-86a44675db01
 # ╟─fa404ca1-049b-49fe-b894-0cba3080dc01
 # ╟─c7ca281b-e980-44f1-8963-f2c04290225d
 # ╟─d15931d9-2263-4b34-b972-6cb1c7a7ae1b

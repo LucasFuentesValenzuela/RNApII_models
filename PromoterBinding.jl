@@ -35,6 +35,12 @@ using StatsBase
 # ╔═╡ fde65485-580c-4aab-b2be-104f35ea3e53
 using PlutoUI
 
+# ╔═╡ 91e7757f-f219-4065-846e-da996f28703b
+using CSV
+
+# ╔═╡ a913fefd-abcf-4bad-85eb-c939290e352c
+using DataFrames
+
 # ╔═╡ f2bb07a7-dd8c-4e70-a5df-3da0b73e0c24
 # replacement of the include statement
 function ingredients(path::String)
@@ -60,6 +66,17 @@ plot_utils = ingredients("plot_utils.jl")
 # ╔═╡ 6c259a50-dbb1-4f03-bbb5-8a1238f6e8e0
 theory = ingredients("theory.jl")
 
+# ╔═╡ 94cec09f-d40e-4a80-8cb8-e6a1c2c3b6ba
+md"""# Questions"""
+
+# ╔═╡ caf0a7a2-5299-410d-bfc7-21d339fe9ea1
+md"""
+How useful is it to actually model the promoter...? Will it yield actually different results? 
+"""
+
+# ╔═╡ be404569-2515-4b64-afb7-2b12b200eab3
+md"""# Parameters"""
+
 # ╔═╡ 39a90299-317a-450d-bcd1-add523ced4ba
 begin
 	min_Ω = 2
@@ -68,6 +85,7 @@ begin
 	max_ρ_p = 0.04
 	min_Ψ = 23
 	max_Ψ = 26
+	
 	min_β = 13
 	max_β = 40
 
@@ -76,16 +94,21 @@ begin
 end
 
 # ╔═╡ cd48a4ca-27ea-40cd-b46e-4d6043c0cb78
-@bind Ω Slider(LinRange(min_Ω, max_Ω, 10))
+# @bind Ω Slider(LinRange(min_Ω, max_Ω, 10))
 
 # ╔═╡ f0146833-1ffb-470c-acad-5036836fe644
-@bind ρ_p Slider(LinRange(min_ρ_p, max_ρ_p, 10))
+# @bind ρ_p Slider(LinRange(min_ρ_p, max_ρ_p, 10))
 
 # ╔═╡ 2a2f4710-e41c-46ac-8397-708510fb9c2a
-@bind Ψ Slider(LinRange(min_Ψ, max_Ψ, 10))
+# @bind Ψ Slider(LinRange(min_Ψ, max_Ψ, 10))
 
-# ╔═╡ e978a627-b607-4df4-9e86-e79fac6f5fab
-@bind β Slider(LinRange(min_β, max_β, 10))
+# ╔═╡ c9921166-a623-4523-926f-e81b5a30bd41
+begin
+	Ω = (min_Ω + max_Ω)/2
+	ρ_p = (min_ρ_p + max_ρ_p)/2
+	Ψ = (min_Ψ + max_Ψ) / 2
+	β = 33
+end;
 
 # ╔═╡ c93fd9f0-a8d6-402b-92b6-c76682299590
 length_gene = 1000
@@ -184,17 +207,22 @@ md"""
 """
 
 # ╔═╡ 9e38b178-0198-4a1d-bfe0-908ade859b1b
-k_on_vec = 10 .^(LinRange(-1, 3, 10)) .* k_on;
+k_on_vec = 10 .^(LinRange(-4, 1.5, 10));
+
+# ╔═╡ 8a8ad9ee-d889-4eaa-bd35-91648f66d6a8
+α_vec = LinRange(min_α, max_α, 4)
+
+# ╔═╡ cdf03b42-1485-4705-9101-b290d5ee2b15
+params_iter = collect(Iterators.product(α_vec, [β]))
 
 # ╔═╡ 00204d85-3727-4848-bd59-1190acbcc875
 begin
 	occupancy = []
 	params_occ = []
 
-	for α in [max_α, min_α, (max_α+min_α)/2]
-		
-		for k_off in [max_k_off, min_k_off]
-
+	for (α, β) in params_iter
+			k_off = max(0, 1/Ω-α)
+			
 			occupancy_crt = []
 	
 			for k_on in k_on_vec
@@ -211,24 +239,46 @@ begin
 				push!(occupancy_crt, plot_utils.get_total_occupancy(density, params_crt; start=2))
 				
 			end
-
+	
 			push!(occupancy, occupancy_crt)
-			push!(params_occ, "α=$(round(α; digits=3)), koff=$(round(k_off; digits=3))")
+			push!(params_occ, "α=$(round(α; digits=3)), β=$(round(β; digits=3))")
 			
-		end
 	end
 end
+
+# ╔═╡ 18f68908-8532-4b97-925c-77fed0d1f9d9
+@bind idx_ref Slider(1:length(occupancy))
+
+# ╔═╡ 10851975-a3dd-4cd0-90cf-ef79f32cc3f4
+idx_ref
+
+# ╔═╡ 51373682-15a4-4d14-9f11-7ff4cf82bb5d
+begin
+	# idx_ref = 11
+	occupancy_ref = occupancy[idx_ref]
+	@show params_occ[idx_ref]
+end
+
+# ╔═╡ 098e32b4-0501-4dd0-ba66-7f6821c299db
+occupancy_interp = linear_interpolation(k_on_vec, occupancy_ref .* params.n_sites)
 
 # ╔═╡ a4b4db5a-483a-4af2-90f9-5ed46c1892b8
 begin
 	plot()
 
-	colors = palette([:orange, :forestgreen], length(occupancy))
+	colors = palette([:orange, :forestgreen, :firebrick], length(occupancy))
+	# colors = [:orange]
 
 	for (k, occ) in enumerate(occupancy)
-		plot!(k_on_vec, occ*params.n_sites, label=params_occ[k], color=colors[k])
-		scatter!(k_on_vec, occ*params.n_sites, label="", color=colors[k])
+		plot!(k_on_vec, occ * params.n_sites, label=params_occ[k], color=colors[k])
+		scatter!(k_on_vec, occ * params.n_sites, label="", color=colors[k])
 	end
+
+	plot!(
+		k_on_vec, occupancy_interp(k_on_vec), 
+		linestyle=:dash, linewidth=3, 
+		color=:blue
+	)
 	xlabel!("k_on")
 	ylabel!("occupancy")
 	plot!(xscale=:log)
@@ -238,16 +288,6 @@ begin
 	
 	plot!(legend=:topleft)
 end
-
-# ╔═╡ 51373682-15a4-4d14-9f11-7ff4cf82bb5d
-begin
-	idx_ref = 6
-	occupancy_ref = occupancy[idx_ref]
-	@show params_occ[idx_ref]
-end
-
-# ╔═╡ 098e32b4-0501-4dd0-ba66-7f6821c299db
-occupancy_interp = linear_interpolation(k_on_vec, occupancy_ref)
 
 # ╔═╡ 2e55fb0f-5f8a-46b4-a9ac-eaab460edc0e
 begin
@@ -298,9 +338,194 @@ begin
 	plot(p1, p2)
 end
 
+# ╔═╡ b53d0bec-aa5a-4fb4-b84e-2b3014158149
+md"""## finding realistic values for kon"""
+
+# ╔═╡ 589b0ada-f4dc-4bd1-89d8-b281fa49bc2e
+df = DataFrame(CSV.File("Python/data_exp_nuclear_fraction.csv"));
+
+# ╔═╡ 0dca2ade-0f50-4328-bd10-2ded1d0f5441
+begin
+	plot(df[!, :cell_volume_fL], df[!, :Rpb1_occupancy_haploid_fit], label="haploid")
+	plot!(df[!, :cell_volume_fL], df[!, :Rpb1_occupancy_diploid_prediction], label="diploid")
+	plot!(xlabel="cell volume [fL]", ylabel="occupancy")
+end
+
+# ╔═╡ d0b91555-3c1c-40b7-8d0c-e660c46d2baa
+begin
+	plot(df[!, :cell_volume_fL], 
+		(1 .-df[!, :Rpb1_bound_fraction_haploid_prediction]) ./ (df[!, :nuclear_volume] ./ df[!, :cell_volume_fL]), 
+		label=""
+	)
+	# plot!(df[!, :cell_volume_fL], CV_to_RNAfree_interp(df[!, :cell_volume_fL]))
+	
+	plot!(xlabel="Cell Volume [fL]", ylabel="[RNA]_free")
+end
+
+# ╔═╡ ee624b7a-4d35-4f0e-8480-27c76a57a4e6
+begin
+	# defining some interpolations
+	
+	Rpb1_occupancy_haploid_interp = linear_interpolation(
+		df[!, :cell_volume_fL], df[!, :Rpb1_occupancy_haploid_fit]
+	)
+	
+	CV_to_RNAfree_interp = linear_interpolation(
+		 df[!, :cell_volume_fL],
+		(1 .-df[!, :Rpb1_bound_fraction_haploid_prediction]) ./ (df[!, :nuclear_volume] ./ df[!, :cell_volume_fL]),
+	)
+end
+
+# ╔═╡ 8f3f2bde-ab29-4a19-8204-d9e332feeca7
+begin
+	# we need to scale the Rpb1 occupancy so that, for 50fL, it falls within the values
+	# that we set from the literature (because currently they are only relative changes)
+	
+	n_mol_per_gene_body = .3
+	sf = n_mol_per_gene_body/Rpb1_occupancy_haploid_interp(50) #scaling factor
+	
+end
+
+# ╔═╡ 968dd9de-1abe-4379-b6ab-185a88f10632
+@bind kon_C Slider(10 .^(LinRange(-3, -1, 30)))
+
+# ╔═╡ ad7a9b7c-9999-4368-ba19-3043f68ffb7e
+kon_C
+
+# ╔═╡ e5205883-7faa-495b-9a04-e431ecc1b8c9
+let
+	p1 = plot()
+	
+	plot!(
+		df[!, :cell_volume_fL], df[!, :Rpb1_occupancy_haploid_fit] .* sf, 
+		label="haploid occupancy", linewidth=2
+	)
+
+	k_on_from_cV = CV_to_RNAfree_interp(df[!, :cell_volume_fL]) * kon_C
+	occupancy_from_model = occupancy_interp(k_on_from_cV)
+
+	plot!(
+		df[!, :cell_volume_fL], occupancy_from_model, 
+		label="occupancy from model", linewidth=2, linestyle=:dash,
+		xlabel="Cell Volume [fL]", ylabel="Occupancy", 
+		ylim=(0, 1), 
+		# xscale=:log,
+		legend=:topleft, 
+		# xlim=(50, 220)
+	)
+
+	p3 = plot()
+	
+	plot!(
+		df[!, :cell_volume_fL], df[!, :Rpb1_occupancy_haploid_fit], 
+		label="", linewidth=2
+	)
+
+	k_on_from_cV = CV_to_RNAfree_interp(df[!, :cell_volume_fL]) * kon_C
+	occupancy_from_model = occupancy_interp(k_on_from_cV)
+
+	plot!(
+		df[!, :cell_volume_fL], occupancy_from_model, 
+		label="", linewidth=2, linestyle=:dash,
+		xlabel="Cell Volume [fL]", ylabel="Occupancy", 
+		ylim=(0, 1.), xlim=(50, 220)
+		# xscale=:log
+	)
+
+	p2 = plot()
+
+	plot!(
+		df[!, :cell_volume_fL], k_on_from_cV, 
+		linewidth=2,
+		xlabel="Cell Volume [fL]", ylabel="k_on", 
+		label="", ylim=(0, .05))
+
+	plot(p1, p2, layout=(2, 1))
+end
+
+# ╔═╡ 0582015e-4b06-41f3-a4f8-34ca1163e2a8
+# plot comparing the actual fit with the simulations
+
+let
+	plot()
+
+	colors = palette([:orange, :forestgreen, :firebrick], length(occupancy))
+	# colors = [:orange]
+
+	k_on_from_cV = CV_to_RNAfree_interp(df[!, :cell_volume_fL]) * kon_C
+	
+
+	for (k, occ) in enumerate(occupancy)
+
+		occup_interp = linear_interpolation(k_on_vec, occ .* params.n_sites)
+		# plot!(k_on_vec, occ * params.n_sites, label=params_occ[k], color=colors[k])
+		# scatter!(k_on_vec, occ * params.n_sites, label="", color=colors[k])
+		plot!(df[!, :cell_volume_fL], occup_interp(k_on_from_cV))
+	end
+
+	plot!(
+		df[!, :cell_volume_fL], df[!, :Rpb1_occupancy_haploid_fit] .* sf, 
+		label="haploid occupancy", linewidth=3, linestyle=:dash, color=:blue
+	)
+
+	# plot!(
+	# 	k_on_vec, occupancy_interp(k_on_vec), 
+	# 	linestyle=:dash, linewidth=3, 
+	# 	color=:blue
+	# )
+	xlabel!("cell volume")
+	ylabel!("occupancy")
+	# plot!(xscale=:log)
+	# vline!([min_α, max_α], label="α, average gene")
+	# hline!([min_ρ_g, max_ρ_g], label = "occupancy, average gene")
+	# vline!([α], label="α")
+	
+	plot!(legend=:topleft)
+end
+
+# ╔═╡ 8db159dd-8904-4228-949e-a77d04f33893
+let
+	k_on_from_cV = CV_to_RNAfree_interp(df[!, :cell_volume_fL]) * kon_C
+	occupancy_from_model = occupancy_interp(k_on_from_cV)
+
+	plot(k_on_from_cV, occupancy_from_model)
+end
+
+# ╔═╡ c663218f-235f-4cd0-a33a-69a19d5ae120
+md"""# Playing around: can the hill function be used to parameterize the system?"""
+
+# ╔═╡ fcf9697f-d76a-4cb4-bc6e-37f7dfc3a28b
+hill(x, c1, c2, n) = c1 ./ (1 .+ (c2 .* x).^-n)
+
+# ╔═╡ 37ed201c-989a-4e38-8e0c-9ffada0bc0ba
+xx = LinRange(0, 5, 100)
+
+# ╔═╡ fb6d8046-bd9e-4a11-99d5-8ae9951f2736
+@bind c1 Slider(LinRange(0, 5, 10))
+
+# ╔═╡ 0083f739-d27a-4654-bee1-5803cc28801e
+c1
+
+# ╔═╡ ec4d45bb-a8b7-4760-847c-688a75e69a06
+@bind c2 Slider(LinRange(0, 2, 10))
+
+# ╔═╡ 124345b5-17c7-4655-b5ba-22d95f19764c
+c2
+
+# ╔═╡ b7b919ee-0c3c-4737-bc9f-748065073a8b
+@bind n Slider(LinRange(1, 10, 10))
+
+# ╔═╡ b2db8eeb-d290-4ec3-b9e5-67de45ef3e45
+n
+
+# ╔═╡ f79bb7e7-0c30-4ff5-885b-ab448ad03347
+plot(xx, hill(xx, c1, c2, n))
+
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
+CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Interpolations = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
@@ -310,6 +535,8 @@ Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 
 [compat]
+CSV = "~0.10.7"
+DataFrames = "~1.4.3"
 Distributions = "~0.25.77"
 Interpolations = "~0.14.6"
 Plots = "~1.36.1"
@@ -362,6 +589,12 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "19a35467a82e236ff51bc17a3a44b69ef35185a2"
 uuid = "6e34b625-4abd-537c-b88f-471c36dfa7a0"
 version = "1.0.8+0"
+
+[[deps.CSV]]
+deps = ["CodecZlib", "Dates", "FilePathsBase", "InlineStrings", "Mmap", "Parsers", "PooledArrays", "SentinelArrays", "Tables", "Unicode", "WeakRefStrings"]
+git-tree-sha1 = "c5fd7cd27ac4aed0acf4b73948f0110ff2a854b2"
+uuid = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+version = "0.10.7"
 
 [[deps.Cairo_jll]]
 deps = ["Artifacts", "Bzip2_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "JLLWrappers", "LZO_jll", "Libdl", "Pixman_jll", "Pkg", "Xorg_libXext_jll", "Xorg_libXrender_jll", "Zlib_jll", "libpng_jll"]
@@ -432,16 +665,32 @@ git-tree-sha1 = "d05d9e7b7aedff4e5b51a029dced05cfb6125781"
 uuid = "d38c429a-6771-53c6-b99e-75d170b6e991"
 version = "0.6.2"
 
+[[deps.Crayons]]
+git-tree-sha1 = "249fe38abf76d48563e2f4556bebd215aa317e15"
+uuid = "a8cc5b0e-0ffa-5ad4-8c14-923d3ee1735f"
+version = "4.1.1"
+
 [[deps.DataAPI]]
 git-tree-sha1 = "e08915633fcb3ea83bf9d6126292e5bc5c739922"
 uuid = "9a962f9c-6df0-11e9-0e5d-c546b8b5ee8a"
 version = "1.13.0"
+
+[[deps.DataFrames]]
+deps = ["Compat", "DataAPI", "Future", "InvertedIndices", "IteratorInterfaceExtensions", "LinearAlgebra", "Markdown", "Missings", "PooledArrays", "PrettyTables", "Printf", "REPL", "Random", "Reexport", "SnoopPrecompile", "SortingAlgorithms", "Statistics", "TableTraits", "Tables", "Unicode"]
+git-tree-sha1 = "0f44494fe4271cc966ac4fea524111bef63ba86c"
+uuid = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+version = "1.4.3"
 
 [[deps.DataStructures]]
 deps = ["Compat", "InteractiveUtils", "OrderedCollections"]
 git-tree-sha1 = "d1fff3a548102f48987a52a2e0d114fa97d730f0"
 uuid = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 version = "0.18.13"
+
+[[deps.DataValueInterfaces]]
+git-tree-sha1 = "bfc1187b79289637fa0ef6d4436ebdfe6905cbd6"
+uuid = "e2d170a0-9d28-54be-80f0-106bbe20a464"
+version = "1.0.0"
 
 [[deps.Dates]]
 deps = ["Printf"]
@@ -501,6 +750,12 @@ git-tree-sha1 = "74faea50c1d007c85837327f6775bea60b5492dd"
 uuid = "b22a6f82-2f65-5046-a5b2-351ab43fb4e5"
 version = "4.4.2+2"
 
+[[deps.FilePathsBase]]
+deps = ["Compat", "Dates", "Mmap", "Printf", "Test", "UUIDs"]
+git-tree-sha1 = "e27c4ebe80e8699540f2d6c805cc12203b614f12"
+uuid = "48062228-2e41-5def-b9a4-89aafe57970f"
+version = "0.9.20"
+
 [[deps.FillArrays]]
 deps = ["LinearAlgebra", "Random", "SparseArrays", "Statistics"]
 git-tree-sha1 = "802bfc139833d2ba893dd9e62ba1767c88d708ae"
@@ -536,6 +791,10 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "aa31987c2ba8704e23c6c8ba8a4f769d5d7e4f91"
 uuid = "559328eb-81f9-559d-9380-de523a88c83c"
 version = "1.0.10+0"
+
+[[deps.Future]]
+deps = ["Random"]
+uuid = "9fa8497b-333b-5362-9e8d-4d0656e87820"
 
 [[deps.GLFW_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Libglvnd_jll", "Pkg", "Xorg_libXcursor_jll", "Xorg_libXi_jll", "Xorg_libXinerama_jll", "Xorg_libXrandr_jll"]
@@ -619,6 +878,12 @@ git-tree-sha1 = "f550e6e32074c939295eb5ea6de31849ac2c9625"
 uuid = "83e8ac13-25f8-5344-8a64-a9f2b223428f"
 version = "0.5.1"
 
+[[deps.InlineStrings]]
+deps = ["Parsers"]
+git-tree-sha1 = "b5081bd8a53eeb6a2ef956751343ab44543023fb"
+uuid = "842dd82b-1e85-43dc-bf29-5d0ee9dffc48"
+version = "1.3.1"
+
 [[deps.InteractiveUtils]]
 deps = ["Markdown"]
 uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
@@ -635,10 +900,20 @@ git-tree-sha1 = "49510dfcb407e572524ba94aeae2fced1f3feb0f"
 uuid = "3587e190-3f89-42d0-90ee-14403ec27112"
 version = "0.1.8"
 
+[[deps.InvertedIndices]]
+git-tree-sha1 = "bee5f1ef5bf65df56bdd2e40447590b272a5471f"
+uuid = "41ab1584-1d38-5bbf-9106-f11c6c58b48f"
+version = "1.1.0"
+
 [[deps.IrrationalConstants]]
 git-tree-sha1 = "7fd44fd4ff43fc60815f8e764c0f352b83c49151"
 uuid = "92d709cd-6900-40b7-9082-c6be49f344b6"
 version = "0.1.1"
+
+[[deps.IteratorInterfaceExtensions]]
+git-tree-sha1 = "a3f24677c21f5bbe9d2a714f95dcd58337fb2856"
+uuid = "82899510-4779-5014-852e-03e436cf321d"
+version = "1.0.0"
 
 [[deps.JLFzf]]
 deps = ["Pipe", "REPL", "Random", "fzf_jll"]
@@ -934,11 +1209,23 @@ git-tree-sha1 = "efc140104e6d0ae3e7e30d56c98c4a927154d684"
 uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 version = "0.7.48"
 
+[[deps.PooledArrays]]
+deps = ["DataAPI", "Future"]
+git-tree-sha1 = "a6062fe4063cdafe78f4a0a81cfffb89721b30e7"
+uuid = "2dfb63ee-cc39-5dd5-95bd-886bf059d720"
+version = "1.4.2"
+
 [[deps.Preferences]]
 deps = ["TOML"]
 git-tree-sha1 = "47e5f437cc0e7ef2ce8406ce1e7e24d44915f88d"
 uuid = "21216c6a-2e73-6563-6e65-726566657250"
 version = "1.3.0"
+
+[[deps.PrettyTables]]
+deps = ["Crayons", "Formatting", "LaTeXStrings", "Markdown", "Reexport", "StringManipulation", "Tables"]
+git-tree-sha1 = "d8ed354439950b34ab04ff8f3dfd49e11bc6c94b"
+uuid = "08abe8d2-0d0c-5749-adfa-8a2ac140af0d"
+version = "2.2.1"
 
 [[deps.Printf]]
 deps = ["Unicode"]
@@ -1026,6 +1313,12 @@ git-tree-sha1 = "f94f779c94e58bf9ea243e77a37e16d9de9126bd"
 uuid = "6c6a2e73-6563-6170-7368-637461726353"
 version = "1.1.1"
 
+[[deps.SentinelArrays]]
+deps = ["Dates", "Random"]
+git-tree-sha1 = "efd23b378ea5f2db53a55ae53d3133de4e080aa9"
+uuid = "91c51154-3ec4-41a3-a24f-3f23e20d615c"
+version = "1.3.16"
+
 [[deps.Serialization]]
 uuid = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 
@@ -1101,6 +1394,11 @@ git-tree-sha1 = "5783b877201a82fc0014cbf381e7e6eb130473a4"
 uuid = "4c63d2b9-4356-54db-8cca-17b64c39e42c"
 version = "1.0.1"
 
+[[deps.StringManipulation]]
+git-tree-sha1 = "46da2434b41f41ac3594ee9816ce5541c6096123"
+uuid = "892a3eda-7b42-436c-8928-eab12a02cf0e"
+version = "0.3.0"
+
 [[deps.SuiteSparse]]
 deps = ["Libdl", "LinearAlgebra", "Serialization", "SparseArrays"]
 uuid = "4607b0f0-06f3-5cda-b6b1-a6196a1729e9"
@@ -1108,6 +1406,18 @@ uuid = "4607b0f0-06f3-5cda-b6b1-a6196a1729e9"
 [[deps.TOML]]
 deps = ["Dates"]
 uuid = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
+
+[[deps.TableTraits]]
+deps = ["IteratorInterfaceExtensions"]
+git-tree-sha1 = "c06b2f539df1c6efa794486abfb6ed2022561a39"
+uuid = "3783bdb8-4a98-5b6b-af9a-565f29a5fe9c"
+version = "1.0.1"
+
+[[deps.Tables]]
+deps = ["DataAPI", "DataValueInterfaces", "IteratorInterfaceExtensions", "LinearAlgebra", "OrderedCollections", "TableTraits", "Test"]
+git-tree-sha1 = "c79322d36826aa2f4fd8ecfa96ddb47b174ac78d"
+uuid = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
+version = "1.10.0"
 
 [[deps.Tar]]
 deps = ["ArgTools", "SHA"]
@@ -1168,6 +1478,12 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "4528479aa01ee1b3b4cd0e6faef0e04cf16466da"
 uuid = "2381bf8a-dfd0-557d-9999-79630e7b1b91"
 version = "1.25.0+0"
+
+[[deps.WeakRefStrings]]
+deps = ["DataAPI", "InlineStrings", "Parsers"]
+git-tree-sha1 = "b1be2855ed9ed8eac54e5caff2afcdb442d52c23"
+uuid = "ea10d353-3f73-51f8-a26c-33c1cb351aa5"
+version = "1.4.2"
 
 [[deps.WoodburyMatrices]]
 deps = ["LinearAlgebra", "SparseArrays"]
@@ -1402,11 +1718,14 @@ version = "1.4.1+0"
 # ╠═6af56bf5-f552-4e0f-b61a-d46f3a212022
 # ╠═6c259a50-dbb1-4f03-bbb5-8a1238f6e8e0
 # ╠═fde65485-580c-4aab-b2be-104f35ea3e53
+# ╠═94cec09f-d40e-4a80-8cb8-e6a1c2c3b6ba
+# ╠═caf0a7a2-5299-410d-bfc7-21d339fe9ea1
+# ╠═be404569-2515-4b64-afb7-2b12b200eab3
 # ╠═39a90299-317a-450d-bcd1-add523ced4ba
 # ╠═cd48a4ca-27ea-40cd-b46e-4d6043c0cb78
 # ╠═f0146833-1ffb-470c-acad-5036836fe644
 # ╠═2a2f4710-e41c-46ac-8397-708510fb9c2a
-# ╠═e978a627-b607-4df4-9e86-e79fac6f5fab
+# ╠═c9921166-a623-4523-926f-e81b5a30bd41
 # ╠═c93fd9f0-a8d6-402b-92b6-c76682299590
 # ╠═867326a5-e17f-46d8-87fd-338ae15980d7
 # ╠═7136c4d3-8351-4372-82b7-f11167d978cd
@@ -1430,13 +1749,40 @@ version = "1.4.1+0"
 # ╠═96e72460-8d73-4c3f-81d0-b7a022f139fb
 # ╟─492337da-8184-4aba-bdbb-2f601e23794f
 # ╠═9e38b178-0198-4a1d-bfe0-908ade859b1b
+# ╠═8a8ad9ee-d889-4eaa-bd35-91648f66d6a8
+# ╠═cdf03b42-1485-4705-9101-b290d5ee2b15
 # ╠═00204d85-3727-4848-bd59-1190acbcc875
 # ╠═a4b4db5a-483a-4af2-90f9-5ed46c1892b8
+# ╠═18f68908-8532-4b97-925c-77fed0d1f9d9
+# ╠═10851975-a3dd-4cd0-90cf-ef79f32cc3f4
 # ╠═51373682-15a4-4d14-9f11-7ff4cf82bb5d
 # ╠═098e32b4-0501-4dd0-ba66-7f6821c299db
 # ╠═2e55fb0f-5f8a-46b4-a9ac-eaab460edc0e
 # ╠═6cb33f2a-3d7d-453e-b8fc-39d0ff3c59d0
 # ╠═89763698-dca4-4e14-974a-1bf092fb0dee
 # ╠═8366c3ef-637d-4a44-9885-f53dea90747d
+# ╟─b53d0bec-aa5a-4fb4-b84e-2b3014158149
+# ╠═91e7757f-f219-4065-846e-da996f28703b
+# ╠═a913fefd-abcf-4bad-85eb-c939290e352c
+# ╠═589b0ada-f4dc-4bd1-89d8-b281fa49bc2e
+# ╠═0dca2ade-0f50-4328-bd10-2ded1d0f5441
+# ╠═d0b91555-3c1c-40b7-8d0c-e660c46d2baa
+# ╠═ee624b7a-4d35-4f0e-8480-27c76a57a4e6
+# ╠═8f3f2bde-ab29-4a19-8204-d9e332feeca7
+# ╠═968dd9de-1abe-4379-b6ab-185a88f10632
+# ╟─ad7a9b7c-9999-4368-ba19-3043f68ffb7e
+# ╟─e5205883-7faa-495b-9a04-e431ecc1b8c9
+# ╠═0582015e-4b06-41f3-a4f8-34ca1163e2a8
+# ╠═8db159dd-8904-4228-949e-a77d04f33893
+# ╟─c663218f-235f-4cd0-a33a-69a19d5ae120
+# ╠═fcf9697f-d76a-4cb4-bc6e-37f7dfc3a28b
+# ╠═37ed201c-989a-4e38-8e0c-9ffada0bc0ba
+# ╠═fb6d8046-bd9e-4a11-99d5-8ae9951f2736
+# ╠═0083f739-d27a-4654-bee1-5803cc28801e
+# ╠═ec4d45bb-a8b7-4760-847c-688a75e69a06
+# ╠═124345b5-17c7-4655-b5ba-22d95f19764c
+# ╠═b7b919ee-0c3c-4737-bc9f-748065073a8b
+# ╠═b2db8eeb-d290-4ec3-b9e5-67de45ef3e45
+# ╠═f79bb7e7-0c30-4ff5-885b-ab448ad03347
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
