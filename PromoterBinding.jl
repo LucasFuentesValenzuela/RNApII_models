@@ -41,6 +41,9 @@ using CSV
 # ╔═╡ a913fefd-abcf-4bad-85eb-c939290e352c
 using DataFrames
 
+# ╔═╡ 1130f43b-a261-4df5-9f9f-315dd8921140
+using LinearAlgebra
+
 # ╔═╡ f2bb07a7-dd8c-4e70-a5df-3da0b73e0c24
 # replacement of the include statement
 function ingredients(path::String)
@@ -104,7 +107,7 @@ end
 
 # ╔═╡ c9921166-a623-4523-926f-e81b5a30bd41
 begin
-	Ω = (min_Ω + max_Ω)/2
+	Ω = min_Ω #(min_Ω + max_Ω)/2
 	ρ_p = (min_ρ_p + max_ρ_p)/2
 	Ψ = (min_Ψ + max_Ψ) / 2
 	β = 33
@@ -210,7 +213,7 @@ md"""
 k_on_vec = 10 .^(LinRange(-4, 1.5, 10));
 
 # ╔═╡ 8a8ad9ee-d889-4eaa-bd35-91648f66d6a8
-α_vec = LinRange(min_α, max_α, 4)
+α_vec = LinRange(min_α, max_α, 8)
 
 # ╔═╡ cdf03b42-1485-4705-9101-b290d5ee2b15
 params_iter = collect(Iterators.product(α_vec, [β]))
@@ -483,43 +486,101 @@ let
 	plot!(legend=:topleft)
 end
 
-# ╔═╡ 8db159dd-8904-4228-949e-a77d04f33893
-let
-	k_on_from_cV = CV_to_RNAfree_interp(df[!, :cell_volume_fL]) * kon_C
-	occupancy_from_model = occupancy_interp(k_on_from_cV)
+# ╔═╡ fc74bd55-9487-4f18-aaaf-4ed5fe0035db
+md"""
+# What is the optimal k_on as a function of α? 
+"""
 
-	plot(k_on_from_cV, occupancy_from_model)
+# ╔═╡ 686395c3-a8bc-401f-b64a-11421b664229
+begin
+	k_on_C_vec = 10 .^(LinRange(-3, -1, 30))
+	losses = []
+	opt_kon = []
+	opt_loss = []
+	
+	for (k,α) in enumerate(α_vec)
+			
+		occupancy_interp_crt = linear_interpolation(k_on_vec, occupancy[k] .* params.n_sites)
+
+		loss_crt = []
+		
+		for kon_C in k_on_C_vec
+			k_on_from_cV = CV_to_RNAfree_interp(df[!, :cell_volume_fL]) * kon_C
+			occupancy_from_model = occupancy_interp_crt(k_on_from_cV)
+
+			loss = norm(df[!, :Rpb1_occupancy_haploid_fit] .* sf .- occupancy_from_model, 2)
+		
+			push!(loss_crt, loss)
+		end
+
+		push!(losses, loss_crt)
+		push!(opt_kon, k_on_C_vec[argmin(loss_crt)])
+		push!(opt_loss, loss_crt[argmin(loss_crt)])
+	end
 end
 
-# ╔═╡ c663218f-235f-4cd0-a33a-69a19d5ae120
-md"""# Playing around: can the hill function be used to parameterize the system?"""
+# ╔═╡ d716e315-17f1-4e7c-92fe-565a1839a972
+opt_kon
 
-# ╔═╡ fcf9697f-d76a-4cb4-bc6e-37f7dfc3a28b
-hill(x, c1, c2, n) = c1 ./ (1 .+ (c2 .* x).^-n)
+# ╔═╡ ff93e2c4-c7d2-41ef-9528-0da4d96e539d
+begin
+	plot(α_vec, opt_kon, label="")
+	scatter!(α_vec, opt_kon, label="")
+	plot!(xlabel="α [initiation rate]", ylabel="kon")
+end
 
-# ╔═╡ 37ed201c-989a-4e38-8e0c-9ffada0bc0ba
-xx = LinRange(0, 5, 100)
+# ╔═╡ 5dc52f47-7e21-4f61-84f4-1e9754ac8484
+1/Ω
 
-# ╔═╡ fb6d8046-bd9e-4a11-99d5-8ae9951f2736
-@bind c1 Slider(LinRange(0, 5, 10))
+# ╔═╡ 86d88aad-db38-4d8a-bed3-e5b9fd8dd4a0
+begin
+	plot(α_vec, (α_vec .* opt_kon) .* (opt_kon .+ 1/Ω), label="")
+	# scatter!(α_vec, (α_vec .* opt_kon), label="")
+	plot!(xlabel="α", ylabel="k_on * α")
+	
+	
+end
 
-# ╔═╡ 0083f739-d27a-4654-bee1-5803cc28801e
-c1
+# ╔═╡ 0e908701-28b7-4d06-b034-e3274f4b705d
+plot(α_vec, opt_loss)
 
-# ╔═╡ ec4d45bb-a8b7-4760-847c-688a75e69a06
-@bind c2 Slider(LinRange(0, 2, 10))
+# ╔═╡ 1fc70f64-800d-47b3-8972-da92d8d45a60
+koffs = max.(0, 1/Ω .- α_vec)
 
-# ╔═╡ 124345b5-17c7-4655-b5ba-22d95f19764c
-c2
+# ╔═╡ 53afbdc7-dd91-48b2-8491-cbefff7e66b5
+1 ./(koffs .+ α_vec)
 
-# ╔═╡ b7b919ee-0c3c-4737-bc9f-748065073a8b
-@bind n Slider(LinRange(1, 10, 10))
+# ╔═╡ 0f063d77-6573-4401-a5a4-bd70485ff114
+@bind idx_choice Slider(1:length(α_vec))
 
-# ╔═╡ b2db8eeb-d290-4ec3-b9e5-67de45ef3e45
-n
+# ╔═╡ 64ac5721-bfd9-4284-910d-960f203dfb0d
+opt_kon[idx_choice]
 
-# ╔═╡ f79bb7e7-0c30-4ff5-885b-ab448ad03347
-plot(xx, hill(xx, c1, c2, n))
+# ╔═╡ 4047cf64-fad2-4fa9-8352-799cbd01ee2d
+let
+	p1 = plot()
+	
+	plot!(
+		df[!, :cell_volume_fL], df[!, :Rpb1_occupancy_haploid_fit] .* sf, 
+		label="haploid occupancy", linewidth=2
+	)
+
+	occupancy_interp_crt = linear_interpolation(k_on_vec, occupancy[idx_choice] .* params.n_sites)
+
+	k_on_from_cV = CV_to_RNAfree_interp(df[!, :cell_volume_fL]) * opt_kon[idx_choice]
+	occupancy_from_model = occupancy_interp_crt(k_on_from_cV)
+
+	plot!(
+		df[!, :cell_volume_fL], occupancy_from_model, 
+		label="occupancy from model", linewidth=2, linestyle=:dash,
+		xlabel="Cell Volume [fL]", ylabel="Occupancy", 
+		ylim=(0, 1), 
+		# xscale=:log,
+		legend=:topleft, 
+		# xlim=(50, 220)
+	)
+
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -528,6 +589,7 @@ CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Interpolations = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 ProgressBars = "49802e3a-d2f1-5c88-81d8-b72133a6f568"
@@ -1771,18 +1833,20 @@ version = "1.4.1+0"
 # ╠═8f3f2bde-ab29-4a19-8204-d9e332feeca7
 # ╠═968dd9de-1abe-4379-b6ab-185a88f10632
 # ╟─ad7a9b7c-9999-4368-ba19-3043f68ffb7e
-# ╟─e5205883-7faa-495b-9a04-e431ecc1b8c9
-# ╠═0582015e-4b06-41f3-a4f8-34ca1163e2a8
-# ╠═8db159dd-8904-4228-949e-a77d04f33893
-# ╟─c663218f-235f-4cd0-a33a-69a19d5ae120
-# ╠═fcf9697f-d76a-4cb4-bc6e-37f7dfc3a28b
-# ╠═37ed201c-989a-4e38-8e0c-9ffada0bc0ba
-# ╠═fb6d8046-bd9e-4a11-99d5-8ae9951f2736
-# ╠═0083f739-d27a-4654-bee1-5803cc28801e
-# ╠═ec4d45bb-a8b7-4760-847c-688a75e69a06
-# ╠═124345b5-17c7-4655-b5ba-22d95f19764c
-# ╠═b7b919ee-0c3c-4737-bc9f-748065073a8b
-# ╠═b2db8eeb-d290-4ec3-b9e5-67de45ef3e45
-# ╠═f79bb7e7-0c30-4ff5-885b-ab448ad03347
+# ╠═e5205883-7faa-495b-9a04-e431ecc1b8c9
+# ╟─0582015e-4b06-41f3-a4f8-34ca1163e2a8
+# ╟─fc74bd55-9487-4f18-aaaf-4ed5fe0035db
+# ╠═1130f43b-a261-4df5-9f9f-315dd8921140
+# ╠═686395c3-a8bc-401f-b64a-11421b664229
+# ╠═d716e315-17f1-4e7c-92fe-565a1839a972
+# ╠═ff93e2c4-c7d2-41ef-9528-0da4d96e539d
+# ╠═5dc52f47-7e21-4f61-84f4-1e9754ac8484
+# ╠═86d88aad-db38-4d8a-bed3-e5b9fd8dd4a0
+# ╠═0e908701-28b7-4d06-b034-e3274f4b705d
+# ╠═1fc70f64-800d-47b3-8972-da92d8d45a60
+# ╠═53afbdc7-dd91-48b2-8491-cbefff7e66b5
+# ╠═0f063d77-6573-4401-a5a4-bd70485ff114
+# ╠═64ac5721-bfd9-4284-910d-960f203dfb0d
+# ╠═4047cf64-fad2-4fa9-8352-799cbd01ee2d
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
