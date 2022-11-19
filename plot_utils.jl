@@ -202,14 +202,19 @@ plot_residence_times_sweep(results, p, param_name) =  plot_residence_times_sweep
 
 """
 """
+function get_total_occupancy(density, params; start_bp=1, end_bp=nothing, normalize=false)
 
-function get_total_occupancy(density, params; start=1)
-
-	n_sites = params.n_sites
+	if end_bp === nothing
+		end_bp = params.n_sites
+	end
 	n_steps = params.n_steps
 	L = params.L
 
-	total_occupancy = sum(density[start:n_sites])/(n_steps*n_sites)*L
+	total_occupancy = sum(density[start_bp:end_bp])/(n_steps)*L
+
+	if normalize
+		total_occupancy = total_occupany/(end_bp-start_bp)
+	end
 
 	return total_occupancy
 end

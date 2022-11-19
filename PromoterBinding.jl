@@ -74,83 +74,24 @@ md"""# Questions"""
 
 # ╔═╡ caf0a7a2-5299-410d-bfc7-21d339fe9ea1
 md"""
-How useful is it to actually model the promoter...? Will it yield actually different results? 
+- How useful is it to actually model the promoter...? Will it yield actually different results? 
+
+- I am a bit confused about this notion of the "average gene" <> "cell size of 50fL". there is something that is not clear there. 
 """
 
 # ╔═╡ be404569-2515-4b64-afb7-2b12b200eab3
 md"""# Parameters"""
 
-# ╔═╡ 39a90299-317a-450d-bcd1-add523ced4ba
-begin
-	min_Ω = 2
-	max_Ω = 4
-	min_ρ_p = 0.02
-	max_ρ_p = 0.04
-	min_Ψ = 23
-	max_Ψ = 26
-	
-	min_β = 13
-	max_β = 40
-
-	min_ρ_g = 0.15
-	max_ρ_g = .4
-end
-
-# ╔═╡ cd48a4ca-27ea-40cd-b46e-4d6043c0cb78
-# @bind Ω Slider(LinRange(min_Ω, max_Ω, 10))
-
-# ╔═╡ f0146833-1ffb-470c-acad-5036836fe644
-# @bind ρ_p Slider(LinRange(min_ρ_p, max_ρ_p, 10))
-
-# ╔═╡ 2a2f4710-e41c-46ac-8397-708510fb9c2a
-# @bind Ψ Slider(LinRange(min_Ψ, max_Ψ, 10))
+# ╔═╡ 423c9bd5-24fc-4dcd-bc1f-3ce735c5719e
+ps = ingredients("parameters.jl")
 
 # ╔═╡ c9921166-a623-4523-926f-e81b5a30bd41
 begin
-	Ω = min_Ω #(min_Ω + max_Ω)/2
-	ρ_p = (min_ρ_p + max_ρ_p)/2
-	Ψ = (min_Ψ + max_Ψ) / 2
+	Ω = ps.min_Ω #(min_Ω + max_Ω)/2
+	ρ_p = (ps.min_ρ_p + ps.max_ρ_p)/2
+	Ψ = (ps.min_Ψ + ps.max_Ψ) / 2
 	β = 33
 end;
-
-# ╔═╡ c93fd9f0-a8d6-402b-92b6-c76682299590
-length_gene = 1000
-
-# ╔═╡ 867326a5-e17f-46d8-87fd-338ae15980d7
-Λ = Ψ - Ω
-
-# ╔═╡ 7136c4d3-8351-4372-82b7-f11167d978cd
-min_Λ = min_Ψ - max_Ω
-
-# ╔═╡ 792db660-2da8-4899-9b6c-c83c2880c186
-max_Λ = max_Ψ - min_Ω
-
-# ╔═╡ 2a5247d3-34e6-45fa-b6a6-1f74f076ff20
-k_on = ρ_p/(1-ρ_p)/Ω
-
-# ╔═╡ 3471018c-a49a-4b82-a495-6c0556b7f788
-begin
-	max_k_on = max_ρ_p/(1-max_ρ_p)/min_Ω
-	min_k_on = min_ρ_p/(1-min_ρ_p)/max_Ω
-end
-
-# ╔═╡ 8557258a-876f-4bdb-b3ac-b85f25f06c3c
-begin
-	max_α = max_Λ * max_β/min_Ω/length_gene
-	min_α = min_Λ * min_β/max_Ω/length_gene
-
-	max_k_off = 1/min_Ω-min_α
-	min_k_off = max(0, 1/max_Ω - max_α)
-end
-
-# ╔═╡ 59cccfdc-f60b-4b2d-beb9-de1e7a0b5b10
-min_α
-
-# ╔═╡ ca4be0b6-f235-45c0-9423-eb4a0ec5fe71
-α = Λ*β/Ω/length_gene
-
-# ╔═╡ 3b6fbb8f-5fec-4cf3-b9ae-7ab2911a65d3
-k_off = 1/Ω-α
 
 # ╔═╡ 3c12bda3-6cf9-4d2b-be1d-444cf6583e94
 md"""We need to fix all of this for the average gene, especially k_off and α"""
@@ -167,42 +108,14 @@ md"""
 
 # ╔═╡ 189e1fd0-9e79-4a6b-bb0f-9cdcac3c4a82
 begin
-γ = 10
-nsteps = 1e6
-L = 1
-δ = 35 / L # how much we "compress the phenomenon"
-n_sites = Int(round(length_gene/δ))
-Δt = 1e-2
-end
-
-# ╔═╡ af83d27c-2749-4057-bc5b-53e53c0017cc
-params = base.Params(
-	α, β/δ, γ, L, k_on, 0, Δt, 
-	nsteps, 
-	Int(round(length_gene/δ)), Int(round(300/δ)), 
-	β/8/δ
-)
-
-# ╔═╡ 8b9a24e7-64d2-4fee-9eb1-02b644714056
-k_on/α
-
-# ╔═╡ 89048309-0978-4ec4-b33e-86f6f38d94b1
-exits, density, _, tracker = base.run_walker(params);
-
-# ╔═╡ 7045a924-cb6d-4687-a755-0d085afe8205
-density
-
-# ╔═╡ 61228c9b-d52f-4ce2-892e-b52a70e5b0c8
-begin
-	plot_utils.plot_density(density, nsteps, n_sites, L; normalize=false)
-	plot!(ylim=(0, 1))
-end
-
-# ╔═╡ 16fac142-53b9-4039-867d-0e6fd1ca4510
-sum(density[1:n_sites]/nsteps * L)
-
-# ╔═╡ 96e72460-8d73-4c3f-81d0-b7a022f139fb
-plot_utils.get_total_occupancy(density, params)
+	γ = 10
+	nsteps = 1e6
+	L = 1
+	δ = 35 / L # how much we "compress the phenomenon"
+	n_sites = Int(round(ps.gL/δ))
+	Δt = 1e-2
+	length_gene = ps.gL
+end;
 
 # ╔═╡ 492337da-8184-4aba-bdbb-2f601e23794f
 md"""
@@ -210,23 +123,35 @@ md"""
 """
 
 # ╔═╡ 9e38b178-0198-4a1d-bfe0-908ade859b1b
-k_on_vec = 10 .^(LinRange(-4, 1.5, 10));
+begin
+	n_k_on_pts = 10
+	# it used to be 1e-4 to 1e1 i think
+	k_on_vec = 10 .^(LinRange(
+		log10(ps.min_k_on/1.5), log10(ps.max_k_on*1.5), n_k_on_pts
+	));
+end;
+
+# ╔═╡ f3ddaa82-0159-415d-9aca-792236161102
+n_α_values = 8
 
 # ╔═╡ 8a8ad9ee-d889-4eaa-bd35-91648f66d6a8
-α_vec = LinRange(min_α, max_α, 8)
+α_vec = LinRange(ps.min_α, ps.max_α, n_α_values)
 
 # ╔═╡ cdf03b42-1485-4705-9101-b290d5ee2b15
 params_iter = collect(Iterators.product(α_vec, [β]))
 
 # ╔═╡ 00204d85-3727-4848-bd59-1190acbcc875
+# run the simulations
 begin
 	occupancy = []
+	promoter_occ = []
 	params_occ = []
 
 	for (α, β) in params_iter
 			k_off = max(0, 1/Ω-α)
 			
 			occupancy_crt = []
+			prom_occ_crt = []
 	
 			for k_on in k_on_vec
 			
@@ -239,14 +164,75 @@ begin
 			
 				exits, density, _, tracker = base.run_walker(params_crt);
 			
-				push!(occupancy_crt, plot_utils.get_total_occupancy(density, params_crt; start=2))
+				push!(
+					occupancy_crt, 
+					plot_utils.get_total_occupancy(density, params_crt; start_bp=2)
+				)
+				push!(
+					prom_occ_crt, 
+					plot_utils.get_total_occupancy(
+						density, params_crt; start_bp=1, end_bp = 1
+					)
+				)
 				
 			end
 	
 			push!(occupancy, occupancy_crt)
+			push!(promoter_occ, prom_occ_crt)
 			push!(params_occ, "α=$(round(α; digits=3)), β=$(round(β; digits=3))")
 			
 	end
+end
+
+# ╔═╡ 5b855156-7676-41bf-a72b-e5d4ac0db274
+# which one is feasible vs non feasible? 
+begin
+
+	occ_mat = reduce(hcat, occupancy)
+	occ_mat = (occ_mat .< ps.max_ρ_g) .& (occ_mat .> ps.min_ρ_g)
+	
+	prom_occ_mat = reduce(hcat, promoter_occ)
+	prom_occ_mat = (prom_occ_mat .< ps.max_ρ_p) .& (prom_occ_mat .> ps.min_ρ_p)
+
+	feasible = (occ_mat .& prom_occ_mat)
+	
+end;
+
+# ╔═╡ 67783a0e-82fb-46b2-b69b-c36a619a89bb
+begin
+	heatmap(α_vec, k_on_vec, feasible)
+	plot!(xlabel="α", ylabel="k_on")
+	hline!([ps.min_k_on, ps.max_k_on], label="limits kon", linewidth=2)
+	vline!([ps.min_α, ps.max_α], label="limits α", linewidth=2)
+end
+
+# ╔═╡ 3d778cb5-17dc-46bf-8523-e7cd220f276d
+let
+	plot()
+
+	colors = palette([:orange, :forestgreen, :firebrick], length(promoter_occ))
+	# colors = [:orange]
+
+	for (k, occ) in enumerate(promoter_occ)
+		plot!(k_on_vec, occ, label=params_occ[k], color=colors[k])
+		scatter!(k_on_vec, occ, label="", color=colors[k])
+	end
+
+	# plot!(
+	# 	k_on_vec, occupancy_interp(k_on_vec), 
+	# 	linestyle=:dash, linewidth=3, 
+	# 	color=:blue
+	# )
+	xlabel!("k_on")
+	ylabel!("occupancy")
+	plot!(xscale=:log)
+	plot!(title="Promoter occupancy")
+	hline!([ps.min_ρ_p, ps.max_ρ_p], label = "occupancy, average gene", linewidth=2)
+	# vline!([min_α, max_α], label="α, average gene")
+	# hline!([min_ρ_g, max_ρ_g], label = "occupancy, average gene")
+	# vline!([α], label="α")
+	
+	plot!(legend=:topleft)
 end
 
 # ╔═╡ 18f68908-8532-4b97-925c-77fed0d1f9d9
@@ -263,7 +249,7 @@ begin
 end
 
 # ╔═╡ 098e32b4-0501-4dd0-ba66-7f6821c299db
-occupancy_interp = linear_interpolation(k_on_vec, occupancy_ref .* params.n_sites)
+occupancy_interp = linear_interpolation(k_on_vec, occupancy_ref)
 
 # ╔═╡ a4b4db5a-483a-4af2-90f9-5ed46c1892b8
 begin
@@ -273,8 +259,8 @@ begin
 	# colors = [:orange]
 
 	for (k, occ) in enumerate(occupancy)
-		plot!(k_on_vec, occ * params.n_sites, label=params_occ[k], color=colors[k])
-		scatter!(k_on_vec, occ * params.n_sites, label="", color=colors[k])
+		plot!(k_on_vec, occ, label=params_occ[k], color=colors[k])
+		scatter!(k_on_vec, occ, label="", color=colors[k])
 	end
 
 	plot!(
@@ -285,9 +271,12 @@ begin
 	xlabel!("k_on")
 	ylabel!("occupancy")
 	plot!(xscale=:log)
+	plot!(title="gene body occupancy")
 	# vline!([min_α, max_α], label="α, average gene")
-	# hline!([min_ρ_g, max_ρ_g], label = "occupancy, average gene")
+	hline!([ps.min_ρ_g, ps.max_ρ_g], label = "occupancy, average gene", linewidth=2)
+	vline!([ps.min_k_on, ps.max_k_on], label="kon, average gene", linewidth=2)
 	# vline!([α], label="α")
+	# hline([])
 	
 	plot!(legend=:topleft)
 end
@@ -313,11 +302,14 @@ begin
 		
 end
 
+# ╔═╡ 9e136fa6-a779-4b65-b7eb-786bb1170674
+k_on_vec
+
 # ╔═╡ 89763698-dca4-4e14-974a-1bf092fb0dee
 begin
 	plot(k_on_interp, final_fold_changes)
 	scatter!(k_on_interp, final_fold_changes)
-	plot!(xscale=:log)
+	plot!(xscale=:log, xlabel="kon", ylabel="occupancy fold change")
 end
 
 # ╔═╡ 8366c3ef-637d-4a44-9885-f53dea90747d
@@ -500,7 +492,9 @@ begin
 	
 	for (k,α) in enumerate(α_vec)
 			
-		occupancy_interp_crt = linear_interpolation(k_on_vec, occupancy[k] .* params.n_sites)
+		occupancy_interp_crt = linear_interpolation(
+			k_on_vec, occupancy[k] .* params.n_sites
+		)
 
 		loss_crt = []
 		
@@ -519,30 +513,79 @@ begin
 	end
 end
 
-# ╔═╡ d716e315-17f1-4e7c-92fe-565a1839a972
-opt_kon
+# ╔═╡ a6586d5c-4a5f-4907-8203-1bcff0f57145
+avg_cell_size = 50
 
 # ╔═╡ ff93e2c4-c7d2-41ef-9528-0da4d96e539d
 begin
-	plot(α_vec, opt_kon, label="")
-	scatter!(α_vec, opt_kon, label="")
+	
+	plot(α_vec,  CV_to_RNAfree_interp(avg_cell_size) .* opt_kon, label="")
+	scatter!(α_vec, CV_to_RNAfree_interp(avg_cell_size) .* opt_kon, label="")
+
+	hline!([min_k_on, max_k_on], linestyle=:dash, linewidth=2, label="kon limits")
+	
 	plot!(xlabel="α [initiation rate]", ylabel="kon")
 end
 
-# ╔═╡ 5dc52f47-7e21-4f61-84f4-1e9754ac8484
-1/Ω
+# ╔═╡ 9e85e812-9ee1-4c83-9d14-2cba46186b1b
+# gene body occupancy of the average gene at 50fL and comparison with bounds
+let
 
-# ╔═╡ 86d88aad-db38-4d8a-bed3-e5b9fd8dd4a0
-begin
-	plot(α_vec, (α_vec .* opt_kon) .* (opt_kon .+ 1/Ω), label="")
-	# scatter!(α_vec, (α_vec .* opt_kon), label="")
-	plot!(xlabel="α", ylabel="k_on * α")
+	gene_body_occupancy = []
+	promoter_occupancy = []
+
+	for (k,α) in enumerate(α_vec)
+		
+		occupancy_interp_crt = linear_interpolation(
+			k_on_vec, occupancy[k] .* params.n_sites
+		)
+		prom_occupancy_interp_crt = linear_interpolation(
+			k_on_vec, promoter_occ[k]
+		)
+
+		
+		k_on_from_cV = CV_to_RNAfree_interp(avg_cell_size) * opt_kon[k]
+		
+		occupancy_from_model = occupancy_interp_crt(k_on_from_cV)
+		prom_occ_from_model = prom_occupancy_interp_crt(k_on_from_cV)
+
+		push!(gene_body_occupancy, occupancy_from_model)
+		push!(promoter_occupancy, prom_occ_from_model)
+		
+	end
+
+	p1 = plot()
+	plot!(α_vec, gene_body_occupancy, label="")
+	scatter!(α_vec, gene_body_occupancy, label="Simulation")
+	hline!([max_ρ_g, min_ρ_g], linewidth=2, linestyle=:dash, label="Limits")
+	plot!(xlabel="α", ylabel="Occ.", legend=:outertopright, title="Gene body occupancy")
+	plot!(ylim=(0, 0.5))
 	
+	p2 = plot()
+	plot!(α_vec, promoter_occupancy, label="")
+	scatter!(α_vec, promoter_occupancy, label="Simulation")
+	hline!([min_ρ_p, max_ρ_p],linewidth=2, linestyle=:dash, label="Limits")
+	plot!(xlabel="α", ylabel="Occ.", legend=:outertopright, title="Promoter occupancy")
+	plot!(ylim=(0, 0.2))
+
 	
+	p3 = plot()
+	plot!(α_vec, gene_body_occupancy ./ promoter_occupancy, label="")
+	scatter!(α_vec, gene_body_occupancy ./ promoter_occupancy, label="Simulation")
+	hline!([min_ρ_g/max_ρ_p, max_ρ_g/min_ρ_p],linewidth=2, linestyle=:dash, label="Limits")
+	plot!(xlabel="α", ylabel="Rel. Occ.", legend=:outertopright, title="Gene-to-promoter occupancy ratio")
+	plot!(ylim=(0, 22))
+
+	plot(p1, p2, p3, layout=(3, 1), size=(800, 500))
+
 end
 
 # ╔═╡ 0e908701-28b7-4d06-b034-e3274f4b705d
-plot(α_vec, opt_loss)
+begin
+	plot(α_vec, opt_loss, label="")
+	scatter!(α_vec, opt_loss, label="")
+	plot!(title="", xlabel="α", ylabel="Error")
+end
 
 # ╔═╡ 1fc70f64-800d-47b3-8972-da92d8d45a60
 koffs = max.(0, 1/Ω .- α_vec)
@@ -1782,45 +1825,30 @@ version = "1.4.1+0"
 # ╠═fde65485-580c-4aab-b2be-104f35ea3e53
 # ╠═94cec09f-d40e-4a80-8cb8-e6a1c2c3b6ba
 # ╠═caf0a7a2-5299-410d-bfc7-21d339fe9ea1
-# ╠═be404569-2515-4b64-afb7-2b12b200eab3
-# ╠═39a90299-317a-450d-bcd1-add523ced4ba
-# ╠═cd48a4ca-27ea-40cd-b46e-4d6043c0cb78
-# ╠═f0146833-1ffb-470c-acad-5036836fe644
-# ╠═2a2f4710-e41c-46ac-8397-708510fb9c2a
+# ╟─be404569-2515-4b64-afb7-2b12b200eab3
+# ╠═423c9bd5-24fc-4dcd-bc1f-3ce735c5719e
 # ╠═c9921166-a623-4523-926f-e81b5a30bd41
-# ╠═c93fd9f0-a8d6-402b-92b6-c76682299590
-# ╠═867326a5-e17f-46d8-87fd-338ae15980d7
-# ╠═7136c4d3-8351-4372-82b7-f11167d978cd
-# ╠═792db660-2da8-4899-9b6c-c83c2880c186
-# ╠═2a5247d3-34e6-45fa-b6a6-1f74f076ff20
-# ╠═3471018c-a49a-4b82-a495-6c0556b7f788
-# ╠═8557258a-876f-4bdb-b3ac-b85f25f06c3c
-# ╠═59cccfdc-f60b-4b2d-beb9-de1e7a0b5b10
-# ╠═ca4be0b6-f235-45c0-9423-eb4a0ec5fe71
-# ╠═3b6fbb8f-5fec-4cf3-b9ae-7ab2911a65d3
 # ╠═3c12bda3-6cf9-4d2b-be1d-444cf6583e94
 # ╠═bb767ff4-ab56-4ee6-a23e-bf47543372f3
 # ╟─bece8c51-6421-48b4-94c5-d4bf8b006ae8
 # ╠═189e1fd0-9e79-4a6b-bb0f-9cdcac3c4a82
-# ╠═af83d27c-2749-4057-bc5b-53e53c0017cc
-# ╠═8b9a24e7-64d2-4fee-9eb1-02b644714056
-# ╠═89048309-0978-4ec4-b33e-86f6f38d94b1
-# ╠═7045a924-cb6d-4687-a755-0d085afe8205
-# ╠═61228c9b-d52f-4ce2-892e-b52a70e5b0c8
-# ╠═16fac142-53b9-4039-867d-0e6fd1ca4510
-# ╠═96e72460-8d73-4c3f-81d0-b7a022f139fb
 # ╟─492337da-8184-4aba-bdbb-2f601e23794f
 # ╠═9e38b178-0198-4a1d-bfe0-908ade859b1b
+# ╠═f3ddaa82-0159-415d-9aca-792236161102
 # ╠═8a8ad9ee-d889-4eaa-bd35-91648f66d6a8
 # ╠═cdf03b42-1485-4705-9101-b290d5ee2b15
 # ╠═00204d85-3727-4848-bd59-1190acbcc875
+# ╠═5b855156-7676-41bf-a72b-e5d4ac0db274
+# ╠═67783a0e-82fb-46b2-b69b-c36a619a89bb
 # ╠═a4b4db5a-483a-4af2-90f9-5ed46c1892b8
+# ╠═3d778cb5-17dc-46bf-8523-e7cd220f276d
 # ╠═18f68908-8532-4b97-925c-77fed0d1f9d9
 # ╠═10851975-a3dd-4cd0-90cf-ef79f32cc3f4
 # ╠═51373682-15a4-4d14-9f11-7ff4cf82bb5d
 # ╠═098e32b4-0501-4dd0-ba66-7f6821c299db
 # ╠═2e55fb0f-5f8a-46b4-a9ac-eaab460edc0e
 # ╠═6cb33f2a-3d7d-453e-b8fc-39d0ff3c59d0
+# ╠═9e136fa6-a779-4b65-b7eb-786bb1170674
 # ╠═89763698-dca4-4e14-974a-1bf092fb0dee
 # ╠═8366c3ef-637d-4a44-9885-f53dea90747d
 # ╟─b53d0bec-aa5a-4fb4-b84e-2b3014158149
@@ -1833,15 +1861,14 @@ version = "1.4.1+0"
 # ╠═8f3f2bde-ab29-4a19-8204-d9e332feeca7
 # ╠═968dd9de-1abe-4379-b6ab-185a88f10632
 # ╟─ad7a9b7c-9999-4368-ba19-3043f68ffb7e
-# ╠═e5205883-7faa-495b-9a04-e431ecc1b8c9
+# ╟─e5205883-7faa-495b-9a04-e431ecc1b8c9
 # ╟─0582015e-4b06-41f3-a4f8-34ca1163e2a8
 # ╟─fc74bd55-9487-4f18-aaaf-4ed5fe0035db
 # ╠═1130f43b-a261-4df5-9f9f-315dd8921140
 # ╠═686395c3-a8bc-401f-b64a-11421b664229
-# ╠═d716e315-17f1-4e7c-92fe-565a1839a972
+# ╠═a6586d5c-4a5f-4907-8203-1bcff0f57145
 # ╠═ff93e2c4-c7d2-41ef-9528-0da4d96e539d
-# ╠═5dc52f47-7e21-4f61-84f4-1e9754ac8484
-# ╠═86d88aad-db38-4d8a-bed3-e5b9fd8dd4a0
+# ╟─9e85e812-9ee1-4c83-9d14-2cba46186b1b
 # ╠═0e908701-28b7-4d06-b034-e3274f4b705d
 # ╠═1fc70f64-800d-47b3-8972-da92d8d45a60
 # ╠═53afbdc7-dd91-48b2-8491-cbefff7e66b5
