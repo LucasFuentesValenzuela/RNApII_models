@@ -4,12 +4,12 @@ include("plot_utils.jl")
 """
 Run simulations of sweeping kon and alpha
 """
-function run_occupancy_simulation(params_iter, k_on_vec, Ω, δ, γ, L, Δt, nsteps, nsites, n_end_sites)
+function run_occupancy_simulation(params_iter, Ω, δ, γ, L, Δt, nsteps, nsites, n_end_sites)
     occupancy = []
 	promoter_occ = []
 	params_occ = []
 
-	for (α, β) in params_iter
+	for (α, β, k_on_vec) in params_iter
 			k_off = max(0, 1/Ω-α)
 			
 			occupancy_crt = []

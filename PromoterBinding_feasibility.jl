@@ -158,13 +158,13 @@ n_α_values = 8
 α_vec = LinRange(ps.min_α, ps.max_α, n_α_values)
 
 # ╔═╡ cdf03b42-1485-4705-9101-b290d5ee2b15
-params_iter = collect(Iterators.product(α_vec, [β]))
+params_iter = collect(Iterators.product(α_vec, [β], [k_on_vec]))
 
 # ╔═╡ 00204d85-3727-4848-bd59-1190acbcc875
 # run the simulations
 begin
 	occupancy, promoter_occ, params_occ = experiments.run_occupancy_simulation(
-		params_iter, k_on_vec, Ω, δ, γ, L, Δt, nsteps, n_sites, n_end_sites
+		params_iter, Ω, δ, γ, L, Δt, nsteps, n_sites, n_end_sites
 	)
 end
 
@@ -259,7 +259,111 @@ RNA_free_avgCell = CV_to_RNAfree_interp(avg_cell_size)
 
 # ╔═╡ a16a6ae1-1e83-44d1-8be5-48ab7c619b1c
 md"""
-Let us denote by k̄_on = k_on [RNA]_free. In the model we input k̄_on, and the value of k_on we need to compute is simply k̄_on / [RNA_free] @ 50fL. Because we assume that these values are always for the average gene, average cell. 
+Let us denote by k̄_on = k_on [RNA]\_free. In the model we input k̄\_on, and the value of k\_on we need to compute is simply k̄\_on / [RNA\_free] @ 50fL. Because we assume that these values are always for the average gene, average cell. 
+"""
+
+# ╔═╡ 3102e18b-c28c-489d-a8e3-3b9fe05fcf58
+md"""
+We want to run the computation for every point in the matrix, and adapt the vector of k\_on values that we consider. But that would be a lot of computation if we did it for every single one of them. Let's do it for all feasible points for now. 
+"""
+
+# ╔═╡ 8a686cc5-0a96-41f7-b046-086f66e3b4b3
+begin
+	# build the params_iter to run all the feasible points
+	n_kon_points = 10
+	
+	params_iter_feasible = []
+	kon_to_CV_interps = []
+	for (idx_k, idx_α) in Tuple.(findall(feasible .== 1))
+	
+		k_crt = k_on_vec[idx_k]
+		α_crt = α_vec[idx_α]
+	
+		kon_C_crt = k_crt / RNA_free_avgCell
+	
+		kon_to_CV_interp = linear_interpolation(
+			 RNA_free_frac * kon_C_crt, df[!, :cell_volume_fL]
+		)
+	
+		k_on_vec_crt = (LinRange(minimum(RNA_free_frac)/RNA_free_avgCell * 1.01, maximum(RNA_free_frac)/RNA_free_avgCell * .99, n_kon_points)) .* k_crt
+	
+		push!(params_iter_feasible, (α_crt, β, k_on_vec_crt))
+		push!(kon_to_CV_interps, kon_to_CV_interp)
+	end
+end
+
+# ╔═╡ c8d29446-9280-431e-ac3d-c057067a9f3b
+occupancy_feasible, promoter_occ_feasible, params_occ_feasible = experiments.run_occupancy_simulation(
+		params_iter_feasible, Ω, δ, γ, L, Δt, nsteps, n_sites, n_end_sites
+	)
+
+# ╔═╡ 5f982393-8a72-4b48-987c-1ca55fd16dc1
+# select the feasible point you want to check
+@bind idx_feasible_point Slider(1:length(params_iter_feasible))
+
+# ╔═╡ a1ac58d6-5f36-44dc-9968-c8c6ad437c15
+idx_feasible_point, params_iter_feasible[idx_feasible_point]
+
+# ╔═╡ c8ad4e5e-91a1-4224-88e5-53136f2fd7ab
+kk = params_iter_feasible[idx_feasible_point][3]
+
+# ╔═╡ 5cc1a9b1-2f7b-4e31-9126-caa49491324b
+(kon_to_CV_interps[idx_feasible_point]).(.01)
+
+# ╔═╡ b832fdb8-e8ae-4952-836f-119c84b0fc2f
+length(kon_to_CV_interps)
+
+# ╔═╡ d23a3327-4e8c-4fc5-aeb0-ef1c166bb1b5
+begin
+	# plot the result
+	plots_feasible = []
+	for idx_feasible_point in 1:length(params_iter_feasible)
+		kon_vec_ = params_iter_feasible[idx_feasible_point][3]
+		kon_to_CV_interp_crt = kon_to_CV_interps[idx_feasible_point]
+		CV_crt = kon_to_CV_interp_crt.(kon_vec_)
+	
+		occ_crt = occupancy_feasible[idx_feasible_point]
+		
+		p_crt = plot(CV_crt, occ_crt, label="")
+		scatter!(CV_crt, occ_crt, label="Simulations", markerstrokewidth=0.5)
+	
+		# we need to scale the Rpb1 occupancy because it is only relative measurements. 
+		# we will do it for the average cell of 50fL, again
+	
+		occupancy_crt_interp = linear_interpolation(CV_crt, occ_crt)
+		sf_crt = occupancy_crt_interp(avg_cell_size)/Rpb1_occupancy_haploid_interp(avg_cell_size)
+		
+		plot!(
+				df[!, :cell_volume_fL], df[!, :Rpb1_occupancy_haploid_fit] .* sf_crt, 
+				label="haploid occupancy", linewidth=2
+		)
+	
+		hline!([ps.min_ρ_g, ps.max_ρ_g], linestyle=:dash, linewidth=2, label="average gene occupancy")
+		
+		if idx_feasible_point == 1
+			plot!(legend=:topright)
+		else
+			plot!(legend = false)
+		end
+		plot!(xlabel="Cell Size [fL]", ylabel="Gene body occupancy")
+		plot!(ylims=(0 * ps.min_ρ_g, 2 * ps.max_ρ_g))
+	
+		push!(plots_feasible, p_crt)
+	end
+end
+
+# ╔═╡ 01462590-ba62-4796-9d5c-8f0127de58d0
+begin
+	p_all = plot((plots_feasible[1:10])..., layout = (5, 2))
+	plot!(size=(1000, 1000))
+	savefig("figs/feasible_points.png")
+
+	p_all
+end
+
+# ╔═╡ f88ae2ff-4398-4ebe-9d22-33563adb33dd
+md""" 
+## Run simulations for a specific point. 
 """
 
 # ╔═╡ 1a8fc237-31d1-4cb2-b00d-835d2f8fe322
@@ -310,12 +414,12 @@ maximum(RNA_free_frac)/RNA_free_avgCell
 # re-run the simulations with an extended range of kon
 begin
 
-	params_iter_val = [(α_val, β)]
-	
 	k_on_vec_val = (LinRange(minimum(RNA_free_frac)/RNA_free_avgCell * 1.01, maximum(RNA_free_frac)/RNA_free_avgCell * .99, 10)) .* k_on_val
+
+	params_iter_val = [(α_val, β, k_on_vec_val)]
 	
 	occupancy_val, promoter_occ_val, params_occ_val = experiments.run_occupancy_simulation(
-		params_iter_val, k_on_vec_val, Ω, δ, γ, L, Δt, nsteps, n_sites, n_end_sites
+		params_iter_val, Ω, δ, γ, L, Δt, nsteps, n_sites, n_end_sites
 	)
 end
 
@@ -342,7 +446,7 @@ begin
 
 	hline!([ps.min_ρ_g, ps.max_ρ_g], linestyle=:dash, linewidth=2, label="average gene occupancy")
 	
-	plot!(legend=:best)
+	plot!(legend=:outertop)
 	plot!(xlabel="Cell Size [fL]", ylabel="Gene body occupancy")
 end
 
@@ -1941,7 +2045,18 @@ version = "1.4.1+0"
 # ╠═ee624b7a-4d35-4f0e-8480-27c76a57a4e6
 # ╠═3c77aba9-b649-46ee-acfb-9de2a1689742
 # ╟─a16a6ae1-1e83-44d1-8be5-48ab7c619b1c
-# ╟─2b3b438c-0415-4fa9-9732-526428480b1e
+# ╟─3102e18b-c28c-489d-a8e3-3b9fe05fcf58
+# ╠═8a686cc5-0a96-41f7-b046-086f66e3b4b3
+# ╠═c8d29446-9280-431e-ac3d-c057067a9f3b
+# ╟─a1ac58d6-5f36-44dc-9968-c8c6ad437c15
+# ╟─5f982393-8a72-4b48-987c-1ca55fd16dc1
+# ╠═c8ad4e5e-91a1-4224-88e5-53136f2fd7ab
+# ╠═5cc1a9b1-2f7b-4e31-9126-caa49491324b
+# ╠═b832fdb8-e8ae-4952-836f-119c84b0fc2f
+# ╠═d23a3327-4e8c-4fc5-aeb0-ef1c166bb1b5
+# ╠═01462590-ba62-4796-9d5c-8f0127de58d0
+# ╠═f88ae2ff-4398-4ebe-9d22-33563adb33dd
+# ╠═2b3b438c-0415-4fa9-9732-526428480b1e
 # ╠═1a8fc237-31d1-4cb2-b00d-835d2f8fe322
 # ╟─83e9b947-2e2d-44dc-b679-af9693354650
 # ╠═8fab8ca4-9a55-4961-93ba-65a904be0dc2
