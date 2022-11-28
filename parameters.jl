@@ -60,3 +60,6 @@ min_α = min_Λ * min_β/max_Ω/gL
 # off rate from the promoter
 max_k_off = 1/min_Ω-min_α
 min_k_off = max(0, 1/max_Ω - max_α)
+
+# average cell size
+avg_cell_size = 50 #fL

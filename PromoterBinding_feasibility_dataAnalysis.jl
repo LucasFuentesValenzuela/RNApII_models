@@ -32,17 +32,17 @@ using Interpolations
 # ╔═╡ 58cf31b0-ac62-4315-9e7b-46b5a33319bd
 using StatsBase
 
+# ╔═╡ aac5ba7d-9d85-4396-bbc6-dbd16036ba67
+using DataFrames
+
+# ╔═╡ a78def04-a7dc-4bfe-ae56-296fa0d03a46
+using CSV
+
 # ╔═╡ fde65485-580c-4aab-b2be-104f35ea3e53
 using PlutoUI
 
-# ╔═╡ 91e7757f-f219-4065-846e-da996f28703b
-using CSV
-
-# ╔═╡ a913fefd-abcf-4bad-85eb-c939290e352c
-using DataFrames
-
-# ╔═╡ 1130f43b-a261-4df5-9f9f-315dd8921140
-using LinearAlgebra
+# ╔═╡ 3d6e8c09-dc5c-47a0-83c1-83fbcbd7bf58
+using JLD2
 
 # ╔═╡ f2bb07a7-dd8c-4e70-a5df-3da0b73e0c24
 # replacement of the include statement
@@ -69,8 +69,14 @@ plot_utils = ingredients("plot_utils.jl")
 # ╔═╡ 6c259a50-dbb1-4f03-bbb5-8a1238f6e8e0
 theory = ingredients("theory.jl")
 
+# ╔═╡ 66e97000-4a09-40d0-b6a1-d7981385bf6e
+ps = ingredients("parameters.jl")
+
 # ╔═╡ 8a482b2c-d0c3-4c34-a95d-f1368bf92c32
 experiments = ingredients("experiments.jl")
+
+# ╔═╡ e131512a-7554-40e8-b919-ecf5faddfdf8
+data = ingredients("data_utils.jl")
 
 # ╔═╡ 9581b94f-0c7d-4c4d-bfc6-2c9824ba3ac7
 TableOfContents()
@@ -101,96 +107,62 @@ md"""
 - save the simulation results and load them separately
 """
 
-# ╔═╡ be404569-2515-4b64-afb7-2b12b200eab3
-md"""# Parameters"""
+# ╔═╡ 35a0da09-d22b-4e08-82e3-7edb88e003a8
+results = JLD2.load("results/feasible_points.jld2");
 
-# ╔═╡ 423c9bd5-24fc-4dcd-bc1f-3ce735c5719e
-ps = ingredients("parameters.jl")
-
-# ╔═╡ c9921166-a623-4523-926f-e81b5a30bd41
+# ╔═╡ 219092d2-591a-4c73-9251-71a69b8f5128
 begin
-	Ω = ps.min_Ω #(min_Ω + max_Ω)/2
-	ρ_p = (ps.min_ρ_p + ps.max_ρ_p)/2
-	Ψ = (ps.min_Ψ + ps.max_Ψ) / 2
-	β = 33
-end;
-
-# ╔═╡ 3c12bda3-6cf9-4d2b-be1d-444cf6583e94
-md"""We need to fix all of this for the average gene, especially k_off and α"""
-
-# ╔═╡ bb767ff4-ab56-4ee6-a23e-bf47543372f3
-md"""
-You basically expect that k_on = α is a threshold value beyond which increasing kon will only just load your promoter
-"""
-
-# ╔═╡ bece8c51-6421-48b4-94c5-d4bf8b006ae8
-md"""
-# Running the model
-"""
-
-# ╔═╡ 189e1fd0-9e79-4a6b-bb0f-9cdcac3c4a82
-begin
-	γ = 10
-	nsteps = 1e6
-	L = 1
-	δ = 35 / L # how much we "compress the phenomenon"
-	n_sites = Int(round(ps.gL/δ))
-	n_end_sites = Int(round(300/δ))
-	Δt = 1e-2
-	length_gene = ps.gL
-end;
-
-# ╔═╡ 492337da-8184-4aba-bdbb-2f601e23794f
-md"""
-# Calibration -- Finding the points that are feasible for an average cell/gene
-"""
-
-# ╔═╡ 9e38b178-0198-4a1d-bfe0-908ade859b1b
-begin
-	n_k_on_pts = 10
-	k_on_vec = 10 .^(LinRange(
-		log10(ps.min_k_on/1.5), log10(ps.max_k_on*1.5), n_k_on_pts
-	));
-end;
-
-# ╔═╡ f3ddaa82-0159-415d-9aca-792236161102
-n_α_values = 8
-
-# ╔═╡ 8a8ad9ee-d889-4eaa-bd35-91648f66d6a8
-α_vec = LinRange(ps.min_α, ps.max_α, n_α_values)
-
-# ╔═╡ cdf03b42-1485-4705-9101-b290d5ee2b15
-params_iter = collect(Iterators.product(α_vec, [β], [k_on_vec]))
-
-# ╔═╡ 00204d85-3727-4848-bd59-1190acbcc875
-# run the simulations
-begin
-	occupancy, promoter_occ, params_occ = experiments.run_occupancy_simulation(
-		params_iter, Ω, δ, γ, L, Δt, nsteps, n_sites, n_end_sites
-	)
+	# unpack results
+	occupancy = results["occupancy"]
+	promoter_occ = results["promoter_occ"]
+	params_occ = results["params_occ"]
+	params_iter = results["params_iter"]
+	feasible = results["feasible"]
+	occupancy_feasible = results["occupancy_feasible"]
+	promoter_occ_feasible = results["promoter_occ_feasible"]
+	params_occ_feasible = results["params_occ_feasible"]
+	params_iter_feasible = results["params_iter_feasible"]
+	kon_to_CV_interps = results["kon_to_CV_interps"]
 end
-
-# ╔═╡ 5b855156-7676-41bf-a72b-e5d4ac0db274
-# which one is feasible vs non feasible? 
-begin
-
-	occ_mat = reduce(hcat, occupancy)
-	occ_mat = (occ_mat .< ps.max_ρ_g) .& (occ_mat .> ps.min_ρ_g)
-	
-	prom_occ_mat = reduce(hcat, promoter_occ)
-	prom_occ_mat = (prom_occ_mat .< ps.max_ρ_p) .& (prom_occ_mat .> ps.min_ρ_p)
-
-	feasible = (occ_mat .& prom_occ_mat)
-	
-end;
 
 # ╔═╡ 67783a0e-82fb-46b2-b69b-c36a619a89bb
 begin
 	# heatmap(α_vec, k_on_vec, feasible)
-	heatmap(feasible)
+	heatmap(results["feasible"])
 	# plot!(xlabel="α", ylabel="k_on")
 	# hline!([ps.min_k_on, ps.max_k_on], label="limits kon", linewidth=2)
 	# vline!([ps.min_α, ps.max_α], label="limits α", linewidth=2)
+end
+
+# ╔═╡ a4b4db5a-483a-4af2-90f9-5ed46c1892b8
+begin
+	plot()
+
+	colors = palette([:orange, :forestgreen, :firebrick], length(occupancy))
+	# colors = [:orange]
+
+	for (k, occ) in enumerate(occupancy)
+		k_on_vec = params_iter[k][3]
+		plot!(k_on_vec, occ, label=params_occ[k], color=colors[k])
+		scatter!(k_on_vec, occ, label="", color=colors[k])
+	end
+
+	# plot!(
+	# 	k_on_vec, occupancy_interp(k_on_vec), 
+	# 	linestyle=:dash, linewidth=3, 
+	# 	color=:blue
+	# )
+	xlabel!("k_on")
+	ylabel!("occupancy")
+	plot!(xscale=:log)
+	plot!(title="gene body occupancy")
+	# vline!([min_α, max_α], label="α, average gene")
+	hline!([ps.min_ρ_g, ps.max_ρ_g], label = "occupancy, average gene", linewidth=2)
+	vline!([ps.min_k_on, ps.max_k_on], label="kon, average gene", linewidth=2)
+	# vline!([α], label="α")
+	# hline([])
+	
+	plot!(legend=:topleft)
 end
 
 # ╔═╡ 3d778cb5-17dc-46bf-8523-e7cd220f276d
@@ -201,6 +173,7 @@ let
 	# colors = [:orange]
 
 	for (k, occ) in enumerate(promoter_occ)
+		k_on_vec = params_iter[k][3]
 		plot!(k_on_vec, occ, label=params_occ[k], color=colors[k])
 		scatter!(k_on_vec, occ, label="", color=colors[k])
 	end
@@ -231,34 +204,6 @@ Remember, we compute all this for the average gene, average cell.
 - Average gene: matches the occupancy metrics that we have in the document. 
 """
 
-# ╔═╡ 589b0ada-f4dc-4bd1-89d8-b281fa49bc2e
-df = DataFrame(CSV.File("Python/data_exp_nuclear_fraction.csv"));
-
-# ╔═╡ a6586d5c-4a5f-4907-8203-1bcff0f57145
-avg_cell_size = 50
-
-# ╔═╡ ee624b7a-4d35-4f0e-8480-27c76a57a4e6
-begin
-	# defining some interpolations
-
-	# fraction * cell volume = amount
-	# amount/nuc_vol = concentration
-	RNA_free_frac = (1 .-df[!, :Rpb1_bound_fraction_haploid_prediction]) ./ (df[!, :nuclear_volume] ./ df[!, :cell_volume_fL])
-	
-	Rpb1_occupancy_haploid_interp = linear_interpolation(
-		df[!, :cell_volume_fL], df[!, :Rpb1_occupancy_haploid_fit]
-	)
-	
-	CV_to_RNAfree_interp = linear_interpolation(
-		 df[!, :cell_volume_fL], RNA_free_frac
-	)
-end
-
-# ╔═╡ 3c77aba9-b649-46ee-acfb-9de2a1689742
-# free RNA concentration for the average cell. The k_on is the value that we need to use to map to the value that we compute
-
-RNA_free_avgCell = CV_to_RNAfree_interp(avg_cell_size)
-
 # ╔═╡ a16a6ae1-1e83-44d1-8be5-48ab7c619b1c
 md"""
 Let us denote by k̄_on = k_on [RNA]\_free. In the model we input k̄\_on, and the value of k\_on we need to compute is simply k̄\_on / [RNA\_free] @ 50fL. Because we assume that these values are always for the average gene, average cell. 
@@ -268,36 +213,6 @@ Let us denote by k̄_on = k_on [RNA]\_free. In the model we input k̄\_on, and t
 md"""
 We want to run the computation for every point in the matrix, and adapt the vector of k\_on values that we consider. But that would be a lot of computation if we did it for every single one of them. Let's do it for all feasible points for now. 
 """
-
-# ╔═╡ 8a686cc5-0a96-41f7-b046-086f66e3b4b3
-begin
-	# build the params_iter to run all the feasible points
-	n_kon_points = 10
-	
-	params_iter_feasible = []
-	kon_to_CV_interps = []
-	for (idx_k, idx_α) in Tuple.(findall(feasible .== 1))
-	
-		k_crt = k_on_vec[idx_k]
-		α_crt = α_vec[idx_α]
-	
-		kon_C_crt = k_crt / RNA_free_avgCell
-	
-		kon_to_CV_interp = linear_interpolation(
-			 RNA_free_frac * kon_C_crt, df[!, :cell_volume_fL]
-		)
-	
-		k_on_vec_crt = (LinRange(minimum(RNA_free_frac)/RNA_free_avgCell * 1.01, maximum(RNA_free_frac)/RNA_free_avgCell * .99, n_kon_points)) .* k_crt
-	
-		push!(params_iter_feasible, (α_crt, β, k_on_vec_crt))
-		push!(kon_to_CV_interps, kon_to_CV_interp)
-	end
-end
-
-# ╔═╡ c8d29446-9280-431e-ac3d-c057067a9f3b
-occupancy_feasible, promoter_occ_feasible, params_occ_feasible = experiments.run_occupancy_simulation(
-		params_iter_feasible, Ω, δ, γ, L, Δt, nsteps, n_sites, n_end_sites
-	)
 
 # ╔═╡ 5f982393-8a72-4b48-987c-1ca55fd16dc1
 # select the feasible point you want to check
@@ -333,10 +248,10 @@ begin
 		# we will do it for the average cell of 50fL, again
 	
 		occupancy_crt_interp = linear_interpolation(CV_crt, occ_crt)
-		sf_crt = occupancy_crt_interp(avg_cell_size)/Rpb1_occupancy_haploid_interp(avg_cell_size)
+		sf_crt = occupancy_crt_interp(ps.avg_cell_size)/data.Rpb1_occupancy_haploid_interp(ps.avg_cell_size)
 		
 		plot!(
-				df[!, :cell_volume_fL], df[!, :Rpb1_occupancy_haploid_fit] .* sf_crt, 
+				data.df[!, :cell_volume_fL], data.df[!, :Rpb1_occupancy_haploid_fit] .* sf_crt, 
 				label="haploid occupancy", linewidth=2
 		)
 	
@@ -352,6 +267,7 @@ begin
 	
 		push!(plots_feasible, p_crt)
 	end
+	
 end
 
 # ╔═╡ 01462590-ba62-4796-9d5c-8f0127de58d0
@@ -363,463 +279,6 @@ begin
 	p_all
 end
 
-# ╔═╡ f88ae2ff-4398-4ebe-9d22-33563adb33dd
-md""" 
-## Run simulations for a specific point. 
-"""
-
-# ╔═╡ 1a8fc237-31d1-4cb2-b00d-835d2f8fe322
-# @bind idx_k Slider(1:length(k_on_vec))
-
-# ╔═╡ 8fab8ca4-9a55-4961-93ba-65a904be0dc2
-# @bind idx_α Slider(1:length(α_vec))
-
-# ╔═╡ 8de40f34-f70e-4f7e-b7b7-5e05869288f4
-idx_k = 10
-
-# ╔═╡ 2b3b438c-0415-4fa9-9732-526428480b1e
-k_on_val = k_on_vec[idx_k]
-
-# ╔═╡ 207a885b-6a1a-4d24-88ea-4d3f2877d328
-idx_α = 4
-
-# ╔═╡ 83e9b947-2e2d-44dc-b679-af9693354650
-α_val = α_vec[idx_α]
-
-# ╔═╡ 57b73278-f895-4119-87c2-210905e597d6
-md"""The current selection is feasible: $(feasible[idx_k, idx_α])"""
-
-# ╔═╡ e3315e30-3da9-4c74-a8a1-a8a73d2e0672
-kon_C_val = k_on_val / RNA_free_avgCell
-
-# ╔═╡ 4e6e7c75-3954-4824-8855-0ef64db015d9
-kon_to_CV_interp = linear_interpolation(
-		 RNA_free_frac * kon_C_val, df[!, :cell_volume_fL]
-	)
-
-# ╔═╡ d1b6e8b8-678c-4574-9ed6-0a4a599db616
-plot(RNA_free_frac * kon_C_val, df[!, :cell_volume_fL])
-
-# ╔═╡ 81d0bee5-189c-4260-9e44-8c900d0c0a88
-begin
-	plot(df[!, :cell_volume_fL], RNA_free_frac)
-	plot!(yticks=[1, 2, 13])
-end
-
-# ╔═╡ ede4aa7d-e0a1-4291-9621-05678b5d21ff
-minimum(RNA_free_frac)/RNA_free_avgCell
-
-# ╔═╡ 1ef0b131-42e0-49d0-8d78-0e6c37d9f901
-maximum(RNA_free_frac)/RNA_free_avgCell
-
-# ╔═╡ b723ca62-82f6-469d-a956-67081ad6ec54
-# re-run the simulations with an extended range of kon
-begin
-
-	k_on_vec_val = (LinRange(minimum(RNA_free_frac)/RNA_free_avgCell * 1.01, maximum(RNA_free_frac)/RNA_free_avgCell * .99, 10)) .* k_on_val
-
-	params_iter_val = [(α_val, β, k_on_vec_val)]
-	
-	occupancy_val, promoter_occ_val, params_occ_val = experiments.run_occupancy_simulation(
-		params_iter_val, Ω, δ, γ, L, Δt, nsteps, n_sites, n_end_sites
-	)
-end
-
-# ╔═╡ 221ee41c-6f54-4002-b278-bd2b70e42668
-plot(k_on_vec_val, occupancy_val[1], label="", xlabel="kon", xscale=:log)
-
-# ╔═╡ 7a87be22-a60d-439e-b4da-1db141be63fc
-begin
-	plot(kon_to_CV_interp.(k_on_vec_val), occupancy_val[1], label="")
-	scatter!(kon_to_CV_interp.(k_on_vec_val), occupancy_val[1], label="Simulations")
-
-	# we need to scale the Rpb1 occupancy because it is only relative measurements. 
-	# we will do it for the average cell of 50fL, again
-
-	occupancy_crt_interp = linear_interpolation(
-		kon_to_CV_interp.(k_on_vec_val), occupancy_val[1]
-	)
-	sf_val = occupancy_crt_interp(50)/Rpb1_occupancy_haploid_interp(50)
-	
-	plot!(
-			df[!, :cell_volume_fL], df[!, :Rpb1_occupancy_haploid_fit] .* sf_val, 
-			label="haploid occupancy", linewidth=2
-	)
-
-	hline!([ps.min_ρ_g, ps.max_ρ_g], linestyle=:dash, linewidth=2, label="average gene occupancy")
-	
-	plot!(legend=:outertop)
-	plot!(xlabel="Cell Size [fL]", ylabel="Gene body occupancy")
-end
-
-# ╔═╡ 38f04d7e-9b39-4303-8035-0a4fd5e17521
-md"""
-## Rerun simulations on a wider span for the selection
-
-You could use the values that were computed previously, but the range was too narrow by design (so you could actually see the relationship between feasible kon and alpha)
-"""
-
-# ╔═╡ 5759ba46-2b40-469c-84b9-cbbeb0a915cc
-md"""
-# Old functions from previous notebook - to be repurposed
-"""
-
-# ╔═╡ 18f68908-8532-4b97-925c-77fed0d1f9d9
-@bind idx_ref Slider(1:length(occupancy))
-
-# ╔═╡ 10851975-a3dd-4cd0-90cf-ef79f32cc3f4
-idx_ref
-
-# ╔═╡ 51373682-15a4-4d14-9f11-7ff4cf82bb5d
-begin
-	# idx_ref = 11
-	occupancy_ref = occupancy[idx_ref]
-	@show params_occ[idx_ref]
-end
-
-# ╔═╡ 098e32b4-0501-4dd0-ba66-7f6821c299db
-occupancy_interp = linear_interpolation(k_on_vec, occupancy_ref)
-
-# ╔═╡ a4b4db5a-483a-4af2-90f9-5ed46c1892b8
-begin
-	plot()
-
-	colors = palette([:orange, :forestgreen, :firebrick], length(occupancy))
-	# colors = [:orange]
-
-	for (k, occ) in enumerate(occupancy)
-		plot!(k_on_vec, occ, label=params_occ[k], color=colors[k])
-		scatter!(k_on_vec, occ, label="", color=colors[k])
-	end
-
-	plot!(
-		k_on_vec, occupancy_interp(k_on_vec), 
-		linestyle=:dash, linewidth=3, 
-		color=:blue
-	)
-	xlabel!("k_on")
-	ylabel!("occupancy")
-	plot!(xscale=:log)
-	plot!(title="gene body occupancy")
-	# vline!([min_α, max_α], label="α, average gene")
-	hline!([ps.min_ρ_g, ps.max_ρ_g], label = "occupancy, average gene", linewidth=2)
-	vline!([ps.min_k_on, ps.max_k_on], label="kon, average gene", linewidth=2)
-	# vline!([α], label="α")
-	# hline([])
-	
-	plot!(legend=:topleft)
-end
-
-# ╔═╡ 2e55fb0f-5f8a-46b4-a9ac-eaab460edc0e
-begin
-	max_fold_change = 3
-	x = LinRange(1, max_fold_change, 30)
-end
-
-# ╔═╡ 6cb33f2a-3d7d-453e-b8fc-39d0ff3c59d0
-begin
-	
-	fold_changes = []
-
-	k_on_interp = 10 .^(LinRange(-2.5, 0, 10)) # previous values
-
-	# k_on_interp = 10 .^(LinRange(
-		# log10(ps.min_k_on), log10(ps.max_k_on/3), 10
-	# ));
-	
-	fold_changes = [occupancy_interp.(x.*kon) for kon in k_on_interp]
-
-	final_fold_changes = [
-		fc[end]/fc[1] for fc in fold_changes
-	]
-		
-end
-
-# ╔═╡ 9e136fa6-a779-4b65-b7eb-786bb1170674
-k_on_vec
-
-# ╔═╡ 89763698-dca4-4e14-974a-1bf092fb0dee
-begin
-	plot(k_on_interp, final_fold_changes)
-	scatter!(k_on_interp, final_fold_changes)
-	plot!(xscale=:log, xlabel="kon", ylabel="occupancy fold change")
-end
-
-# ╔═╡ 8366c3ef-637d-4a44-9885-f53dea90747d
-begin
-	color_palette = palette([:orange, :forestgreen], length(k_on_interp))
-	p1 = plot()
-	for (k,fc) in enumerate(fold_changes)
-		plot!(x, fc/fc[1], color=color_palette[k], linewidth=2, label="")
-	end
-	plot!(legend=:topleft)
-	plot!(xlabel="kon / kon_0")
-	plot!(ylabel="occupancy fold change")
-
-	p2 = plot()
-	for (k,fc) in enumerate(fold_changes)
-		plot!(x, fc, color=color_palette[k], linewidth=2, label="")
-	end
-	plot!(legend=:topleft)
-	plot!(xlabel="kon / kon_0")
-	plot!(ylabel="occupancy")
-	plot(p1, p2)
-end
-
-# ╔═╡ b53d0bec-aa5a-4fb4-b84e-2b3014158149
-md"""## finding realistic values for kon"""
-
-# ╔═╡ 8f3f2bde-ab29-4a19-8204-d9e332feeca7
-begin
-	# we need to scale the Rpb1 occupancy so that, for 50fL, it falls within the values
-	# that we set from the literature (because currently they are only relative changes)
-	
-	n_mol_per_gene_body = .3
-	sf = n_mol_per_gene_body/Rpb1_occupancy_haploid_interp(50) #scaling factor
-	
-end
-
-# ╔═╡ 968dd9de-1abe-4379-b6ab-185a88f10632
-@bind kon_C Slider(10 .^(LinRange(-3, -1, 30)))
-
-# ╔═╡ ad7a9b7c-9999-4368-ba19-3043f68ffb7e
-kon_C
-
-# ╔═╡ e5205883-7faa-495b-9a04-e431ecc1b8c9
-let
-	p1 = plot()
-	
-	plot!(
-		df[!, :cell_volume_fL], df[!, :Rpb1_occupancy_haploid_fit] .* sf, 
-		label="haploid occupancy", linewidth=2
-	)
-
-	k_on_from_cV = CV_to_RNAfree_interp(df[!, :cell_volume_fL]) * kon_C
-	occupancy_from_model = occupancy_interp(k_on_from_cV)
-
-	plot!(
-		df[!, :cell_volume_fL], occupancy_from_model, 
-		label="occupancy from model", linewidth=2, linestyle=:dash,
-		xlabel="Cell Volume [fL]", ylabel="Occupancy", 
-		ylim=(0, 1), 
-		# xscale=:log,
-		legend=:topleft, 
-		# xlim=(50, 220)
-	)
-
-	p3 = plot()
-	
-	plot!(
-		df[!, :cell_volume_fL], df[!, :Rpb1_occupancy_haploid_fit], 
-		label="", linewidth=2
-	)
-
-	k_on_from_cV = CV_to_RNAfree_interp(df[!, :cell_volume_fL]) * kon_C
-	occupancy_from_model = occupancy_interp(k_on_from_cV)
-
-	plot!(
-		df[!, :cell_volume_fL], occupancy_from_model, 
-		label="", linewidth=2, linestyle=:dash,
-		xlabel="Cell Volume [fL]", ylabel="Occupancy", 
-		ylim=(0, 1.), xlim=(50, 220)
-		# xscale=:log
-	)
-
-	p2 = plot()
-
-	plot!(
-		df[!, :cell_volume_fL], k_on_from_cV, 
-		linewidth=2,
-		xlabel="Cell Volume [fL]", ylabel="k_on", 
-		label="", ylim=(0, .05))
-
-	plot(p1, p2, layout=(2, 1))
-end
-
-# ╔═╡ 0582015e-4b06-41f3-a4f8-34ca1163e2a8
-# plot comparing the actual fit with the simulations
-
-let
-	plot()
-
-	colors = palette([:orange, :forestgreen, :firebrick], length(occupancy))
-	# colors = [:orange]
-
-	k_on_from_cV = CV_to_RNAfree_interp(df[!, :cell_volume_fL]) * kon_C
-	
-
-	for (k, occ) in enumerate(occupancy)
-
-		occup_interp = linear_interpolation(k_on_vec, occ .* params.n_sites)
-		# plot!(k_on_vec, occ * params.n_sites, label=params_occ[k], color=colors[k])
-		# scatter!(k_on_vec, occ * params.n_sites, label="", color=colors[k])
-		plot!(df[!, :cell_volume_fL], occup_interp(k_on_from_cV))
-	end
-
-	plot!(
-		df[!, :cell_volume_fL], df[!, :Rpb1_occupancy_haploid_fit] .* sf, 
-		label="haploid occupancy", linewidth=3, linestyle=:dash, color=:blue
-	)
-
-	# plot!(
-	# 	k_on_vec, occupancy_interp(k_on_vec), 
-	# 	linestyle=:dash, linewidth=3, 
-	# 	color=:blue
-	# )
-	xlabel!("cell volume")
-	ylabel!("occupancy")
-	# plot!(xscale=:log)
-	# vline!([min_α, max_α], label="α, average gene")
-	# hline!([min_ρ_g, max_ρ_g], label = "occupancy, average gene")
-	# vline!([α], label="α")
-	
-	plot!(legend=:topleft)
-end
-
-# ╔═╡ fc74bd55-9487-4f18-aaaf-4ed5fe0035db
-md"""
-# What is the optimal k_on as a function of α? 
-"""
-
-# ╔═╡ 686395c3-a8bc-401f-b64a-11421b664229
-begin
-	k_on_C_vec = 10 .^(LinRange(-3, -1, 30))
-	losses = []
-	opt_kon = []
-	opt_loss = []
-	
-	for (k,α) in enumerate(α_vec)
-			
-		occupancy_interp_crt = linear_interpolation(
-			k_on_vec, occupancy[k] .* params.n_sites
-		)
-
-		loss_crt = []
-		
-		for kon_C in k_on_C_vec
-			k_on_from_cV = CV_to_RNAfree_interp(df[!, :cell_volume_fL]) * kon_C
-			occupancy_from_model = occupancy_interp_crt(k_on_from_cV)
-
-			loss = norm(df[!, :Rpb1_occupancy_haploid_fit] .* sf .- occupancy_from_model, 2)
-		
-			push!(loss_crt, loss)
-		end
-
-		push!(losses, loss_crt)
-		push!(opt_kon, k_on_C_vec[argmin(loss_crt)])
-		push!(opt_loss, loss_crt[argmin(loss_crt)])
-	end
-end
-
-# ╔═╡ ff93e2c4-c7d2-41ef-9528-0da4d96e539d
-begin
-	
-	plot(α_vec,  CV_to_RNAfree_interp(avg_cell_size) .* opt_kon, label="")
-	scatter!(α_vec, CV_to_RNAfree_interp(avg_cell_size) .* opt_kon, label="")
-
-	hline!([min_k_on, max_k_on], linestyle=:dash, linewidth=2, label="kon limits")
-	
-	plot!(xlabel="α [initiation rate]", ylabel="kon")
-end
-
-# ╔═╡ 9e85e812-9ee1-4c83-9d14-2cba46186b1b
-# gene body occupancy of the average gene at 50fL and comparison with bounds
-let
-
-	gene_body_occupancy = []
-	promoter_occupancy = []
-
-	for (k,α) in enumerate(α_vec)
-		
-		occupancy_interp_crt = linear_interpolation(
-			k_on_vec, occupancy[k] .* params.n_sites
-		)
-		prom_occupancy_interp_crt = linear_interpolation(
-			k_on_vec, promoter_occ[k]
-		)
-
-		
-		k_on_from_cV = CV_to_RNAfree_interp(avg_cell_size) * opt_kon[k]
-		
-		occupancy_from_model = occupancy_interp_crt(k_on_from_cV)
-		prom_occ_from_model = prom_occupancy_interp_crt(k_on_from_cV)
-
-		push!(gene_body_occupancy, occupancy_from_model)
-		push!(promoter_occupancy, prom_occ_from_model)
-		
-	end
-
-	p1 = plot()
-	plot!(α_vec, gene_body_occupancy, label="")
-	scatter!(α_vec, gene_body_occupancy, label="Simulation")
-	hline!([max_ρ_g, min_ρ_g], linewidth=2, linestyle=:dash, label="Limits")
-	plot!(xlabel="α", ylabel="Occ.", legend=:outertopright, title="Gene body occupancy")
-	plot!(ylim=(0, 0.5))
-	
-	p2 = plot()
-	plot!(α_vec, promoter_occupancy, label="")
-	scatter!(α_vec, promoter_occupancy, label="Simulation")
-	hline!([min_ρ_p, max_ρ_p],linewidth=2, linestyle=:dash, label="Limits")
-	plot!(xlabel="α", ylabel="Occ.", legend=:outertopright, title="Promoter occupancy")
-	plot!(ylim=(0, 0.2))
-
-	
-	p3 = plot()
-	plot!(α_vec, gene_body_occupancy ./ promoter_occupancy, label="")
-	scatter!(α_vec, gene_body_occupancy ./ promoter_occupancy, label="Simulation")
-	hline!([min_ρ_g/max_ρ_p, max_ρ_g/min_ρ_p],linewidth=2, linestyle=:dash, label="Limits")
-	plot!(xlabel="α", ylabel="Rel. Occ.", legend=:outertopright, title="Gene-to-promoter occupancy ratio")
-	plot!(ylim=(0, 22))
-
-	plot(p1, p2, p3, layout=(3, 1), size=(800, 500))
-
-end
-
-# ╔═╡ 0e908701-28b7-4d06-b034-e3274f4b705d
-begin
-	plot(α_vec, opt_loss, label="")
-	scatter!(α_vec, opt_loss, label="")
-	plot!(title="", xlabel="α", ylabel="Error")
-end
-
-# ╔═╡ 1fc70f64-800d-47b3-8972-da92d8d45a60
-koffs = max.(0, 1/Ω .- α_vec)
-
-# ╔═╡ 53afbdc7-dd91-48b2-8491-cbefff7e66b5
-1 ./(koffs .+ α_vec)
-
-# ╔═╡ 0f063d77-6573-4401-a5a4-bd70485ff114
-@bind idx_choice Slider(1:length(α_vec))
-
-# ╔═╡ 64ac5721-bfd9-4284-910d-960f203dfb0d
-opt_kon[idx_choice]
-
-# ╔═╡ 4047cf64-fad2-4fa9-8352-799cbd01ee2d
-let
-	p1 = plot()
-	
-	plot!(
-		df[!, :cell_volume_fL], df[!, :Rpb1_occupancy_haploid_fit] .* sf, 
-		label="haploid occupancy", linewidth=2
-	)
-
-	occupancy_interp_crt = linear_interpolation(k_on_vec, occupancy[idx_choice] .* params.n_sites)
-
-	k_on_from_cV = CV_to_RNAfree_interp(df[!, :cell_volume_fL]) * opt_kon[idx_choice]
-	occupancy_from_model = occupancy_interp_crt(k_on_from_cV)
-
-	plot!(
-		df[!, :cell_volume_fL], occupancy_from_model, 
-		label="occupancy from model", linewidth=2, linestyle=:dash,
-		xlabel="Cell Volume [fL]", ylabel="Occupancy", 
-		ylim=(0, 1), 
-		# xscale=:log,
-		legend=:topleft, 
-		# xlim=(50, 220)
-	)
-
-end
-
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
@@ -827,7 +286,7 @@ CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Interpolations = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
-LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 ProgressBars = "49802e3a-d2f1-5c88-81d8-b72133a6f568"
@@ -839,6 +298,7 @@ CSV = "~0.10.7"
 DataFrames = "~1.4.3"
 Distributions = "~0.25.77"
 Interpolations = "~0.14.6"
+JLD2 = "~0.4.29"
 Plots = "~1.36.1"
 PlutoUI = "~0.7.48"
 ProgressBars = "~1.4.1"
@@ -1050,6 +510,12 @@ git-tree-sha1 = "74faea50c1d007c85837327f6775bea60b5492dd"
 uuid = "b22a6f82-2f65-5046-a5b2-351ab43fb4e5"
 version = "4.4.2+2"
 
+[[deps.FileIO]]
+deps = ["Pkg", "Requires", "UUIDs"]
+git-tree-sha1 = "7be5f99f7d15578798f338f5433b6c432ea8037b"
+uuid = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
+version = "1.16.0"
+
 [[deps.FilePathsBase]]
 deps = ["Compat", "Dates", "Mmap", "Printf", "Test", "UUIDs"]
 git-tree-sha1 = "e27c4ebe80e8699540f2d6c805cc12203b614f12"
@@ -1180,9 +646,9 @@ version = "0.5.1"
 
 [[deps.InlineStrings]]
 deps = ["Parsers"]
-git-tree-sha1 = "b5081bd8a53eeb6a2ef956751343ab44543023fb"
+git-tree-sha1 = "0cf92ec945125946352f3d46c96976ab972bde6f"
 uuid = "842dd82b-1e85-43dc-bf29-5d0ee9dffc48"
-version = "1.3.1"
+version = "1.3.2"
 
 [[deps.InteractiveUtils]]
 deps = ["Markdown"]
@@ -1214,6 +680,12 @@ version = "0.1.1"
 git-tree-sha1 = "a3f24677c21f5bbe9d2a714f95dcd58337fb2856"
 uuid = "82899510-4779-5014-852e-03e436cf321d"
 version = "1.0.0"
+
+[[deps.JLD2]]
+deps = ["FileIO", "MacroTools", "Mmap", "OrderedCollections", "Pkg", "Printf", "Reexport", "TranscodingStreams", "UUIDs"]
+git-tree-sha1 = "ec8a9c9f0ecb1c687e34c1fda2699de4d054672a"
+uuid = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
+version = "0.4.29"
 
 [[deps.JLFzf]]
 deps = ["Pipe", "REPL", "Random", "fzf_jll"]
@@ -2014,42 +1486,27 @@ version = "1.4.1+0"
 # ╠═b37eb2a3-e7c6-46c3-be7f-6db44b0f2458
 # ╟─f2bb07a7-dd8c-4e70-a5df-3da0b73e0c24
 # ╠═58cf31b0-ac62-4315-9e7b-46b5a33319bd
+# ╠═aac5ba7d-9d85-4396-bbc6-dbd16036ba67
+# ╠═a78def04-a7dc-4bfe-ae56-296fa0d03a46
 # ╠═4a875422-e4cc-497d-a6e0-5e33eb292b17
 # ╠═6af56bf5-f552-4e0f-b61a-d46f3a212022
 # ╠═6c259a50-dbb1-4f03-bbb5-8a1238f6e8e0
+# ╠═66e97000-4a09-40d0-b6a1-d7981385bf6e
 # ╠═8a482b2c-d0c3-4c34-a95d-f1368bf92c32
+# ╠═e131512a-7554-40e8-b919-ecf5faddfdf8
 # ╠═fde65485-580c-4aab-b2be-104f35ea3e53
+# ╠═3d6e8c09-dc5c-47a0-83c1-83fbcbd7bf58
 # ╠═9581b94f-0c7d-4c4d-bfc6-2c9824ba3ac7
 # ╟─94cec09f-d40e-4a80-8cb8-e6a1c2c3b6ba
 # ╠═d0a5c973-a446-4ce9-9151-d903295200a5
-# ╟─be404569-2515-4b64-afb7-2b12b200eab3
-# ╠═423c9bd5-24fc-4dcd-bc1f-3ce735c5719e
-# ╠═c9921166-a623-4523-926f-e81b5a30bd41
-# ╠═3c12bda3-6cf9-4d2b-be1d-444cf6583e94
-# ╠═bb767ff4-ab56-4ee6-a23e-bf47543372f3
-# ╟─bece8c51-6421-48b4-94c5-d4bf8b006ae8
-# ╠═189e1fd0-9e79-4a6b-bb0f-9cdcac3c4a82
-# ╠═492337da-8184-4aba-bdbb-2f601e23794f
-# ╠═9e38b178-0198-4a1d-bfe0-908ade859b1b
-# ╠═f3ddaa82-0159-415d-9aca-792236161102
-# ╠═8a8ad9ee-d889-4eaa-bd35-91648f66d6a8
-# ╠═cdf03b42-1485-4705-9101-b290d5ee2b15
-# ╠═00204d85-3727-4848-bd59-1190acbcc875
-# ╠═5b855156-7676-41bf-a72b-e5d4ac0db274
+# ╠═35a0da09-d22b-4e08-82e3-7edb88e003a8
+# ╠═219092d2-591a-4c73-9251-71a69b8f5128
 # ╠═67783a0e-82fb-46b2-b69b-c36a619a89bb
 # ╟─a4b4db5a-483a-4af2-90f9-5ed46c1892b8
 # ╟─3d778cb5-17dc-46bf-8523-e7cd220f276d
 # ╠═c2a6b9a6-bab2-45cf-93ab-8c6751b0254c
-# ╠═91e7757f-f219-4065-846e-da996f28703b
-# ╠═a913fefd-abcf-4bad-85eb-c939290e352c
-# ╠═589b0ada-f4dc-4bd1-89d8-b281fa49bc2e
-# ╠═a6586d5c-4a5f-4907-8203-1bcff0f57145
-# ╠═ee624b7a-4d35-4f0e-8480-27c76a57a4e6
-# ╠═3c77aba9-b649-46ee-acfb-9de2a1689742
 # ╟─a16a6ae1-1e83-44d1-8be5-48ab7c619b1c
 # ╟─3102e18b-c28c-489d-a8e3-3b9fe05fcf58
-# ╠═8a686cc5-0a96-41f7-b046-086f66e3b4b3
-# ╠═c8d29446-9280-431e-ac3d-c057067a9f3b
 # ╟─a1ac58d6-5f36-44dc-9968-c8c6ad437c15
 # ╟─5f982393-8a72-4b48-987c-1ca55fd16dc1
 # ╠═c8ad4e5e-91a1-4224-88e5-53136f2fd7ab
@@ -2057,50 +1514,5 @@ version = "1.4.1+0"
 # ╠═b832fdb8-e8ae-4952-836f-119c84b0fc2f
 # ╠═d23a3327-4e8c-4fc5-aeb0-ef1c166bb1b5
 # ╠═01462590-ba62-4796-9d5c-8f0127de58d0
-# ╠═f88ae2ff-4398-4ebe-9d22-33563adb33dd
-# ╠═2b3b438c-0415-4fa9-9732-526428480b1e
-# ╠═1a8fc237-31d1-4cb2-b00d-835d2f8fe322
-# ╟─83e9b947-2e2d-44dc-b679-af9693354650
-# ╠═8fab8ca4-9a55-4961-93ba-65a904be0dc2
-# ╠═8de40f34-f70e-4f7e-b7b7-5e05869288f4
-# ╠═207a885b-6a1a-4d24-88ea-4d3f2877d328
-# ╟─57b73278-f895-4119-87c2-210905e597d6
-# ╠═e3315e30-3da9-4c74-a8a1-a8a73d2e0672
-# ╠═4e6e7c75-3954-4824-8855-0ef64db015d9
-# ╠═d1b6e8b8-678c-4574-9ed6-0a4a599db616
-# ╠═81d0bee5-189c-4260-9e44-8c900d0c0a88
-# ╠═ede4aa7d-e0a1-4291-9621-05678b5d21ff
-# ╠═1ef0b131-42e0-49d0-8d78-0e6c37d9f901
-# ╠═b723ca62-82f6-469d-a956-67081ad6ec54
-# ╠═221ee41c-6f54-4002-b278-bd2b70e42668
-# ╠═7a87be22-a60d-439e-b4da-1db141be63fc
-# ╟─38f04d7e-9b39-4303-8035-0a4fd5e17521
-# ╠═5759ba46-2b40-469c-84b9-cbbeb0a915cc
-# ╟─10851975-a3dd-4cd0-90cf-ef79f32cc3f4
-# ╟─18f68908-8532-4b97-925c-77fed0d1f9d9
-# ╠═51373682-15a4-4d14-9f11-7ff4cf82bb5d
-# ╠═098e32b4-0501-4dd0-ba66-7f6821c299db
-# ╠═2e55fb0f-5f8a-46b4-a9ac-eaab460edc0e
-# ╠═6cb33f2a-3d7d-453e-b8fc-39d0ff3c59d0
-# ╠═9e136fa6-a779-4b65-b7eb-786bb1170674
-# ╠═89763698-dca4-4e14-974a-1bf092fb0dee
-# ╠═8366c3ef-637d-4a44-9885-f53dea90747d
-# ╟─b53d0bec-aa5a-4fb4-b84e-2b3014158149
-# ╠═8f3f2bde-ab29-4a19-8204-d9e332feeca7
-# ╠═968dd9de-1abe-4379-b6ab-185a88f10632
-# ╟─ad7a9b7c-9999-4368-ba19-3043f68ffb7e
-# ╟─e5205883-7faa-495b-9a04-e431ecc1b8c9
-# ╟─0582015e-4b06-41f3-a4f8-34ca1163e2a8
-# ╟─fc74bd55-9487-4f18-aaaf-4ed5fe0035db
-# ╠═1130f43b-a261-4df5-9f9f-315dd8921140
-# ╠═686395c3-a8bc-401f-b64a-11421b664229
-# ╠═ff93e2c4-c7d2-41ef-9528-0da4d96e539d
-# ╟─9e85e812-9ee1-4c83-9d14-2cba46186b1b
-# ╠═0e908701-28b7-4d06-b034-e3274f4b705d
-# ╠═1fc70f64-800d-47b3-8972-da92d8d45a60
-# ╠═53afbdc7-dd91-48b2-8491-cbefff7e66b5
-# ╠═0f063d77-6573-4401-a5a4-bd70485ff114
-# ╠═64ac5721-bfd9-4284-910d-960f203dfb0d
-# ╠═4047cf64-fad2-4fa9-8352-799cbd01ee2d
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
