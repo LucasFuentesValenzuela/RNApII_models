@@ -29,6 +29,9 @@ using ProgressBars
 # ╔═╡ b37eb2a3-e7c6-46c3-be7f-6db44b0f2458
 using Interpolations
 
+# ╔═╡ 8f9e4410-80ff-4173-86ab-4dfbc9b2fc23
+using XLSX
+
 # ╔═╡ 58cf31b0-ac62-4315-9e7b-46b5a33319bd
 using StatsBase
 
@@ -103,12 +106,13 @@ md"""
 - add percentiles (based on data from Matt)
 - interpolate on the kon values? Now I am doing it on a narrow range, and therefore the discrepancies between two simulations seem to arise more quickly and notably. I could do it on a larger range and then select the values in between that correspond to desired cell sizes
 - I should be able to run the simulations once and for all for all points that I started with and then select the plots based on those simulations. 
-
-- save the simulation results and load them separately
 """
 
 # ╔═╡ 35a0da09-d22b-4e08-82e3-7edb88e003a8
-results = JLD2.load("results/feasible_points.jld2");
+results = JLD2.load("results/feasible_pts.jld2");
+
+# ╔═╡ e22c410c-eeb0-4e5d-b435-8d54943936d1
+results_detail = JLD2.load("results/feasible_points_detailed.jld2");
 
 # ╔═╡ 219092d2-591a-4c73-9251-71a69b8f5128
 begin
@@ -118,12 +122,16 @@ begin
 	params_occ = results["params_occ"]
 	params_iter = results["params_iter"]
 	feasible = results["feasible"]
-	occupancy_feasible = results["occupancy_feasible"]
-	promoter_occ_feasible = results["promoter_occ_feasible"]
-	params_occ_feasible = results["params_occ_feasible"]
-	params_iter_feasible = results["params_iter_feasible"]
-	kon_to_CV_interps = results["kon_to_CV_interps"]
+	
+	occupancy_feasible = reshape(hcat(hcat(results_detail["occupancy_feasible"]...)...), 10, sum(feasible .== 1), :)
+	
+	params_occ_feasible = results_detail["params_occ_feasible"]
+	params_iter_feasible = results_detail["params_iter_feasible"]
+	kon_to_CV_interps = results_detail["kon_to_CV_interps"]
 end
+
+# ╔═╡ 7605afd6-9559-4be9-aab5-3a383bab44e1
+md""" you have 10 repeats of 16 points (kon) over 10 values of kon"""
 
 # ╔═╡ 67783a0e-82fb-46b2-b69b-c36a619a89bb
 begin
@@ -135,7 +143,7 @@ begin
 end
 
 # ╔═╡ a4b4db5a-483a-4af2-90f9-5ed46c1892b8
-begin
+let
 	plot()
 
 	colors = palette([:orange, :forestgreen, :firebrick], length(occupancy))
@@ -214,34 +222,38 @@ md"""
 We want to run the computation for every point in the matrix, and adapt the vector of k\_on values that we consider. But that would be a lot of computation if we did it for every single one of them. Let's do it for all feasible points for now. 
 """
 
-# ╔═╡ 5f982393-8a72-4b48-987c-1ca55fd16dc1
-# select the feasible point you want to check
-@bind idx_feasible_point Slider(1:length(params_iter_feasible))
-
-# ╔═╡ a1ac58d6-5f36-44dc-9968-c8c6ad437c15
-idx_feasible_point, params_iter_feasible[idx_feasible_point]
-
-# ╔═╡ c8ad4e5e-91a1-4224-88e5-53136f2fd7ab
-kk = params_iter_feasible[idx_feasible_point][3]
-
-# ╔═╡ 5cc1a9b1-2f7b-4e31-9126-caa49491324b
-(kon_to_CV_interps[idx_feasible_point]).(.01)
-
-# ╔═╡ b832fdb8-e8ae-4952-836f-119c84b0fc2f
-length(kon_to_CV_interps)
-
 # ╔═╡ d23a3327-4e8c-4fc5-aeb0-ef1c166bb1b5
 begin
 	# plot the result
 	plots_feasible = []
+	sfs = []
+	plots_feasible_kon = []
+	
 	for idx_feasible_point in 1:length(params_iter_feasible)
 		kon_vec_ = params_iter_feasible[idx_feasible_point][3]
 		kon_to_CV_interp_crt = kon_to_CV_interps[idx_feasible_point]
 		CV_crt = kon_to_CV_interp_crt.(kon_vec_)
-	
-		occ_crt = occupancy_feasible[idx_feasible_point]
+
+		# this is another way to do the same
+		# 	BUT YOU NEED TO STORE K_ON_crt 
+		# CV_crt = data.RNAfree_to_CV_interp.(kon_vec_ * )
+
+			
+		# occ_crt = occupancy_feasible[:, idx_feasible_point, :]
+		q_up = [
+			quantile(occupancy_feasible[k, idx_feasible_point, :], .75) for k in 1:size(occupancy_feasible, 1)
+		]
+		q_down = [
+			quantile(occupancy_feasible[k, idx_feasible_point, :], .25) for k in 1:size(occupancy_feasible, 1)
+		]
+
+		mid = (q_up+q_down)/2
+		w = q_up - q_down
 		
-		p_crt = plot(CV_crt, occ_crt, label="")
+		occ_crt = vec(median(occupancy_feasible[:, idx_feasible_point, :], dims=2))
+
+		p_crt = plot(CV_crt, mid, ribbon=w, fillalpha=.3, label="")
+		plot!(CV_crt, occ_crt, label="")
 		scatter!(CV_crt, occ_crt, label="Simulations", markerstrokewidth=0.5)
 	
 		# we need to scale the Rpb1 occupancy because it is only relative measurements. 
@@ -249,13 +261,15 @@ begin
 	
 		occupancy_crt_interp = linear_interpolation(CV_crt, occ_crt)
 		sf_crt = occupancy_crt_interp(ps.avg_cell_size)/data.Rpb1_occupancy_haploid_interp(ps.avg_cell_size)
+
+		push!(sfs, sf_crt)
 		
 		plot!(
 				data.df[!, :cell_volume_fL], data.df[!, :Rpb1_occupancy_haploid_fit] .* sf_crt, 
 				label="haploid occupancy", linewidth=2
 		)
 	
-		hline!([ps.min_ρ_g, ps.max_ρ_g], linestyle=:dash, linewidth=2, label="average gene occupancy")
+		hline!([ps.min_ρ_g, ps.max_ρ_g], linestyle=:dash, linewidth=2, label="average gene occupancy at 50fL")
 		
 		if idx_feasible_point == 1
 			plot!(legend=:topright)
@@ -266,17 +280,239 @@ begin
 		plot!(ylims=(0 * ps.min_ρ_g, 2 * ps.max_ρ_g))
 	
 		push!(plots_feasible, p_crt)
+
+		###########
+		#
+		# Same plot as above but with kon
+		# 
+		###########
+
+		p_kon = plot(kon_vec_, mid, ribbon=w, fillalpha=.3, label="")
+		plot!(kon_vec_, occ_crt, label="")
+		scatter!(kon_vec_, occ_crt, label="Simulations", markerstrokewidth=0.5)
+		
+		plot!(
+				kon_vec_, data.Rpb1_occupancy_haploid_interp(CV_crt) .* sf_crt, 
+				label="haploid occupancy", linewidth=2
+		)
+	
+		hline!([ps.min_ρ_g, ps.max_ρ_g], linestyle=:dash, linewidth=2, label="average gene occupancy at 50fL")
+		
+		if idx_feasible_point == 1
+			plot!(legend=:topright)
+		else
+			plot!(legend = false)
+		end
+		plot!(xlabel="kon", ylabel="Gene body occupancy")
+		plot!(ylims=(0 * ps.min_ρ_g, 2 * ps.max_ρ_g))
+	
+		push!(plots_feasible_kon, p_kon)
 	end
 	
 end
 
 # ╔═╡ 01462590-ba62-4796-9d5c-8f0127de58d0
-begin
+let
 	p_all = plot((plots_feasible[1:10])..., layout = (5, 2))
 	plot!(size=(1000, 1000))
 	savefig("figs/feasible_points.png")
 
 	p_all
+end
+
+# ╔═╡ 121e3d11-9a12-44a6-9403-0ab7dde865fc
+let
+	p_all = plot((plots_feasible_kon[1:10])..., layout = (5, 2))
+	plot!(size=(1000, 1000))
+	savefig("figs/feasible_points_kon.png")
+
+	p_all
+end
+
+# ╔═╡ 510d3054-85f1-4942-8068-467cdc3a7e4b
+md"""
+# Gene bins
+"""
+
+# ╔═╡ b7dcd8cf-f775-4e9a-ae65-d244623d1213
+md"""
+We have occupancy per gene bin. Basically, the genes are filtered by values of kon, and we have the scaling of kon as a function of size.
+"""
+
+# ╔═╡ 77919038-a1a2-4baa-be85-c71f2d598773
+df_bins = DataFrame(XLSX.readtable("Python/global_norm_filtered-noCC-noESR.xlsx", "Sheet1"));
+
+# ╔═╡ de2f8fde-98a1-4c9b-8317-86638fe4485b
+md"""
+Normalization: average gene at 50 fL = 1 (occupancy). 
+
+What we can do: 
+- scaling of occupancy at 50fL (how the different bins scale --> representative of how the kon changes with genes)
+- you are expecting the change to follow the change from the model, 
+"""
+
+# ╔═╡ aef445ad-08ec-4b8e-8ac5-9a6f1d217cf2
+md"""
+The model gives us how the average gene in the average cell (50fL) scales in occupancy with size. We want something similar for all other genes. 
+"""
+
+# ╔═╡ 884c8cb2-8863-4d4b-a9ab-d23e0be85814
+md"""## rescaling the occupancies
+we have computed the occupancy profile for a series of combinations of the parameters that are feasible. Let us try to use that for now"""
+
+# ╔═╡ 680d1245-c19e-4ac5-ab47-c57abd2d2f83
+# we load the new simulation results, that span a larger range of kon values
+results_wide = JLD2.load("results/feasible_points_wide.jld2");
+
+# ╔═╡ 280e88ac-fe5b-46b6-915f-b4a30cd527c0
+begin
+	occ_wide = results_wide["occupancy_feasible"]
+	params_iter_wide = results_wide["params_iter_feasible"]
+end;
+
+# ╔═╡ f91bb98a-7442-40b9-bd24-07e554fb65b5
+# kon fold changes
+# these apply across the board (for any bin/kon) because it is simply a change in 
+# [RNA]_free
+kon_fc = data.CV_to_RNAfree_interp(df_bins.cell_volume_fL) ./ data.CV_to_RNAfree_interp(df_bins.cell_volume_fL[3])
+
+# ╔═╡ 286b0fab-7a1c-48b8-99db-e885629d5651
+# a linear interpolation is not really possible because the function is not monotonous (therefore, the inverse is not defined)
+# we will bracket the value of occupancy and linearly interpolate the kon
+
+function invert_occupancy(x, occ, kon)
+
+	idxs = findall(occ .> x)
+	occ_up, ii = findmin(occ[idxs])
+	kon_up = kon[idxs][ii]
+
+	
+	idxs_dwn = findall(occ .< x)
+	occ_dwn, jj = findmax(occ[idxs_dwn])
+	kon_dwn = kon[idxs_dwn][jj]
+
+	return kon_dwn .+ (x .- occ_dwn)/(occ_up-occ_dwn) * (kon_up - kon_dwn)
+
+end
+
+# ╔═╡ 3142e3a8-5b7c-46e4-9de1-4568cb001dfa
+begin
+	# run the analysis and the comparative plotting for all the feasible points
+	
+	# params for the plotting
+	ref_idx = 3
+	ylim = (0.5, 2.)
+	
+	colors = palette([:purple, :orange, :green], size(df_bins, 2)-1)
+	
+	plots_fold_changes = []
+
+	p1 = plot()
+	for (k, bin) in enumerate(names(df_bins)[2:end])
+		plot!(df_bins[:, "cell_volume_fL"], df_bins[:, bin] / df_bins[ref_idx, bin], label="", color=colors[k])
+	end
+	plot!(xlabel="Cell Volume [fL]", ylabel="Occupancy fold change")
+	plot!(ylim=ylim)
+	plot!(title="Data")
+
+	push!(plots_fold_changes, p1)
+	
+	
+	for idx_ in 1:14
+
+		kon_wide = params_iter_wide[idx_][3]
+	
+		occ_avg_gene = data.Rpb1_occupancy_haploid_interp(ps.avg_cell_size) * sfs[idx_]
+	
+		# rescale the occupancy data for each gene bin
+		df_bins_ = copy(df_bins)
+		df_bins_[:, 2:end] .= df_bins_[:, 2:end] .* occ_avg_gene
+	
+		occ_model = linear_interpolation(kon_wide, occ_wide[idx_])
+	
+		# kon at 54 fL for each bin under the selected feasible point
+		kons_54fL = map(f -> invert_occupancy(f, occ_wide[idx_], kon_wide), collect(df_bins_[3, 2:end]))
+	
+		# DataFrame with the occupancy from the model
+		df_occ_model = copy(df_bins_)
+		for bin_nbr in 1:length(kons_54fL)
+			kon_values = kons_54fL[bin_nbr] .* kon_fc
+			occ_values = occ_model.(kon_values)
+			df_occ_model[:, bin_nbr+1] = occ_values
+		end
+	
+	
+		#######
+		#
+		# plotting 
+		# 
+		#######
+		
+	
+		p_crt = plot()
+		for (k, bin) in enumerate(names(df_bins)[2:end])
+			plot!(df_occ_model[:, "cell_volume_fL"], df_occ_model[:, bin] / df_occ_model[ref_idx, bin], label="", color=colors[k])
+		# scatter!(df_bins[:, "cell_volume_fL"], df_bins[:, bin] / df_bins[3, bin], label="")
+		end
+		plot!(xlabel="Cell Volume [fL]", ylabel="Occupancy fold change")
+		plot!(ylim=ylim)
+		plot!(title="Model")
+	
+	
+		push!(plots_fold_changes, p_crt)
+	
+	
+	end
+end
+
+# ╔═╡ 9d6f40f3-cb34-42ad-b97f-f185ea45fada
+@bind idx_p Slider(1:(length(plots_fold_changes)-1))
+
+# ╔═╡ 402294f8-2ccc-46d8-86c8-1778d679d1bf
+let
+
+	kon_wide = params_iter_wide[idx_p][3]
+	
+	p0 = plots_fold_changes[idx_p+1]
+	
+	p2 = plot(kon_wide, occ_wide[idx_p], label="", xscale=:log10)
+	scatter!(kon_wide, occ_wide[idx_p], label="", xscale=:log10)
+	plot!(xlabel="kon", ylabel="occupancy")
+	# vline!([kon_wide[1] * kon_fc[1], kon_wide[1] * kon_fc[end]], label="")
+	# vline!([kon_wide[end] * kon_fc[1], kon_wide[end] * kon_fc[end]], label="")
+	plot([p1, p0, p2]..., layout=(1,3), size=(700, 300))	
+end
+
+# ╔═╡ cf5b11c7-f378-47d2-90c0-9fb3b64a8239
+begin
+	ε = 1e-3
+	q=plot()
+	for kk in 1:14
+		if kk == idx_p
+			c = :blue
+			lw = 2
+		else
+			c = :gray
+			lw = 1
+		end
+		
+		plot!(params_iter_wide[kk][3], max.(occ_wide[kk], ε), label="", color=c, linewidth=lw)
+	end
+	plot!(xscale=:log10, yscale=:log10)
+	plot!(xlabel="kon", ylabel="occupancy")
+	q
+end
+
+# ╔═╡ 1cc3f01f-e036-4b8b-b726-734ddd3f217d
+md"""Question: why are the vertical lines sometimes out of the range? how is it even eable to interpolate in that range then?"""
+
+# ╔═╡ 4b82c6d9-a148-4004-8451-58a80f99840f
+let
+	p_fc_all = plot((plots_fold_changes[1:10])..., layout = (5, 2))
+	plot!(size=(1000, 1000))
+	savefig("figs/fold_changes.png")
+
+	p_fc_all
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -292,6 +528,7 @@ PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 ProgressBars = "49802e3a-d2f1-5c88-81d8-b72133a6f568"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
+XLSX = "fdbf4ff8-1666-58a4-91e7-1b58723a45e0"
 
 [compat]
 CSV = "~0.10.7"
@@ -303,6 +540,7 @@ Plots = "~1.36.1"
 PlutoUI = "~0.7.48"
 ProgressBars = "~1.4.1"
 StatsBase = "~0.33.21"
+XLSX = "~0.8.4"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -497,6 +735,12 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "bad72f730e9e91c08d9427d5e8db95478a3c323d"
 uuid = "2e619515-83b5-522b-bb60-26c02a35a201"
 version = "2.4.8+0"
+
+[[deps.EzXML]]
+deps = ["Printf", "XML2_jll"]
+git-tree-sha1 = "0fa3b52a04a4e210aeb1626def9c90df3ae65268"
+uuid = "8f5d6c58-4d21-5cfd-889c-e3ad7ee6a615"
+version = "1.1.0"
 
 [[deps.FFMPEG]]
 deps = ["FFMPEG_jll"]
@@ -1263,6 +1507,12 @@ git-tree-sha1 = "de67fa59e33ad156a590055375a30b23c40299d3"
 uuid = "efce3f68-66dc-5838-9240-27a6d6f5f9b6"
 version = "0.5.5"
 
+[[deps.XLSX]]
+deps = ["Artifacts", "Dates", "EzXML", "Printf", "Tables", "ZipFile"]
+git-tree-sha1 = "ccd1adf7d0b22f762e1058a8d73677e7bd2a7274"
+uuid = "fdbf4ff8-1666-58a4-91e7-1b58723a45e0"
+version = "0.8.4"
+
 [[deps.XML2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Libiconv_jll", "Pkg", "Zlib_jll"]
 git-tree-sha1 = "58443b63fb7e465a8a7210828c91c08b92132dff"
@@ -1401,6 +1651,12 @@ git-tree-sha1 = "79c31e7844f6ecf779705fbc12146eb190b7d845"
 uuid = "c5fb5394-a638-5e4d-96e5-b29de1b5cf10"
 version = "1.4.0+3"
 
+[[deps.ZipFile]]
+deps = ["Libdl", "Printf", "Zlib_jll"]
+git-tree-sha1 = "f492b7fe1698e623024e873244f10d89c95c340a"
+uuid = "a5390f91-8eb1-5f08-bee0-b1d1ffed6cea"
+version = "0.10.1"
+
 [[deps.Zlib_jll]]
 deps = ["Libdl"]
 uuid = "83775a58-1f1d-513f-b197-d71354ab007a"
@@ -1484,6 +1740,7 @@ version = "1.4.1+0"
 # ╠═bb5dd892-cde6-43a5-8a33-a29c7c2fe250
 # ╠═1c2a7676-73ad-4b44-97b6-3ca08d188f09
 # ╠═b37eb2a3-e7c6-46c3-be7f-6db44b0f2458
+# ╠═8f9e4410-80ff-4173-86ab-4dfbc9b2fc23
 # ╟─f2bb07a7-dd8c-4e70-a5df-3da0b73e0c24
 # ╠═58cf31b0-ac62-4315-9e7b-46b5a33319bd
 # ╠═aac5ba7d-9d85-4396-bbc6-dbd16036ba67
@@ -1492,7 +1749,7 @@ version = "1.4.1+0"
 # ╠═6af56bf5-f552-4e0f-b61a-d46f3a212022
 # ╠═6c259a50-dbb1-4f03-bbb5-8a1238f6e8e0
 # ╠═66e97000-4a09-40d0-b6a1-d7981385bf6e
-# ╠═8a482b2c-d0c3-4c34-a95d-f1368bf92c32
+# ╟─8a482b2c-d0c3-4c34-a95d-f1368bf92c32
 # ╠═e131512a-7554-40e8-b919-ecf5faddfdf8
 # ╠═fde65485-580c-4aab-b2be-104f35ea3e53
 # ╠═3d6e8c09-dc5c-47a0-83c1-83fbcbd7bf58
@@ -1500,19 +1757,33 @@ version = "1.4.1+0"
 # ╟─94cec09f-d40e-4a80-8cb8-e6a1c2c3b6ba
 # ╠═d0a5c973-a446-4ce9-9151-d903295200a5
 # ╠═35a0da09-d22b-4e08-82e3-7edb88e003a8
+# ╠═e22c410c-eeb0-4e5d-b435-8d54943936d1
 # ╠═219092d2-591a-4c73-9251-71a69b8f5128
+# ╠═7605afd6-9559-4be9-aab5-3a383bab44e1
 # ╠═67783a0e-82fb-46b2-b69b-c36a619a89bb
 # ╟─a4b4db5a-483a-4af2-90f9-5ed46c1892b8
 # ╟─3d778cb5-17dc-46bf-8523-e7cd220f276d
-# ╠═c2a6b9a6-bab2-45cf-93ab-8c6751b0254c
+# ╟─c2a6b9a6-bab2-45cf-93ab-8c6751b0254c
 # ╟─a16a6ae1-1e83-44d1-8be5-48ab7c619b1c
 # ╟─3102e18b-c28c-489d-a8e3-3b9fe05fcf58
-# ╟─a1ac58d6-5f36-44dc-9968-c8c6ad437c15
-# ╟─5f982393-8a72-4b48-987c-1ca55fd16dc1
-# ╠═c8ad4e5e-91a1-4224-88e5-53136f2fd7ab
-# ╠═5cc1a9b1-2f7b-4e31-9126-caa49491324b
-# ╠═b832fdb8-e8ae-4952-836f-119c84b0fc2f
 # ╠═d23a3327-4e8c-4fc5-aeb0-ef1c166bb1b5
 # ╠═01462590-ba62-4796-9d5c-8f0127de58d0
+# ╠═121e3d11-9a12-44a6-9403-0ab7dde865fc
+# ╟─510d3054-85f1-4942-8068-467cdc3a7e4b
+# ╟─b7dcd8cf-f775-4e9a-ae65-d244623d1213
+# ╠═77919038-a1a2-4baa-be85-c71f2d598773
+# ╠═de2f8fde-98a1-4c9b-8317-86638fe4485b
+# ╠═aef445ad-08ec-4b8e-8ac5-9a6f1d217cf2
+# ╟─884c8cb2-8863-4d4b-a9ab-d23e0be85814
+# ╠═680d1245-c19e-4ac5-ab47-c57abd2d2f83
+# ╠═280e88ac-fe5b-46b6-915f-b4a30cd527c0
+# ╟─f91bb98a-7442-40b9-bd24-07e554fb65b5
+# ╟─3142e3a8-5b7c-46e4-9de1-4568cb001dfa
+# ╟─286b0fab-7a1c-48b8-99db-e885629d5651
+# ╠═9d6f40f3-cb34-42ad-b97f-f185ea45fada
+# ╟─402294f8-2ccc-46d8-86c8-1778d679d1bf
+# ╟─cf5b11c7-f378-47d2-90c0-9fb3b64a8239
+# ╟─1cc3f01f-e036-4b8b-b726-734ddd3f217d
+# ╠═4b82c6d9-a148-4004-8451-58a80f99840f
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
