@@ -16,3 +16,6 @@ length_gene = gL
 # we set them to nothing so that they are adaptively set
 γ = 10
 Δt = 1e-2
+
+# how many binding events you expect on average
+n_events = 1e4

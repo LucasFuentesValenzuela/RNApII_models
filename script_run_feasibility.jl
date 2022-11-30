@@ -21,7 +21,7 @@ params_iter = collect(Iterators.product(α_vec, [β], [k_on_vec]))
 
 println("Computing the feasible points.")
 occupancy, promoter_occ, params_occ = run_occupancy_simulation(
-    params_iter, Ω, δ, γ, L, Δt, nsteps, n_sites, n_end_sites
+    params_iter, Ω, δ, γ, L, Δt, nothing, n_sites, n_end_sites; n_events=n_events
 )
 
 # 2. Determine feasible points
