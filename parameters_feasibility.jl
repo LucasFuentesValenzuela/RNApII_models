@@ -6,11 +6,13 @@ include("model.jl")
 Ψ = (min_Ψ + max_Ψ) / 2
 β = 33
 
-γ = 10
 nsteps = 1e6
 L = 1
 δ = 35 / L # how much we "compress the phenomenon"
 n_sites = Int(round(gL/δ))
-n_end_sites = Int(round(300/δ))
-Δt = 1e-2
+n_end_sites = Int(round(10*δ/δ))
 length_gene = gL
+
+# we set them to nothing so that they are adaptively set
+γ = 10
+Δt = 1e-2

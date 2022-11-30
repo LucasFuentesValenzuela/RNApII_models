@@ -405,12 +405,13 @@ let
 		)
 	end
 
-	plot!(xscale=:log)
+	plot!(xscale=:log10, yscale=:log10)
 	vline!([1], label="", color=:red)
 	plot!(legend=:topleft)
 
 	xlabel!("α/γ")
 	ylabel!("~ Occupancy")
+
 
 end
 

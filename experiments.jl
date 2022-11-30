@@ -14,12 +14,22 @@ function run_occupancy_simulation(params_iter, Ω, δ, γ, L, Δt, nsteps, nsite
 			
 			occupancy_crt = []
 			prom_occ_crt = []
+			params_list = []
 	
 			for k_on in k_on_vec
+
+				# adaptively select the Δt and γ
+				if Δt === nothing
+					Δt_crt = set_Δt(α, β/δ, β/8/δ, k_on, k_off, γ)
+				end
+				if γ === nothing
+					γ_crt = 1/Δt_crt
+				end
+
 			
 				params_crt = Params(
-				α, β/δ, γ, L, k_on, k_off, 
-				Δt, nsteps, 
+				α, β/δ, γ_crt, L, k_on, k_off, 
+				Δt_crt, nsteps, 
 				nsites, n_end_sites, 
 				β/8/δ
 				)
@@ -36,12 +46,13 @@ function run_occupancy_simulation(params_iter, Ω, δ, γ, L, Δt, nsteps, nsite
 						density, params_crt; start_bp=1, end_bp = 1
 					)
 				)
+				push!(params_list, params_crt)
 				
 			end
 	
 			push!(occupancy, occupancy_crt)
 			push!(promoter_occ, prom_occ_crt)
-			push!(params_occ, "α=$(round(α; digits=3)), β=$(round(β; digits=3))")
+			push!(params_occ, params_list)
 			
 	end
 

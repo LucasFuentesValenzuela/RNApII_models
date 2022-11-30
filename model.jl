@@ -98,65 +98,75 @@ function step(
 	# iterate on the termination strand
 	if model == "continuous_detachment"
 		
-		# detachment can occur at any point in the termination zone
-		for j in length(gene):-1:n_sites+1
+		occupied_sites = findall(gene .== 1)
+		occupied_sites = occupied_sites[occupied_sites .> 1]
+		process_order = randperm!(occupied_sites)
+		for j in process_order
+			# detachment can occur at any point in the termination zone
+			if (j <= length(gene)) & (j >= n_sites+1)
 
-			if (gene[j]==1) & (rand(Bernoulli(γ*Δt))) # detach
-				gene[j] = 0
+				if (rand(Bernoulli(γ*Δt))) # detach
+					gene[j] = 0
 
-				push!(tracker_end["terminated"], tracker_end["current"][j-n_sites])
-				tracker_end["current"][j-n_sites] = 0
+					push!(tracker_end["terminated"], tracker_end["current"][j-n_sites])
+					tracker_end["current"][j-n_sites] = 0
+					
+				elseif (j<=length(gene)-L) && (gene[j+L]==0) && (rand(Bernoulli(β2*Δt))) # advance
+
+					@assert all(gene[j+1:j+L] .== 0)
+
+					gene[j+1] = 1
+					gene[j] = 0
+
+					tracker_end["current"][j-n_sites+1] = tracker_end["current"][j-n_sites]
+					tracker_end["current"][j-n_sites] = 0
+
+				end
 				
-			elseif (j<=length(gene)-L) && (gene[j]==1) && (gene[j+L]==0) &&(rand(Bernoulli(β2*Δt))) # advance
-
-				@assert all(gene[j+1:j+L] .== 0)
-
-				gene[j+1] = 1
-				gene[j] = 0
-
-				tracker_end["current"][j-n_sites+1] = tracker_end["current"][j-n_sites]
-				tracker_end["current"][j-n_sites] = 0
-
 			end
 			
-		end
+
 		
-	end
-
-	
-	finish_flag = false
-	
-	for j in n_sites:-1:2
-		if (gene[j]==1.) & (gene[j+L]==0.) & (rand(Bernoulli(β*Δt)))
-
-			@assert all(gene[j+1:j+L] .== 0)
-
-			gene[j+1]=1.
-			gene[j]=0.
-
-			if j == n_sites
-				finish_flag = true
-				tracker_end["current"][1]=1
-			end
+			finish_flag = false
 			
-		end
-	end
+			# in the gene body
+			# fix the thing with L > 1
+			if (j<=n_sites) & (j>=2)
+				if (gene[j+L]==0.) & (rand(Bernoulli(β*Δt)))
 
-	# fix the thing with L > 1
-	if (gene[1]==1.)
-		s = wsample(["off", "init", "nothing"], [koff*Δt, α*Δt, 1-Δt*(koff+α)])
-		if s=="off"
-			gene[1]=0.
-		elseif s=="init"
-			gene[2]=1
-			gene[1]=0
-		end
-	end
+					@assert all(gene[j+1:j+L] .== 0)
 
-	# entrance of new RNAp
-	if (rand(Bernoulli(kon*Δt))) & all(gene[1:L].==0.)
-		gene[1]=1.
-	end
+					gene[j+1]=1.
+					gene[j]=0.
+
+					if j == n_sites
+						finish_flag = true
+						tracker_end["current"][1]=1
+					end
+					
+				end
+			end
+
+		end
+
+		# initiation
+
+		# fix the thing with L > 1
+		if (gene[1]==1.)
+			s = wsample(["off", "init", "nothing"], [koff*Δt, α*Δt, 1-Δt*(koff+α)])
+			if s=="off"
+				gene[1]=0.
+			elseif s=="init"
+				gene[2]=1
+				gene[1]=0
+			end
+		end
+
+
+		# entrance of new RNAp
+		if (rand(Bernoulli(kon*Δt))) & all(gene[1:L] .== 0.)
+			gene[1]=1.
+		end
 
 	return gene, finish_flag, tracker_end
 	
@@ -169,6 +179,20 @@ get_t_d(params) = get_t_d(params.γ, params.n_end_sites, params.β2)
 get_trans_rate(exits, β, Δt) = mean(exits)/β/Δt
 
 get_trans_rate(exits, params) = get_trans_rate(exits, params.β, params.Δt)
+
+"""
+We want to model the system with stochastic processes, poisson processes. 
+
+	We want to make sure that the probability for one event is much larger than two events. Therefore, 
+	the probability for anything should be smaller than .3. 
+	That means Δt*p < .3 ==> Δt = min(.3/p)
+"""
+function set_Δt(α, β, β2, kon, koff, γ; ignore_γ = true)
+
+	if ignore_γ
+		return .3 / max(α, β, β2, kon, koff)
+	end
+end
 
 function sweep_params(α_vec, p_vec, param_name; params=DEFAULT_PARAMS)
 

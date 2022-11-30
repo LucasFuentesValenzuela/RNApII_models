@@ -364,11 +364,20 @@ we have computed the occupancy profile for a series of combinations of the param
 # we load the new simulation results, that span a larger range of kon values
 results_wide = JLD2.load("results/feasible_points_wide.jld2");
 
+# ╔═╡ 4bdfc70d-01d9-4ebf-8001-1e971fd644dd
+n_feas = sum(feasible .== 1)
+
 # ╔═╡ 280e88ac-fe5b-46b6-915f-b4a30cd527c0
 begin
-	occ_wide = results_wide["occupancy_feasible"]
+	# occ_wide = results_wide["occupancy_feasible"]
 	params_iter_wide = results_wide["params_iter_feasible"]
 end;
+
+# ╔═╡ ae1d9063-91ac-4205-84eb-fa5e282dfcb4
+occupancy_wide = reshape(hcat(hcat(results_wide["occupancy_feasible"]...)...), 10, n_feas, :);
+
+# ╔═╡ 4982d64c-f6ad-4029-b25d-7dec59b67fd1
+occ_wide = [vec(median(occupancy_wide[:, ii, :], dims=2)) for ii in 1:n_feas]
 
 # ╔═╡ f91bb98a-7442-40b9-bd24-07e554fb65b5
 # kon fold changes
@@ -401,7 +410,7 @@ begin
 	
 	# params for the plotting
 	ref_idx = 3
-	ylim = (0.5, 2.)
+	ylim = (0.8, 1.7)
 	
 	colors = palette([:purple, :orange, :green], size(df_bins, 2)-1)
 	
@@ -418,7 +427,7 @@ begin
 	push!(plots_fold_changes, p1)
 	
 	
-	for idx_ in 1:14
+	for idx_ in 1:n_feas
 
 		kon_wide = params_iter_wide[idx_][3]
 	
@@ -471,6 +480,8 @@ end
 # ╔═╡ 402294f8-2ccc-46d8-86c8-1778d679d1bf
 let
 
+	ε = 1e-4
+
 	kon_wide = params_iter_wide[idx_p][3]
 	
 	p0 = plots_fold_changes[idx_p+1]
@@ -478,19 +489,28 @@ let
 	p2 = plot(kon_wide, occ_wide[idx_p], label="", xscale=:log10)
 	scatter!(kon_wide, occ_wide[idx_p], label="", xscale=:log10)
 	plot!(xlabel="kon", ylabel="occupancy")
-	# vline!([kon_wide[1] * kon_fc[1], kon_wide[1] * kon_fc[end]], label="")
-	# vline!([kon_wide[end] * kon_fc[1], kon_wide[end] * kon_fc[end]], label="")
-	plot([p1, p0, p2]..., layout=(1,3), size=(700, 300))	
-end
+	vline!([kon_wide[1] * kon_fc[1], kon_wide[1] * kon_fc[end]], label="")
+	vline!([kon_wide[end] * kon_fc[1], kon_wide[end] * kon_fc[end]], label="")
 
-# ╔═╡ cf5b11c7-f378-47d2-90c0-9fb3b64a8239
-begin
-	ε = 1e-3
+
 	q=plot()
 	for kk in 1:14
 		if kk == idx_p
 			c = :blue
 			lw = 2
+
+			q_up = [
+				quantile(occupancy_wide[k, kk, :], .7) for k in 1:size(occupancy_wide, 1)
+			]
+			q_down = [
+				quantile(occupancy_wide[k, kk, :], .3) for k in 1:size(occupancy_wide, 1)
+			]
+
+
+			mid = (q_up+q_down)/2
+			w = q_up - q_down
+
+			plot!(params_iter_wide[kk][3], mid, ribbon=w, fillalpha=.3, label="")
 		else
 			c = :gray
 			lw = 1
@@ -500,7 +520,10 @@ begin
 	end
 	plot!(xscale=:log10, yscale=:log10)
 	plot!(xlabel="kon", ylabel="occupancy")
+	plot!(ylim=(1e-3, 1e1))
 	q
+	
+	plot([p1, p0, p2, q]..., layout=(2, 2), size=(1000, 1000))	
 end
 
 # ╔═╡ 1cc3f01f-e036-4b8b-b726-734ddd3f217d
@@ -514,6 +537,9 @@ let
 
 	p_fc_all
 end
+
+# ╔═╡ a2c49a7e-3bd9-4ee7-9e4e-3a3479d96331
+gene = [1, 0, 0, 1, 0, 1, 1, 0]
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1776,14 +1802,17 @@ version = "1.4.1+0"
 # ╠═aef445ad-08ec-4b8e-8ac5-9a6f1d217cf2
 # ╟─884c8cb2-8863-4d4b-a9ab-d23e0be85814
 # ╠═680d1245-c19e-4ac5-ab47-c57abd2d2f83
+# ╠═4bdfc70d-01d9-4ebf-8001-1e971fd644dd
 # ╠═280e88ac-fe5b-46b6-915f-b4a30cd527c0
+# ╠═ae1d9063-91ac-4205-84eb-fa5e282dfcb4
+# ╠═4982d64c-f6ad-4029-b25d-7dec59b67fd1
 # ╟─f91bb98a-7442-40b9-bd24-07e554fb65b5
-# ╟─3142e3a8-5b7c-46e4-9de1-4568cb001dfa
-# ╟─286b0fab-7a1c-48b8-99db-e885629d5651
-# ╠═9d6f40f3-cb34-42ad-b97f-f185ea45fada
-# ╟─402294f8-2ccc-46d8-86c8-1778d679d1bf
-# ╟─cf5b11c7-f378-47d2-90c0-9fb3b64a8239
+# ╠═3142e3a8-5b7c-46e4-9de1-4568cb001dfa
+# ╠═286b0fab-7a1c-48b8-99db-e885629d5651
+# ╟─9d6f40f3-cb34-42ad-b97f-f185ea45fada
+# ╠═402294f8-2ccc-46d8-86c8-1778d679d1bf
 # ╟─1cc3f01f-e036-4b8b-b726-734ddd3f217d
 # ╠═4b82c6d9-a148-4004-8451-58a80f99840f
+# ╠═a2c49a7e-3bd9-4ee7-9e4e-3a3479d96331
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
