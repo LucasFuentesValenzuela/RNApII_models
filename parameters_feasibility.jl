@@ -18,4 +18,4 @@ length_gene = gL
 Δt = 1e-2
 
 # how many binding events you expect on average
-n_events = 1e4
+n_events = 5e3

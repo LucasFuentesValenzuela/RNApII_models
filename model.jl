@@ -1,6 +1,7 @@
 using Distributions
 using ProgressBars
 using StatsBase
+using Random
 
 include("parameters.jl")
 
@@ -100,7 +101,10 @@ function step(
 		
 		occupied_sites = findall(gene .== 1)
 		occupied_sites = occupied_sites[occupied_sites .> 1]
-		process_order = randperm!(occupied_sites)
+		process_order = occupied_sites[randperm(length(occupied_sites))]
+
+		finish_flag = false
+
 		for j in process_order
 			# detachment can occur at any point in the termination zone
 			if (j <= length(gene)) & (j >= n_sites+1)
@@ -124,10 +128,6 @@ function step(
 				end
 				
 			end
-			
-
-		
-			finish_flag = false
 			
 			# in the gene body
 			# fix the thing with L > 1
@@ -167,6 +167,8 @@ function step(
 		if (rand(Bernoulli(kon*Δt))) & all(gene[1:L] .== 0.)
 			gene[1]=1.
 		end
+
+	end
 
 	return gene, finish_flag, tracker_end
 	

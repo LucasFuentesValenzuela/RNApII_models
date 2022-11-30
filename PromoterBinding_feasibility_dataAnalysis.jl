@@ -106,13 +106,15 @@ md"""
 - add percentiles (based on data from Matt)
 - interpolate on the kon values? Now I am doing it on a narrow range, and therefore the discrepancies between two simulations seem to arise more quickly and notably. I could do it on a larger range and then select the values in between that correspond to desired cell sizes
 - I should be able to run the simulations once and for all for all points that I started with and then select the plots based on those simulations. 
+
+- visualize the promoter and gene occupancy as a function of kon and alpha
 """
 
 # ╔═╡ 35a0da09-d22b-4e08-82e3-7edb88e003a8
 results = JLD2.load("results/feasible_pts.jld2");
 
 # ╔═╡ e22c410c-eeb0-4e5d-b435-8d54943936d1
-results_detail = JLD2.load("results/feasible_points_detailed.jld2");
+results_detail = JLD2.load("results/feasible_points_detailed_test.jld2");
 
 # ╔═╡ 219092d2-591a-4c73-9251-71a69b8f5128
 begin
@@ -122,16 +124,16 @@ begin
 	params_occ = results["params_occ"]
 	params_iter = results["params_iter"]
 	feasible = results["feasible"]
-	
+end;
+
+# ╔═╡ 0f94e569-3ab7-40c3-9bc0-982bcd49111e
+begin
 	occupancy_feasible = reshape(hcat(hcat(results_detail["occupancy_feasible"]...)...), 10, sum(feasible .== 1), :)
 	
 	params_occ_feasible = results_detail["params_occ_feasible"]
 	params_iter_feasible = results_detail["params_iter_feasible"]
 	kon_to_CV_interps = results_detail["kon_to_CV_interps"]
 end
-
-# ╔═╡ 7605afd6-9559-4be9-aab5-3a383bab44e1
-md""" you have 10 repeats of 16 points (kon) over 10 values of kon"""
 
 # ╔═╡ 67783a0e-82fb-46b2-b69b-c36a619a89bb
 begin
@@ -151,7 +153,7 @@ let
 
 	for (k, occ) in enumerate(occupancy)
 		k_on_vec = params_iter[k][3]
-		plot!(k_on_vec, occ, label=params_occ[k], color=colors[k])
+		plot!(k_on_vec, occ, label="", color=colors[k])
 		scatter!(k_on_vec, occ, label="", color=colors[k])
 	end
 
@@ -182,7 +184,7 @@ let
 
 	for (k, occ) in enumerate(promoter_occ)
 		k_on_vec = params_iter[k][3]
-		plot!(k_on_vec, occ, label=params_occ[k], color=colors[k])
+		plot!(k_on_vec, occ, label="", color=colors[k])
 		scatter!(k_on_vec, occ, label="", color=colors[k])
 	end
 
@@ -362,7 +364,7 @@ we have computed the occupancy profile for a series of combinations of the param
 
 # ╔═╡ 680d1245-c19e-4ac5-ab47-c57abd2d2f83
 # we load the new simulation results, that span a larger range of kon values
-results_wide = JLD2.load("results/feasible_points_wide.jld2");
+results_wide = JLD2.load("results/feasible_points_wide_test.jld2");
 
 # ╔═╡ 4bdfc70d-01d9-4ebf-8001-1e971fd644dd
 n_feas = sum(feasible .== 1)
@@ -377,7 +379,7 @@ end;
 occupancy_wide = reshape(hcat(hcat(results_wide["occupancy_feasible"]...)...), 10, n_feas, :);
 
 # ╔═╡ 4982d64c-f6ad-4029-b25d-7dec59b67fd1
-occ_wide = [vec(median(occupancy_wide[:, ii, :], dims=2)) for ii in 1:n_feas]
+occ_wide = [vec(median(occupancy_wide[:, ii, :], dims=2)) for ii in 1:n_feas];
 
 # ╔═╡ f91bb98a-7442-40b9-bd24-07e554fb65b5
 # kon fold changes
@@ -428,24 +430,37 @@ begin
 	
 	
 	for idx_ in 1:n_feas
+		# @show idx_
 
 		kon_wide = params_iter_wide[idx_][3]
-	
-		occ_avg_gene = data.Rpb1_occupancy_haploid_interp(ps.avg_cell_size) * sfs[idx_]
-	
+		occ_model = linear_interpolation(kon_wide, occ_wide[idx_])
+		
+		occ_avg_gene = occ_model(kon_wide[1] / 10^-1.5)
+		# occ_avg_gene = data.Rpb1_occupancy_haploid_interp(ps.avg_cell_size) * sfs[idx_]
+		
 		# rescale the occupancy data for each gene bin
 		df_bins_ = copy(df_bins)
 		df_bins_[:, 2:end] .= df_bins_[:, 2:end] .* occ_avg_gene
 	
-		occ_model = linear_interpolation(kon_wide, occ_wide[idx_])
-	
+		
+
+		# @show minimum(df_bins_[3, 2:end]), maximum(df_bins_[3, 2:end])
+		# @show minimum(occ_wide[idx_]), maximum(occ_wide[idx_])
 		# kon at 54 fL for each bin under the selected feasible point
-		kons_54fL = map(f -> invert_occupancy(f, occ_wide[idx_], kon_wide), collect(df_bins_[3, 2:end]))
+		kons_54fL = map(
+			f -> invert_occupancy(
+				f, occ_wide[idx_], kon_wide
+				), 
+				collect(df_bins_[3, 2:end])
+		)
 	
 		# DataFrame with the occupancy from the model
 		df_occ_model = copy(df_bins_)
-		for bin_nbr in 1:length(kons_54fL)
+		for bin_nbr in 1:(length(kons_54fL)-1)
+			# @show bin_nbr
 			kon_values = kons_54fL[bin_nbr] .* kon_fc
+			# @show minimum(kon_values), maximum(kon_values)
+			# @show minimum(kon_wide), maximum(kon_wide)
 			occ_values = occ_model.(kon_values)
 			df_occ_model[:, bin_nbr+1] = occ_values
 		end
@@ -477,6 +492,9 @@ end
 # ╔═╡ 9d6f40f3-cb34-42ad-b97f-f185ea45fada
 @bind idx_p Slider(1:(length(plots_fold_changes)-1))
 
+# ╔═╡ e59cc0b2-2b5e-405b-9fc7-cc6e69952817
+# idx_p = 1
+
 # ╔═╡ 402294f8-2ccc-46d8-86c8-1778d679d1bf
 let
 
@@ -494,7 +512,7 @@ let
 
 
 	q=plot()
-	for kk in 1:14
+	for kk in 1:13
 		if kk == idx_p
 			c = :blue
 			lw = 2
@@ -537,9 +555,6 @@ let
 
 	p_fc_all
 end
-
-# ╔═╡ a2c49a7e-3bd9-4ee7-9e4e-3a3479d96331
-gene = [1, 0, 0, 1, 0, 1, 1, 0]
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1785,9 +1800,9 @@ version = "1.4.1+0"
 # ╠═35a0da09-d22b-4e08-82e3-7edb88e003a8
 # ╠═e22c410c-eeb0-4e5d-b435-8d54943936d1
 # ╠═219092d2-591a-4c73-9251-71a69b8f5128
-# ╠═7605afd6-9559-4be9-aab5-3a383bab44e1
+# ╠═0f94e569-3ab7-40c3-9bc0-982bcd49111e
 # ╠═67783a0e-82fb-46b2-b69b-c36a619a89bb
-# ╟─a4b4db5a-483a-4af2-90f9-5ed46c1892b8
+# ╠═a4b4db5a-483a-4af2-90f9-5ed46c1892b8
 # ╟─3d778cb5-17dc-46bf-8523-e7cd220f276d
 # ╟─c2a6b9a6-bab2-45cf-93ab-8c6751b0254c
 # ╟─a16a6ae1-1e83-44d1-8be5-48ab7c619b1c
@@ -1806,13 +1821,13 @@ version = "1.4.1+0"
 # ╠═280e88ac-fe5b-46b6-915f-b4a30cd527c0
 # ╠═ae1d9063-91ac-4205-84eb-fa5e282dfcb4
 # ╠═4982d64c-f6ad-4029-b25d-7dec59b67fd1
-# ╟─f91bb98a-7442-40b9-bd24-07e554fb65b5
+# ╠═f91bb98a-7442-40b9-bd24-07e554fb65b5
 # ╠═3142e3a8-5b7c-46e4-9de1-4568cb001dfa
 # ╠═286b0fab-7a1c-48b8-99db-e885629d5651
-# ╟─9d6f40f3-cb34-42ad-b97f-f185ea45fada
+# ╠═9d6f40f3-cb34-42ad-b97f-f185ea45fada
+# ╠═e59cc0b2-2b5e-405b-9fc7-cc6e69952817
 # ╠═402294f8-2ccc-46d8-86c8-1778d679d1bf
 # ╟─1cc3f01f-e036-4b8b-b726-734ddd3f217d
 # ╠═4b82c6d9-a148-4004-8451-58a80f99840f
-# ╠═a2c49a7e-3bd9-4ee7-9e4e-3a3479d96331
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

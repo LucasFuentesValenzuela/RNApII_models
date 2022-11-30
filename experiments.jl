@@ -1,10 +1,15 @@
+using ProgressBars
+
 include("model.jl")
 include("plot_utils.jl")
 
 """
 Run simulations of sweeping kon and alpha
 """
-function run_occupancy_simulation(params_iter, Ω, δ, γ, L, Δt, nsteps, nsites, n_end_sites; n_events=nothing)
+function run_occupancy_simulation(
+		params_iter, Ω, δ, γ, L, Δt, nsteps, nsites, n_end_sites; 
+		n_events=nothing
+	)
 
     occupancy = []
 	promoter_occ = []
@@ -22,14 +27,17 @@ function run_occupancy_simulation(params_iter, Ω, δ, γ, L, Δt, nsteps, nsite
 				# adaptively select the Δt and γ
 				if Δt === nothing
 					Δt_crt = set_Δt(α, β/δ, β/8/δ, k_on, k_off, γ)
+				else
+					Δt_crt = Δt
 				end
 				if γ === nothing
 					γ_crt = 1/Δt_crt
+				else
+					γ_crt = γ
 				end
 				if n_events !== nothing
 					nsteps = Int(round(n_events/k_on))
 				end
-
 			
 				params_crt = Params(
 					α, β/δ, γ_crt, L, k_on, k_off, 
@@ -37,6 +45,8 @@ function run_occupancy_simulation(params_iter, Ω, δ, γ, L, Δt, nsteps, nsite
 					nsites, n_end_sites, 
 					β/8/δ
 				)
+
+				# @show (k_on, nsteps)
 			
 				_, density, _, _ = run_walker(params_crt);
 			
