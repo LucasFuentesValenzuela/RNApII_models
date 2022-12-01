@@ -1,5 +1,34 @@
 """
-Default parameters 
+Define a parameter object for the walker.
+"""
+struct Params
+	α::Float32 # initiation rate from promoter to gene body
+	β::Float32 # elongation rate
+	γ::Float32 # termination rate
+	L::Int # footprint of the body
+	kon::Float32 # rate of binding to the promoter
+	koff::Float32 # rate of unbinding to the promoter
+	Δt::Float32 # timestep
+	n_steps::Int # number of steps in the simulation
+	n_sites::Int # number of sites on the gene
+	n_end_sites::Int # number of sites where termination is possible
+	β2::Float32 # elongation rate on the termination sites
+end
+
+Params(
+	α, β, γ, Δt, n_steps, n_sites, n_end_sites, β2
+) = Params(
+	α, β, γ, 1, Δt, n_steps, n_sites, n_end_sites, β2
+)
+
+
+DEFAULT_PARAMS = Params(
+	α_default, β_default, γ_default, L_default, kon_default, koff_default, Δt_default, 
+	DEFAULT_nsteps, DEFAULT_n_sites, DEFAULT_n_end_sites, β2_default
+)
+
+"""
+Default parameters ---> TODO: update! 
 """
 LARGE_γ = 1000
 
@@ -13,15 +42,17 @@ L_default = 1
 kon_default = 1
 koff_default = 1
 
+δ_default = 35 / L_default
+
 DEFAULT_nsteps = 5e5
-DEFAULT_n_sites = 42
-DEFAULT_n_end_sites = 10
 
+DEFAULT_n_sites = Int(round(gL/δ))
+DEFAULT_n_end_sites = Int(round(10*δ/δ))
 """
-Ranges of acceptable metrics
+Ranges of acceptable metrics from the literature
 """
 
-# gene length for average gene
+# gene length for average gene [bp]
 gL = 1e3
 
 # residence time of mRNA molecules on promoter [s]
@@ -43,7 +74,7 @@ max_Ψ = 26
 
 # elongation rates [s-1]
 min_β = 13
-max_β = 40
+max_β = 33
 
 # residence time in the gene body
 min_Λ = min_Ψ - max_Ω
@@ -61,5 +92,22 @@ min_α = min_Λ * min_β/max_Ω/gL
 max_k_off = 1/min_Ω-min_α
 min_k_off = max(0, 1/max_Ω - max_α)
 
-# average cell size
-avg_cell_size = 50 #fL
+# average cell size [fL]
+avg_cell_size = 50
+
+###########################
+# parameters for the occupancy simulations
+###########################
+
+OCCUPANCY_PARAMS = Dict(
+    "Ω" => min_Ω, 
+    "n_steps" => 1e6, 
+    "L" => L_default, 
+    "δ" => δ_default,
+    "β" => max_β, 
+    "n_sites" => DEFAULT_n_sites, 
+    "n_end_sites" => DEFAULT_n_end_sites,
+    "γ" => nothing, 
+    "Δt" => nothing, # we will set it adaptively
+    "n_events" => 5e3
+)

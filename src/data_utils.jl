@@ -1,8 +1,13 @@
-using DataFrames
-using CSV
-using Interpolations
+"""Functions for use with the chip data"""
 
-df = DataFrame(CSV.File("Python/data_exp_nuclear_fraction.csv"));
+"""
+"""
+function load_ChIP_data()
+	return DataFrame(
+		CSV.File(
+			"/Users/lucasfuentes/RNApII_models/data/data_exp_nuclear_fraction.csv")
+	);
+end
 
 # fraction * cell volume = amount
 # amount/nuc_vol = concentration
