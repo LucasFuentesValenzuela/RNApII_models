@@ -1,6 +1,7 @@
 using Distributions
 using ProgressBars
 using StatsBase
+using Random
 
 include("parameters.jl")
 
@@ -98,64 +99,75 @@ function step(
 	# iterate on the termination strand
 	if model == "continuous_detachment"
 		
-		# detachment can occur at any point in the termination zone
-		for j in length(gene):-1:n_sites+1
+		occupied_sites = findall(gene .== 1)
+		occupied_sites = occupied_sites[occupied_sites .> 1]
+		process_order = occupied_sites[randperm(length(occupied_sites))]
 
-			if (gene[j]==1) & (rand(Bernoulli(γ*Δt))) # detach
-				gene[j] = 0
+		finish_flag = false
 
-				push!(tracker_end["terminated"], tracker_end["current"][j-n_sites])
-				tracker_end["current"][j-n_sites] = 0
+		for j in process_order
+			# detachment can occur at any point in the termination zone
+			if (j <= length(gene)) & (j >= n_sites+1)
+
+				if (rand(Bernoulli(γ*Δt))) # detach
+					gene[j] = 0
+
+					push!(tracker_end["terminated"], tracker_end["current"][j-n_sites])
+					tracker_end["current"][j-n_sites] = 0
+					
+				elseif (j<=length(gene)-L) && (gene[j+L]==0) && (rand(Bernoulli(β2*Δt))) # advance
+
+					@assert all(gene[j+1:j+L] .== 0)
+
+					gene[j+1] = 1
+					gene[j] = 0
+
+					tracker_end["current"][j-n_sites+1] = tracker_end["current"][j-n_sites]
+					tracker_end["current"][j-n_sites] = 0
+
+				end
 				
-			elseif (j<=length(gene)-L) && (gene[j]==1) && (gene[j+L]==0) &&(rand(Bernoulli(β2*Δt))) # advance
-
-				@assert all(gene[j+1:j+L] .== 0)
-
-				gene[j+1] = 1
-				gene[j] = 0
-
-				tracker_end["current"][j-n_sites+1] = tracker_end["current"][j-n_sites]
-				tracker_end["current"][j-n_sites] = 0
-
 			end
 			
-		end
-		
-	end
+			# in the gene body
+			# fix the thing with L > 1
+			if (j<=n_sites) & (j>=2)
+				if (gene[j+L]==0.) & (rand(Bernoulli(β*Δt)))
 
-	
-	finish_flag = false
-	
-	for j in n_sites:-1:2
-		if (gene[j]==1.) & (gene[j+L]==0.) & (rand(Bernoulli(β*Δt)))
+					@assert all(gene[j+1:j+L] .== 0)
 
-			@assert all(gene[j+1:j+L] .== 0)
+					gene[j+1]=1.
+					gene[j]=0.
 
-			gene[j+1]=1.
-			gene[j]=0.
-
-			if j == n_sites
-				finish_flag = true
-				tracker_end["current"][1]=1
+					if j == n_sites
+						finish_flag = true
+						tracker_end["current"][1]=1
+					end
+					
+				end
 			end
-			
-		end
-	end
 
-	# fix the thing with L > 1
-	if (gene[1]==1.)
-		s = wsample(["off", "init", "nothing"], [koff*Δt, α*Δt, 1-Δt*(koff+α)])
-		if s=="off"
-			gene[1]=0.
-		elseif s=="init"
-			gene[2]=1
-			gene[1]=0
 		end
-	end
 
-	# entrance of new RNAp
-	if (rand(Bernoulli(kon*Δt))) & all(gene[1:L].==0.)
-		gene[1]=1.
+		# initiation
+
+		# fix the thing with L > 1
+		if (gene[1]==1.)
+			s = wsample(["off", "init", "nothing"], [koff*Δt, α*Δt, 1-Δt*(koff+α)])
+			if s=="off"
+				gene[1]=0.
+			elseif (s=="init") & (gene[2]==0)
+				gene[2]=1
+				gene[1]=0
+			end
+		end
+
+
+		# entrance of new RNAp
+		if (rand(Bernoulli(kon*Δt))) & all(gene[1:L] .== 0.)
+			gene[1]=1.
+		end
+
 	end
 
 	return gene, finish_flag, tracker_end
@@ -169,6 +181,17 @@ get_t_d(params) = get_t_d(params.γ, params.n_end_sites, params.β2)
 get_trans_rate(exits, β, Δt) = mean(exits)/β/Δt
 
 get_trans_rate(exits, params) = get_trans_rate(exits, params.β, params.Δt)
+
+"""
+"""
+function set_Δt(α, β, β2, kon, koff, γ; ignore_γ = true)
+
+	if ignore_γ
+		return .3 / max(α, β, β2, kon, koff)
+	else
+		return .3 / max(α, β, β2, kon, koff, γ)
+	end
+end
 
 function sweep_params(α_vec, p_vec, param_name; params=DEFAULT_PARAMS)
 

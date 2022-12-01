@@ -1,10 +1,16 @@
+using ProgressBars
+
 include("model.jl")
 include("plot_utils.jl")
 
 """
 Run simulations of sweeping kon and alpha
 """
-function run_occupancy_simulation(params_iter, Ω, δ, γ, L, Δt, nsteps, nsites, n_end_sites)
+function run_occupancy_simulation(
+		params_iter, Ω, γ, L, Δt, nsteps, nsites, n_end_sites; 
+		n_events=nothing
+	)
+
     occupancy = []
 	promoter_occ = []
 	params_occ = []
@@ -14,18 +20,37 @@ function run_occupancy_simulation(params_iter, Ω, δ, γ, L, Δt, nsteps, nsite
 			
 			occupancy_crt = []
 			prom_occ_crt = []
+			params_list = []
 	
 			for k_on in k_on_vec
+
+				# adaptively select the Δt and γ
+				if Δt === nothing
+					Δt_crt = set_Δt(α, β, β/8, k_on, k_off, γ)
+				else
+					Δt_crt = Δt
+				end
+				if γ === nothing
+					γ_crt = 1/Δt_crt
+				else
+					γ_crt = γ
+				end
+				if n_events !== nothing
+					nsteps = Int(round(n_events/k_on))
+				end
 			
 				params_crt = Params(
-				α, β/δ, γ, L, k_on, k_off, 
-				Δt, nsteps, 
-				nsites, n_end_sites, 
-				β/8/δ
+					α, β, γ_crt, L, k_on, k_off, 
+					Δt_crt, nsteps, 
+					nsites, n_end_sites, 
+					β/8
 				)
+
+				# @show (k_on, nsteps)
 			
 				_, density, _, _ = run_walker(params_crt);
-			
+
+				# only works with L = 1
 				push!(
 					occupancy_crt, 
 					get_total_occupancy(density, params_crt; start_bp=2)
@@ -36,12 +61,13 @@ function run_occupancy_simulation(params_iter, Ω, δ, γ, L, Δt, nsteps, nsite
 						density, params_crt; start_bp=1, end_bp = 1
 					)
 				)
+				push!(params_list, params_crt)
 				
 			end
 	
 			push!(occupancy, occupancy_crt)
 			push!(promoter_occ, prom_occ_crt)
-			push!(params_occ, "α=$(round(α; digits=3)), β=$(round(β; digits=3))")
+			push!(params_occ, params_list)
 			
 	end
 

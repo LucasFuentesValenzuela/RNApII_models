@@ -75,6 +75,9 @@ theory = ingredients("theory.jl")
 # ╔═╡ 66e97000-4a09-40d0-b6a1-d7981385bf6e
 ps = ingredients("parameters.jl")
 
+# ╔═╡ 87e66938-ae8a-40cf-ad08-ea7f3c56df45
+ps_feas = ingredients("parameters_feasibility.jl")
+
 # ╔═╡ 8a482b2c-d0c3-4c34-a95d-f1368bf92c32
 experiments = ingredients("experiments.jl")
 
@@ -106,13 +109,21 @@ md"""
 - add percentiles (based on data from Matt)
 - interpolate on the kon values? Now I am doing it on a narrow range, and therefore the discrepancies between two simulations seem to arise more quickly and notably. I could do it on a larger range and then select the values in between that correspond to desired cell sizes
 - I should be able to run the simulations once and for all for all points that I started with and then select the plots based on those simulations. 
+
+- visualize the promoter and gene occupancy as a function of kon and alpha
 """
 
 # ╔═╡ 35a0da09-d22b-4e08-82e3-7edb88e003a8
-results = JLD2.load("results/feasible_pts.jld2");
+results = JLD2.load(
+	"results/feasible_pts.jld2"; 
+	typemap=Dict("Main.Params" => base.Params)
+);
 
 # ╔═╡ e22c410c-eeb0-4e5d-b435-8d54943936d1
-results_detail = JLD2.load("results/feasible_points_detailed.jld2");
+results_detail = JLD2.load(
+	"results/feasible_points_detailed_test.jld2";
+	typemap=Dict("Main.Params" => base.Params)
+);
 
 # ╔═╡ 219092d2-591a-4c73-9251-71a69b8f5128
 begin
@@ -122,16 +133,16 @@ begin
 	params_occ = results["params_occ"]
 	params_iter = results["params_iter"]
 	feasible = results["feasible"]
-	
+end;
+
+# ╔═╡ 0f94e569-3ab7-40c3-9bc0-982bcd49111e
+begin
 	occupancy_feasible = reshape(hcat(hcat(results_detail["occupancy_feasible"]...)...), 10, sum(feasible .== 1), :)
 	
 	params_occ_feasible = results_detail["params_occ_feasible"]
 	params_iter_feasible = results_detail["params_iter_feasible"]
 	kon_to_CV_interps = results_detail["kon_to_CV_interps"]
 end
-
-# ╔═╡ 7605afd6-9559-4be9-aab5-3a383bab44e1
-md""" you have 10 repeats of 16 points (kon) over 10 values of kon"""
 
 # ╔═╡ 67783a0e-82fb-46b2-b69b-c36a619a89bb
 begin
@@ -140,6 +151,31 @@ begin
 	# plot!(xlabel="α", ylabel="k_on")
 	# hline!([ps.min_k_on, ps.max_k_on], label="limits kon", linewidth=2)
 	# vline!([ps.min_α, ps.max_α], label="limits α", linewidth=2)
+end
+
+# ╔═╡ 6f3305c5-3ffd-4247-a8bb-91e30fa9a055
+params_iter[1]
+
+# ╔═╡ 51c60169-3171-46b1-973f-9f53457167cf
+params_occ
+
+# ╔═╡ 46e6137c-cecd-4763-8f45-b1076ae36e13
+iter_nb = 1
+
+# ╔═╡ b06fc845-7f73-4d66-8535-5d6b78598ed7
+let
+	params_ = params_iter[iter_nb]
+	α_ = params_[1]
+	β_ = params_[2]
+	konvec = params_[3]
+	koff_ = 1/ps_feas.Ω - α_
+
+	α_eff = theory.effective_α.(konvec, koff_, α_)
+
+	ρ_th = map(f -> (theory.ρ.(f, β_, ps_feas.γ, ps_feas.L))[2], α_eff)
+
+
+	plot(konvec, ρ_th, xscale=:log10)
 end
 
 # ╔═╡ a4b4db5a-483a-4af2-90f9-5ed46c1892b8
@@ -151,7 +187,7 @@ let
 
 	for (k, occ) in enumerate(occupancy)
 		k_on_vec = params_iter[k][3]
-		plot!(k_on_vec, occ, label=params_occ[k], color=colors[k])
+		plot!(k_on_vec, occ, label="", color=colors[k])
 		scatter!(k_on_vec, occ, label="", color=colors[k])
 	end
 
@@ -182,7 +218,7 @@ let
 
 	for (k, occ) in enumerate(promoter_occ)
 		k_on_vec = params_iter[k][3]
-		plot!(k_on_vec, occ, label=params_occ[k], color=colors[k])
+		plot!(k_on_vec, occ, label="", color=colors[k])
 		scatter!(k_on_vec, occ, label="", color=colors[k])
 	end
 
@@ -193,7 +229,7 @@ let
 	# )
 	xlabel!("k_on")
 	ylabel!("occupancy")
-	plot!(xscale=:log)
+	plot!(xscale=:log10, yscale=:log10)
 	plot!(title="Promoter occupancy")
 	hline!([ps.min_ρ_p, ps.max_ρ_p], label = "occupancy, average gene", linewidth=2)
 	# vline!([min_α, max_α], label="α, average gene")
@@ -202,6 +238,11 @@ let
 	
 	plot!(legend=:topleft)
 end
+
+# ╔═╡ 04ba5147-5a23-41a5-a160-03484986dcb4
+md"""
+Those promoter occupancies are only for the feasible points - you don't look far enough. You should do the very same plot for the `wide` datasets. 
+"""
 
 # ╔═╡ c2a6b9a6-bab2-45cf-93ab-8c6751b0254c
 md"""
@@ -362,13 +403,22 @@ we have computed the occupancy profile for a series of combinations of the param
 
 # ╔═╡ 680d1245-c19e-4ac5-ab47-c57abd2d2f83
 # we load the new simulation results, that span a larger range of kon values
-results_wide = JLD2.load("results/feasible_points_wide.jld2");
+results_wide = JLD2.load("results/feasible_points_wide_test.jld2");
+
+# ╔═╡ 4bdfc70d-01d9-4ebf-8001-1e971fd644dd
+n_feas = sum(feasible .== 1)
 
 # ╔═╡ 280e88ac-fe5b-46b6-915f-b4a30cd527c0
 begin
-	occ_wide = results_wide["occupancy_feasible"]
+	# occ_wide = results_wide["occupancy_feasible"]
 	params_iter_wide = results_wide["params_iter_feasible"]
 end;
+
+# ╔═╡ ae1d9063-91ac-4205-84eb-fa5e282dfcb4
+occupancy_wide = reshape(hcat(hcat(results_wide["occupancy_feasible"]...)...), 10, n_feas, :);
+
+# ╔═╡ 4982d64c-f6ad-4029-b25d-7dec59b67fd1
+occ_wide = [vec(median(occupancy_wide[:, ii, :], dims=2)) for ii in 1:n_feas];
 
 # ╔═╡ f91bb98a-7442-40b9-bd24-07e554fb65b5
 # kon fold changes
@@ -401,7 +451,7 @@ begin
 	
 	# params for the plotting
 	ref_idx = 3
-	ylim = (0.5, 2.)
+	ylim = (0.8, 1.7)
 	
 	colors = palette([:purple, :orange, :green], size(df_bins, 2)-1)
 	
@@ -418,25 +468,38 @@ begin
 	push!(plots_fold_changes, p1)
 	
 	
-	for idx_ in 1:14
+	for idx_ in 1:n_feas
+		# @show idx_
 
 		kon_wide = params_iter_wide[idx_][3]
-	
-		occ_avg_gene = data.Rpb1_occupancy_haploid_interp(ps.avg_cell_size) * sfs[idx_]
-	
+		occ_model = linear_interpolation(kon_wide, occ_wide[idx_])
+		
+		occ_avg_gene = occ_model(kon_wide[1] / 10^-1.5)
+		# occ_avg_gene = data.Rpb1_occupancy_haploid_interp(ps.avg_cell_size) * sfs[idx_]
+		
 		# rescale the occupancy data for each gene bin
 		df_bins_ = copy(df_bins)
 		df_bins_[:, 2:end] .= df_bins_[:, 2:end] .* occ_avg_gene
 	
-		occ_model = linear_interpolation(kon_wide, occ_wide[idx_])
-	
+		
+
+		# @show minimum(df_bins_[3, 2:end]), maximum(df_bins_[3, 2:end])
+		# @show minimum(occ_wide[idx_]), maximum(occ_wide[idx_])
 		# kon at 54 fL for each bin under the selected feasible point
-		kons_54fL = map(f -> invert_occupancy(f, occ_wide[idx_], kon_wide), collect(df_bins_[3, 2:end]))
+		kons_54fL = map(
+			f -> invert_occupancy(
+				f, occ_wide[idx_], kon_wide
+				), 
+				collect(df_bins_[3, 2:end])
+		)
 	
 		# DataFrame with the occupancy from the model
 		df_occ_model = copy(df_bins_)
-		for bin_nbr in 1:length(kons_54fL)
+		for bin_nbr in 1:(length(kons_54fL)-1)
+			# @show bin_nbr
 			kon_values = kons_54fL[bin_nbr] .* kon_fc
+			# @show minimum(kon_values), maximum(kon_values)
+			# @show minimum(kon_wide), maximum(kon_wide)
 			occ_values = occ_model.(kon_values)
 			df_occ_model[:, bin_nbr+1] = occ_values
 		end
@@ -468,8 +531,13 @@ end
 # ╔═╡ 9d6f40f3-cb34-42ad-b97f-f185ea45fada
 @bind idx_p Slider(1:(length(plots_fold_changes)-1))
 
+# ╔═╡ e59cc0b2-2b5e-405b-9fc7-cc6e69952817
+# idx_p = 1
+
 # ╔═╡ 402294f8-2ccc-46d8-86c8-1778d679d1bf
 let
+
+	ε = 1e-4
 
 	kon_wide = params_iter_wide[idx_p][3]
 	
@@ -478,19 +546,28 @@ let
 	p2 = plot(kon_wide, occ_wide[idx_p], label="", xscale=:log10)
 	scatter!(kon_wide, occ_wide[idx_p], label="", xscale=:log10)
 	plot!(xlabel="kon", ylabel="occupancy")
-	# vline!([kon_wide[1] * kon_fc[1], kon_wide[1] * kon_fc[end]], label="")
-	# vline!([kon_wide[end] * kon_fc[1], kon_wide[end] * kon_fc[end]], label="")
-	plot([p1, p0, p2]..., layout=(1,3), size=(700, 300))	
-end
+	vline!([kon_wide[1] * kon_fc[1], kon_wide[1] * kon_fc[end]], label="")
+	vline!([kon_wide[end] * kon_fc[1], kon_wide[end] * kon_fc[end]], label="")
 
-# ╔═╡ cf5b11c7-f378-47d2-90c0-9fb3b64a8239
-begin
-	ε = 1e-3
+
 	q=plot()
-	for kk in 1:14
+	for kk in 1:13
 		if kk == idx_p
 			c = :blue
 			lw = 2
+
+			q_up = [
+				quantile(occupancy_wide[k, kk, :], .7) for k in 1:size(occupancy_wide, 1)
+			]
+			q_down = [
+				quantile(occupancy_wide[k, kk, :], .3) for k in 1:size(occupancy_wide, 1)
+			]
+
+
+			mid = (q_up+q_down)/2
+			w = q_up - q_down
+
+			plot!(params_iter_wide[kk][3], mid, ribbon=w, fillalpha=.3, label="")
 		else
 			c = :gray
 			lw = 1
@@ -500,7 +577,10 @@ begin
 	end
 	plot!(xscale=:log10, yscale=:log10)
 	plot!(xlabel="kon", ylabel="occupancy")
+	plot!(ylim=(1e-3, 1e1))
 	q
+	
+	plot([p1, p0, p2, q]..., layout=(2, 2), size=(1000, 1000))	
 end
 
 # ╔═╡ 1cc3f01f-e036-4b8b-b726-734ddd3f217d
@@ -514,6 +594,9 @@ let
 
 	p_fc_all
 end
+
+# ╔═╡ 5a765471-87f2-406b-ace1-ee2b51cf35b6
+md"""TODO: promoter occupancy plots for the `wide` dataset"""
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1741,7 +1824,7 @@ version = "1.4.1+0"
 # ╠═1c2a7676-73ad-4b44-97b6-3ca08d188f09
 # ╠═b37eb2a3-e7c6-46c3-be7f-6db44b0f2458
 # ╠═8f9e4410-80ff-4173-86ab-4dfbc9b2fc23
-# ╟─f2bb07a7-dd8c-4e70-a5df-3da0b73e0c24
+# ╠═f2bb07a7-dd8c-4e70-a5df-3da0b73e0c24
 # ╠═58cf31b0-ac62-4315-9e7b-46b5a33319bd
 # ╠═aac5ba7d-9d85-4396-bbc6-dbd16036ba67
 # ╠═a78def04-a7dc-4bfe-ae56-296fa0d03a46
@@ -1749,6 +1832,7 @@ version = "1.4.1+0"
 # ╠═6af56bf5-f552-4e0f-b61a-d46f3a212022
 # ╠═6c259a50-dbb1-4f03-bbb5-8a1238f6e8e0
 # ╠═66e97000-4a09-40d0-b6a1-d7981385bf6e
+# ╠═87e66938-ae8a-40cf-ad08-ea7f3c56df45
 # ╟─8a482b2c-d0c3-4c34-a95d-f1368bf92c32
 # ╠═e131512a-7554-40e8-b919-ecf5faddfdf8
 # ╠═fde65485-580c-4aab-b2be-104f35ea3e53
@@ -1759,10 +1843,15 @@ version = "1.4.1+0"
 # ╠═35a0da09-d22b-4e08-82e3-7edb88e003a8
 # ╠═e22c410c-eeb0-4e5d-b435-8d54943936d1
 # ╠═219092d2-591a-4c73-9251-71a69b8f5128
-# ╠═7605afd6-9559-4be9-aab5-3a383bab44e1
+# ╠═0f94e569-3ab7-40c3-9bc0-982bcd49111e
 # ╠═67783a0e-82fb-46b2-b69b-c36a619a89bb
-# ╟─a4b4db5a-483a-4af2-90f9-5ed46c1892b8
-# ╟─3d778cb5-17dc-46bf-8523-e7cd220f276d
+# ╠═6f3305c5-3ffd-4247-a8bb-91e30fa9a055
+# ╠═51c60169-3171-46b1-973f-9f53457167cf
+# ╠═46e6137c-cecd-4763-8f45-b1076ae36e13
+# ╠═b06fc845-7f73-4d66-8535-5d6b78598ed7
+# ╠═a4b4db5a-483a-4af2-90f9-5ed46c1892b8
+# ╠═3d778cb5-17dc-46bf-8523-e7cd220f276d
+# ╠═04ba5147-5a23-41a5-a160-03484986dcb4
 # ╟─c2a6b9a6-bab2-45cf-93ab-8c6751b0254c
 # ╟─a16a6ae1-1e83-44d1-8be5-48ab7c619b1c
 # ╟─3102e18b-c28c-489d-a8e3-3b9fe05fcf58
@@ -1776,14 +1865,18 @@ version = "1.4.1+0"
 # ╠═aef445ad-08ec-4b8e-8ac5-9a6f1d217cf2
 # ╟─884c8cb2-8863-4d4b-a9ab-d23e0be85814
 # ╠═680d1245-c19e-4ac5-ab47-c57abd2d2f83
+# ╠═4bdfc70d-01d9-4ebf-8001-1e971fd644dd
 # ╠═280e88ac-fe5b-46b6-915f-b4a30cd527c0
-# ╟─f91bb98a-7442-40b9-bd24-07e554fb65b5
-# ╟─3142e3a8-5b7c-46e4-9de1-4568cb001dfa
-# ╟─286b0fab-7a1c-48b8-99db-e885629d5651
+# ╠═ae1d9063-91ac-4205-84eb-fa5e282dfcb4
+# ╠═4982d64c-f6ad-4029-b25d-7dec59b67fd1
+# ╠═f91bb98a-7442-40b9-bd24-07e554fb65b5
+# ╠═3142e3a8-5b7c-46e4-9de1-4568cb001dfa
+# ╠═286b0fab-7a1c-48b8-99db-e885629d5651
 # ╠═9d6f40f3-cb34-42ad-b97f-f185ea45fada
-# ╟─402294f8-2ccc-46d8-86c8-1778d679d1bf
-# ╟─cf5b11c7-f378-47d2-90c0-9fb3b64a8239
+# ╠═e59cc0b2-2b5e-405b-9fc7-cc6e69952817
+# ╠═402294f8-2ccc-46d8-86c8-1778d679d1bf
 # ╟─1cc3f01f-e036-4b8b-b726-734ddd3f217d
 # ╠═4b82c6d9-a148-4004-8451-58a80f99840f
+# ╠═5a765471-87f2-406b-ace1-ee2b51cf35b6
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

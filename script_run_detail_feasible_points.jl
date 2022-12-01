@@ -55,11 +55,9 @@ promoter_occ_feasible = []
 params_occ_feasible = []
 
 println("Computing the occupancy as a function of kon for feasible points.")
-for iter in 1:n_times
-    @show iter
-    
+for iter in ProgressBar(1:n_times)
     occupancy_feasible_crt, promoter_occ_feasible_crt, params_occ_feasible_crt = run_occupancy_simulation(
-        params_iter_feasible, Ω, δ, γ, L, Δt, nsteps, n_sites, n_end_sites
+        params_iter_feasible, Ω, δ, γ, L, Δt, nothing, n_sites, n_end_sites; n_events=n_events
     )
     push!(occupancy_feasible, occupancy_feasible_crt)
     push!(promoter_occ_feasible, promoter_occ_feasible_crt)
@@ -68,7 +66,7 @@ end
 
 # 5. Save the data
 JLD2.jldsave(
-    "results/feasible_points_detailed.jld2"; 
+    "results/feasible_points_detailed_test.jld2"; 
     occupancy_feasible, promoter_occ_feasible, params_occ_feasible, params_iter_feasible,
     kon_to_CV_interps
 )
