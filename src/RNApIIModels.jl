@@ -13,8 +13,8 @@ using CSV
 using Interpolations
 
 # Exports
-export J, get_regime, ρ, effective_α
-export Params, DEFAULT_PARAMS, OCCUPANCY_PARAMS
+export J, get_regime, ρ, effective_α, check_γ
+export Params, DEFAULT_PARAMS, OCCUPANCY_PARAMS, LITERATURE_PARAMS
 export run_walker, set_Δt, get_total_occupancy
 export run_occupancy_simulation
 export load_ChIP_data, RNA_free_frac, Rpb1_occupancy_haploid_interp

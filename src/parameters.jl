@@ -22,14 +22,16 @@ Params(
 )
 
 
-DEFAULT_PARAMS = Params(
-	α_default, β_default, γ_default, L_default, kon_default, koff_default, Δt_default, 
-	DEFAULT_nsteps, DEFAULT_n_sites, DEFAULT_n_end_sites, β2_default
-)
 
 """
 Default parameters ---> TODO: update! 
 """
+# gene length for average gene [bp]
+gL = 1e3
+
+# average cell size [fL]
+avg_cell_size = 50
+
 LARGE_γ = 1000
 
 α_default = 0.0033
@@ -46,14 +48,12 @@ koff_default = 1
 
 DEFAULT_nsteps = 5e5
 
-DEFAULT_n_sites = Int(round(gL/δ))
-DEFAULT_n_end_sites = Int(round(10*δ/δ))
+DEFAULT_n_sites = Int(round(gL/δ_default))
+DEFAULT_n_end_sites = Int(round(3))
 """
 Ranges of acceptable metrics from the literature
 """
 
-# gene length for average gene [bp]
-gL = 1e3
 
 # residence time of mRNA molecules on promoter [s]
 min_Ω = 2
@@ -92,8 +92,17 @@ min_α = min_Λ * min_β/max_Ω/gL
 max_k_off = 1/min_Ω-min_α
 min_k_off = max(0, 1/max_Ω - max_α)
 
-# average cell size [fL]
-avg_cell_size = 50
+LITERATURE_PARAMS = Dict(
+	"min_α" => min_α, 
+	"max_α" => max_α, 
+	"min_k_on" => min_k_on, 
+	"max_k_on" => max_k_on, 
+	"min_k_off" => min_k_off, 
+	"max_k_off" => max_k_off, 
+	"min_β" => min_β, 
+	"max_β" => max_β
+)
+
 
 ###########################
 # parameters for the occupancy simulations
@@ -102,12 +111,16 @@ avg_cell_size = 50
 OCCUPANCY_PARAMS = Dict(
     "Ω" => min_Ω, 
     "n_steps" => 1e6, 
-    "L" => L_default, 
+    "L" => L_default,
     "δ" => δ_default,
-    "β" => max_β, 
     "n_sites" => DEFAULT_n_sites, 
     "n_end_sites" => DEFAULT_n_end_sites,
     "γ" => nothing, 
     "Δt" => nothing, # we will set it adaptively
-    "n_events" => 5e3
+    "n_events" => 5e4
+)
+
+DEFAULT_PARAMS = Params(
+	α_default, β_default, γ_default, L_default, kon_default, koff_default, Δt_default, 
+	DEFAULT_nsteps, DEFAULT_n_sites, DEFAULT_n_end_sites, β2_default
 )

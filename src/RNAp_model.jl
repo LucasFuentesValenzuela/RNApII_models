@@ -19,7 +19,7 @@ function run_walker(
 		"terminated" => [], 
 	) # tracks every RNA getting into the last strand
 	
-	for _ in 1:n_steps # number of timesteps
+	for k in 1:n_steps # number of timesteps
 	
 		gene, finish_flag, tracker_end = step(
 			α, β, β2, γ, L, kon, koff, gene, n_sites, Δt, tracker_end
@@ -168,6 +168,6 @@ function get_total_occupancy(density, params; start_bp=1, end_bp=nothing)
 	return total_occupancy
 end
 
-get_total_occupancy(α_vec, p, densities, params) = [
+get_total_occupancyδ(α_vec, p, densities, params) = [
 	get_total_occupancy(densities[p][α], params[p][1]) for α in α_vec
 ]
