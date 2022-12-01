@@ -213,7 +213,7 @@ function get_total_occupancy(density, params; start_bp=1, end_bp=nothing, normal
 	total_occupancy = sum(density[start_bp:end_bp])/(n_steps)*L
 
 	if normalize
-		total_occupancy = total_occupany/(end_bp-start_bp)
+		total_occupancy = total_occupancy/(end_bp-start_bp)
 	end
 
 	return total_occupancy

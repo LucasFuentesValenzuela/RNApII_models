@@ -156,7 +156,7 @@ function step(
 			s = wsample(["off", "init", "nothing"], [koff*Δt, α*Δt, 1-Δt*(koff+α)])
 			if s=="off"
 				gene[1]=0.
-			elseif s=="init"
+			elseif (s=="init") & (gene[2]==0)
 				gene[2]=1
 				gene[1]=0
 			end
@@ -183,16 +183,13 @@ get_trans_rate(exits, β, Δt) = mean(exits)/β/Δt
 get_trans_rate(exits, params) = get_trans_rate(exits, params.β, params.Δt)
 
 """
-We want to model the system with stochastic processes, poisson processes. 
-
-	We want to make sure that the probability for one event is much larger than two events. Therefore, 
-	the probability for anything should be smaller than .3. 
-	That means Δt*p < .3 ==> Δt = min(.3/p)
 """
 function set_Δt(α, β, β2, kon, koff, γ; ignore_γ = true)
 
 	if ignore_γ
 		return .3 / max(α, β, β2, kon, koff)
+	else
+		return .3 / max(α, β, β2, kon, koff, γ)
 	end
 end
 

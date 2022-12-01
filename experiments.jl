@@ -7,7 +7,7 @@ include("plot_utils.jl")
 Run simulations of sweeping kon and alpha
 """
 function run_occupancy_simulation(
-		params_iter, Ω, δ, γ, L, Δt, nsteps, nsites, n_end_sites; 
+		params_iter, Ω, γ, L, Δt, nsteps, nsites, n_end_sites; 
 		n_events=nothing
 	)
 
@@ -26,7 +26,7 @@ function run_occupancy_simulation(
 
 				# adaptively select the Δt and γ
 				if Δt === nothing
-					Δt_crt = set_Δt(α, β/δ, β/8/δ, k_on, k_off, γ)
+					Δt_crt = set_Δt(α, β, β/8, k_on, k_off, γ)
 				else
 					Δt_crt = Δt
 				end
@@ -40,16 +40,17 @@ function run_occupancy_simulation(
 				end
 			
 				params_crt = Params(
-					α, β/δ, γ_crt, L, k_on, k_off, 
+					α, β, γ_crt, L, k_on, k_off, 
 					Δt_crt, nsteps, 
 					nsites, n_end_sites, 
-					β/8/δ
+					β/8
 				)
 
 				# @show (k_on, nsteps)
 			
 				_, density, _, _ = run_walker(params_crt);
-			
+
+				# only works with L = 1
 				push!(
 					occupancy_crt, 
 					get_total_occupancy(density, params_crt; start_bp=2)

@@ -37,12 +37,12 @@ function get_regime(α, β, γ, L)
 	αc = 1/(1+L^(1/2))
     γc = αc
 
-    α = α/β
-    γ = γ/β
+    α_ = α/β
+    γ_ = γ/β
 
-	if (α < αc) & (γ > α) # entry-limited
+	if (α_ < αc) & (γ_ > α_) # entry-limited
         regime = "entry-limited"
-    elseif (γ < γc) & (α > γ) # exit-limited
+    elseif (γ_ < γc) & (α_ > γ_) # exit-limited
         regime = "exit-limited"
 	else # (α, γ) >= (αc, γc) : maximum current regime
         regime = "maxJ"
@@ -52,7 +52,7 @@ function get_regime(α, β, γ, L)
 
 end
 
-J(α, β, L) = J(α, β, 1000, L) # large γ
+# J(α, β, L) = J(α, β, 1000, L) # large γ
 
 """
     ρ(α, β, γ, L)
@@ -84,7 +84,7 @@ function ρ(α_, β_, γ_, L)
         ρN = (1+(L-1) * J_crt  - sqrt((1+(L-1)*J_crt)^2 - 4L*J_crt))/2L
         ρR = α*(1-α)/γ/(1+(L-1)*α)
         
-    elseif (γ < γc) & (α > γ) # exit-limited
+    elseif (γ < γc) & (α > γ) # exit-limiteimage.pngd
 
         ρL = 1/L - γ*(1-γ)/(α*L)/(1+(L-1)*γ)
         ρN = (1+(L-1) * J_crt  - sqrt((1+(L-1)*J_crt)^2 - 4L*J_crt))/2L
@@ -99,4 +99,11 @@ function ρ(α_, β_, γ_, L)
 	end
 
     return ρL, ρN, ρR
+end
+
+"""
+Effective initiation rate with a promoter
+"""
+function effective_α(kon, koff, α)
+    return kon * α / (kon + koff + α)
 end

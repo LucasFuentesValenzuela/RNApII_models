@@ -22,7 +22,7 @@ Ranges of acceptable metrics
 """
 
 # gene length for average gene
-gL = 1000
+gL = 1e3
 
 # residence time of mRNA molecules on promoter [s]
 min_Ω = 2

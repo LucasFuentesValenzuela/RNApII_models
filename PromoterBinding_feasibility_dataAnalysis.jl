@@ -75,6 +75,9 @@ theory = ingredients("theory.jl")
 # ╔═╡ 66e97000-4a09-40d0-b6a1-d7981385bf6e
 ps = ingredients("parameters.jl")
 
+# ╔═╡ 87e66938-ae8a-40cf-ad08-ea7f3c56df45
+ps_feas = ingredients("parameters_feasibility.jl")
+
 # ╔═╡ 8a482b2c-d0c3-4c34-a95d-f1368bf92c32
 experiments = ingredients("experiments.jl")
 
@@ -111,10 +114,16 @@ md"""
 """
 
 # ╔═╡ 35a0da09-d22b-4e08-82e3-7edb88e003a8
-results = JLD2.load("results/feasible_pts.jld2");
+results = JLD2.load(
+	"results/feasible_pts.jld2"; 
+	typemap=Dict("Main.Params" => base.Params)
+);
 
 # ╔═╡ e22c410c-eeb0-4e5d-b435-8d54943936d1
-results_detail = JLD2.load("results/feasible_points_detailed_test.jld2");
+results_detail = JLD2.load(
+	"results/feasible_points_detailed_test.jld2";
+	typemap=Dict("Main.Params" => base.Params)
+);
 
 # ╔═╡ 219092d2-591a-4c73-9251-71a69b8f5128
 begin
@@ -142,6 +151,31 @@ begin
 	# plot!(xlabel="α", ylabel="k_on")
 	# hline!([ps.min_k_on, ps.max_k_on], label="limits kon", linewidth=2)
 	# vline!([ps.min_α, ps.max_α], label="limits α", linewidth=2)
+end
+
+# ╔═╡ 6f3305c5-3ffd-4247-a8bb-91e30fa9a055
+params_iter[1]
+
+# ╔═╡ 51c60169-3171-46b1-973f-9f53457167cf
+params_occ
+
+# ╔═╡ 46e6137c-cecd-4763-8f45-b1076ae36e13
+iter_nb = 1
+
+# ╔═╡ b06fc845-7f73-4d66-8535-5d6b78598ed7
+let
+	params_ = params_iter[iter_nb]
+	α_ = params_[1]
+	β_ = params_[2]
+	konvec = params_[3]
+	koff_ = 1/ps_feas.Ω - α_
+
+	α_eff = theory.effective_α.(konvec, koff_, α_)
+
+	ρ_th = map(f -> (theory.ρ.(f, β_, ps_feas.γ, ps_feas.L))[2], α_eff)
+
+
+	plot(konvec, ρ_th, xscale=:log10)
 end
 
 # ╔═╡ a4b4db5a-483a-4af2-90f9-5ed46c1892b8
@@ -195,7 +229,7 @@ let
 	# )
 	xlabel!("k_on")
 	ylabel!("occupancy")
-	plot!(xscale=:log)
+	plot!(xscale=:log10, yscale=:log10)
 	plot!(title="Promoter occupancy")
 	hline!([ps.min_ρ_p, ps.max_ρ_p], label = "occupancy, average gene", linewidth=2)
 	# vline!([min_α, max_α], label="α, average gene")
@@ -204,6 +238,11 @@ let
 	
 	plot!(legend=:topleft)
 end
+
+# ╔═╡ 04ba5147-5a23-41a5-a160-03484986dcb4
+md"""
+Those promoter occupancies are only for the feasible points - you don't look far enough. You should do the very same plot for the `wide` datasets. 
+"""
 
 # ╔═╡ c2a6b9a6-bab2-45cf-93ab-8c6751b0254c
 md"""
@@ -555,6 +594,9 @@ let
 
 	p_fc_all
 end
+
+# ╔═╡ 5a765471-87f2-406b-ace1-ee2b51cf35b6
+md"""TODO: promoter occupancy plots for the `wide` dataset"""
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1782,7 +1824,7 @@ version = "1.4.1+0"
 # ╠═1c2a7676-73ad-4b44-97b6-3ca08d188f09
 # ╠═b37eb2a3-e7c6-46c3-be7f-6db44b0f2458
 # ╠═8f9e4410-80ff-4173-86ab-4dfbc9b2fc23
-# ╟─f2bb07a7-dd8c-4e70-a5df-3da0b73e0c24
+# ╠═f2bb07a7-dd8c-4e70-a5df-3da0b73e0c24
 # ╠═58cf31b0-ac62-4315-9e7b-46b5a33319bd
 # ╠═aac5ba7d-9d85-4396-bbc6-dbd16036ba67
 # ╠═a78def04-a7dc-4bfe-ae56-296fa0d03a46
@@ -1790,6 +1832,7 @@ version = "1.4.1+0"
 # ╠═6af56bf5-f552-4e0f-b61a-d46f3a212022
 # ╠═6c259a50-dbb1-4f03-bbb5-8a1238f6e8e0
 # ╠═66e97000-4a09-40d0-b6a1-d7981385bf6e
+# ╠═87e66938-ae8a-40cf-ad08-ea7f3c56df45
 # ╟─8a482b2c-d0c3-4c34-a95d-f1368bf92c32
 # ╠═e131512a-7554-40e8-b919-ecf5faddfdf8
 # ╠═fde65485-580c-4aab-b2be-104f35ea3e53
@@ -1802,8 +1845,13 @@ version = "1.4.1+0"
 # ╠═219092d2-591a-4c73-9251-71a69b8f5128
 # ╠═0f94e569-3ab7-40c3-9bc0-982bcd49111e
 # ╠═67783a0e-82fb-46b2-b69b-c36a619a89bb
+# ╠═6f3305c5-3ffd-4247-a8bb-91e30fa9a055
+# ╠═51c60169-3171-46b1-973f-9f53457167cf
+# ╠═46e6137c-cecd-4763-8f45-b1076ae36e13
+# ╠═b06fc845-7f73-4d66-8535-5d6b78598ed7
 # ╠═a4b4db5a-483a-4af2-90f9-5ed46c1892b8
-# ╟─3d778cb5-17dc-46bf-8523-e7cd220f276d
+# ╠═3d778cb5-17dc-46bf-8523-e7cd220f276d
+# ╠═04ba5147-5a23-41a5-a160-03484986dcb4
 # ╟─c2a6b9a6-bab2-45cf-93ab-8c6751b0254c
 # ╟─a16a6ae1-1e83-44d1-8be5-48ab7c619b1c
 # ╟─3102e18b-c28c-489d-a8e3-3b9fe05fcf58
@@ -1829,5 +1877,6 @@ version = "1.4.1+0"
 # ╠═402294f8-2ccc-46d8-86c8-1778d679d1bf
 # ╟─1cc3f01f-e036-4b8b-b726-734ddd3f217d
 # ╠═4b82c6d9-a148-4004-8451-58a80f99840f
+# ╠═5a765471-87f2-406b-ace1-ee2b51cf35b6
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
