@@ -6,21 +6,6 @@ using Statistics
 
 PATH = "/Users/lucasfuentes/RNApII_models"
 
-n_kon_pts = 10
-n_α_values = 8
-
-# Parameters for a narrow screen with feasible and infeasible points
-k_on_vec_screen = 10 .^(LinRange(
-    log10(LITERATURE_PARAMS["min_k_on"]/1.5), log10(LITERATURE_PARAMS["max_k_on"]*1.5), n_kon_pts
-))
-α_vec_screen = LinRange(LITERATURE_PARAMS["min_α"], LITERATURE_PARAMS["max_α"], n_α_values)
-β_screen = LITERATURE_PARAMS["max_β"] / OCCUPANCY_PARAMS["δ"]
-
-n_times = Dict(
-    "screen" => 1, 
-    "wide" => 1,
-    "narrow" => 1
-)
 
 """
 """
@@ -127,7 +112,7 @@ function get_feasible_pts()
         push!(feasible_pts, (k_on_vec_screen[idx_k], α_vec_screen[idx_α]))
     end
 
-    return feasible_pts
+    return feasible, feasible_pts
 
 end
 

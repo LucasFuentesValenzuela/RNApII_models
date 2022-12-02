@@ -124,3 +124,22 @@ DEFAULT_PARAMS = Params(
 	α_default, β_default, γ_default, L_default, kon_default, koff_default, Δt_default, 
 	DEFAULT_nsteps, DEFAULT_n_sites, DEFAULT_n_end_sites, β2_default
 )
+
+#####
+# other parameters for the screening experiments
+
+n_kon_pts_screen = 10
+n_α_values_screen = 8
+
+# Parameters for a narrow screen with feasible and infeasible points
+k_on_vec_screen = 10 .^(LinRange(
+    log10(LITERATURE_PARAMS["min_k_on"]/1.5), log10(LITERATURE_PARAMS["max_k_on"]*1.5), n_kon_pts_screen
+))
+α_vec_screen = LinRange(LITERATURE_PARAMS["min_α"], LITERATURE_PARAMS["max_α"], n_α_values_screen)
+β_screen = LITERATURE_PARAMS["max_β"] / OCCUPANCY_PARAMS["δ"]
+
+n_times = Dict(
+    "screen" => 1, 
+    "wide" => 1,
+    "narrow" => 1
+)

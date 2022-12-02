@@ -65,8 +65,9 @@ PATH = "/Users/lucasfuentes/RNApII_models"
 
 # ╔═╡ 35a0da09-d22b-4e08-82e3-7edb88e003a8
 begin 
+	fnm_screen = joinpath(PATH, "results", "feasible_pts_screen.jld2")
 	results = JLD2.load(
-		joinpath(PATH, "results", "feasible_pts_screen.jld2"); 
+		fnm_screen; 
 		typemap=Dict("Main.Params" => RNApIIModels.Params)
 	);
 
@@ -80,7 +81,16 @@ end
 RNApIIModels.min_ρ_g
 
 # ╔═╡ a727efcb-32dd-48a2-a554-5fc9f181b7e9
+occ = results["occupancy"]
 
+# ╔═╡ 495c63c5-8f9f-403e-95ac-8c43e2747416
+length(occ)
+
+# ╔═╡ 8c1eb361-1082-4d77-8868-f2ab1cbc1aeb
+length(occ[1])
+
+# ╔═╡ 63ba2474-999e-49a5-a927-71ac71d80e2a
+length(occ[1][1])
 
 # ╔═╡ e22c410c-eeb0-4e5d-b435-8d54943936d1
 results_detail = JLD2.load(
@@ -98,15 +108,6 @@ results_detail = JLD2.load(
 # 	feasible = results["feasible"]
 # end;
 
-# ╔═╡ 0f94e569-3ab7-40c3-9bc0-982bcd49111e
-begin
-	occupancy_feasible = reshape(hcat(hcat(results_detail["occupancy_feasible"]...)...), 10, sum(feasible .== 1), :)
-	
-	params_occ_feasible = results_detail["params_occ_feasible"]
-	params_iter_feasible = results_detail["params_iter_feasible"]
-	kon_to_CV_interps = results_detail["kon_to_CV_interps"]
-end
-
 # ╔═╡ 67783a0e-82fb-46b2-b69b-c36a619a89bb
 begin
 	# heatmap(α_vec, k_on_vec, feasible)
@@ -116,8 +117,25 @@ begin
 	# vline!([ps.min_α, ps.max_α], label="limits α", linewidth=2)
 end
 
+# ╔═╡ 287994aa-7329-4a18-a7ac-9556a485306c
+feasible, feasible_pts = get_feasible_pts(fnm_screen)
+
+# ╔═╡ 0f94e569-3ab7-40c3-9bc0-982bcd49111e
+begin
+	occupancy_feasible = reshape(hcat(hcat(results_detail["occupancy_feasible"]...)...), 10, sum(feasible .== 1), :)
+	
+	params_occ_feasible = results_detail["params_occ_feasible"]
+	params_iter_feasible = results_detail["params_iter_feasible"]
+	kon_to_CV_interps = results_detail["kon_to_CV_interps"]
+end
+
 # ╔═╡ 46e6137c-cecd-4763-8f45-b1076ae36e13
 iter_nb = 5
+
+# ╔═╡ b12bfc38-3f7f-40d2-ac84-a140cd8ddb13
+md"""
+*TODO* indicate which ones are the feasible points
+"""
 
 # ╔═╡ a4b4db5a-483a-4af2-90f9-5ed46c1892b8
 let
@@ -141,8 +159,8 @@ let
 	ylabel!("occupancy")
 	plot!(xscale=:log)
 	plot!(title="gene body occupancy")
-	# vline!([min_α, max_α], label="α, average gene")
-	# hline!([ps.min_ρ_g, ps.max_ρ_g], label = "occupancy, average gene", linewidth=2)
+	vline!([RNApIIModels.min_k_on, RNApIIModels.max_k_on], label="α, average gene")
+	hline!([RNApIIModels.min_ρ_g, RNApIIModels.max_ρ_g], label = "occupancy, average gene", linewidth=2)
 	# vline!([ps.min_k_on, ps.max_k_on], label="kon, average gene", linewidth=2)
 	# vline!([α], label="α")
 	# hline([])
@@ -564,11 +582,16 @@ md"""TODO: promoter occupancy plots for the `wide` dataset"""
 # ╠═35a0da09-d22b-4e08-82e3-7edb88e003a8
 # ╠═2a09a727-2573-44e0-91f8-9b8dcaa73b33
 # ╠═a727efcb-32dd-48a2-a554-5fc9f181b7e9
+# ╠═495c63c5-8f9f-403e-95ac-8c43e2747416
+# ╠═8c1eb361-1082-4d77-8868-f2ab1cbc1aeb
+# ╠═63ba2474-999e-49a5-a927-71ac71d80e2a
 # ╠═e22c410c-eeb0-4e5d-b435-8d54943936d1
 # ╠═219092d2-591a-4c73-9251-71a69b8f5128
 # ╠═0f94e569-3ab7-40c3-9bc0-982bcd49111e
 # ╠═67783a0e-82fb-46b2-b69b-c36a619a89bb
+# ╠═287994aa-7329-4a18-a7ac-9556a485306c
 # ╠═46e6137c-cecd-4763-8f45-b1076ae36e13
+# ╠═b12bfc38-3f7f-40d2-ac84-a140cd8ddb13
 # ╠═a4b4db5a-483a-4af2-90f9-5ed46c1892b8
 # ╠═3d778cb5-17dc-46bf-8523-e7cd220f276d
 # ╠═04ba5147-5a23-41a5-a160-03484986dcb4

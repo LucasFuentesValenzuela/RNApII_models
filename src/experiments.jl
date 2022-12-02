@@ -142,3 +142,44 @@ function sweep_params(α_vec, p_vec, param_name; params=DEFAULT_PARAMS)
 
 	return params_dict, trans_rates, residence_times, densities
 end
+
+reshape_occ_screen(x) = reshape(
+    hcat(hcat(x...)...), length(x[1][2]), length(x[1]), :  
+) 
+
+function get_feasible_pts(fnm)
+
+    # unpack the results
+    results_fs = JLD2.load(fnm)
+    occupancy = results_fs["occupancy"]
+    promoter_occ = results_fs["promoter_occ"]
+
+	# dims are (nk, nα, n_iter)
+    occupancy = reshape_occ_screen(occupancy)
+    promoter_occ = reshape_occ_screen(promoter_occ)
+
+	@show size(occupancy), size(promoter_occ)
+
+	nα = size(occupancy, 2)
+
+    # taking the median over potentially many different simulations
+    occ_median = [vec(median(occupancy[:, k, :], dims=2)) for k in 1:nα]
+    prom_occ_median = [vec(median(promoter_occ[:, k, :], dims=2)) for k in 1:nα]
+
+    # determine feasible points
+    occ_mat = reduce(hcat, occ_median)
+    occ_mat = (occ_mat .< RNApIIModels.max_ρ_g) .& (occ_mat .> RNApIIModels.min_ρ_g)
+    prom_occ_mat = reduce(hcat, prom_occ_median)
+    prom_occ_mat = (prom_occ_mat .< RNApIIModels.max_ρ_p) .& (prom_occ_mat .> RNApIIModels.min_ρ_p)
+    feasible = (occ_mat .& prom_occ_mat)
+
+	@show size(occ_mat), size(prom_occ_mat)
+
+    feasible_pts = []
+    for (idx_k, idx_α) in Tuple.(findall(feasible .== 1))
+        push!(feasible_pts, (k_on_vec_screen[idx_k], α_vec_screen[idx_α]))
+    end
+
+    return feasible, feasible_pts
+
+end
