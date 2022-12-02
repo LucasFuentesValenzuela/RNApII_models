@@ -1,8 +1,6 @@
 using JLD2
 using ArgParse
 
-include("model.jl")
-
 function parse_commandline()
     s = ArgParseSettings()
     @add_arg_table s begin

@@ -17,6 +17,8 @@ elongation rate
 """
 function J(α, β, γ, L)
 
+    γ = check_γ(γ)
+
     α_ = α/β
     γ_ = γ/β
 
@@ -32,6 +34,8 @@ function J(α, β, γ, L)
 end
 
 function get_regime(α, β, γ, L)
+
+    γ = check_γ(γ)
 
     # critical values
 	αc = 1/(1+L^(1/2))
@@ -52,8 +56,6 @@ function get_regime(α, β, γ, L)
 
 end
 
-# J(α, β, L) = J(α, β, 1000, L) # large γ
-
 """
     ρ(α, β, γ, L)
 
@@ -67,6 +69,8 @@ Note: Eq (25) in Lakatos, Chou expresses quantities relative to the
 elongation rate
 """
 function ρ(α_, β_, γ_, L)
+
+    γ_ = check_γ(γ_)
 
     J_crt = J(α_, β_, γ_, L)/β_
 
@@ -104,6 +108,12 @@ end
 """
 Effective initiation rate with a promoter
 """
-function effective_α(kon, koff, α)
-    return kon * α / (kon + koff + α)
-end
+effective_α(kon, koff, α) = kon * α / (kon + koff + α)
+
+
+check_γ(γ) = γ === nothing ? LARGE_γ : γ
+
+"""
+Promoter occupancy
+"""
+ρp(kon, koff, α) = kon / (kon + koff + α)

@@ -1,11 +1,5 @@
-using Plots
-using Statistics
-using Interpolations
-
-include("theory.jl")
-include("model.jl")
-
-
+"""
+"""
 function plot_tracker_end(tracker_end, params)
 	histogram(tracker_end["terminated"], label="Data", normed=true)
 	vline!([mean(tracker_end["terminated"])], linewidth=3., label="Mean")
@@ -15,6 +9,8 @@ function plot_tracker_end(tracker_end, params)
 	ylabel!("Count")
 end
 
+"""
+"""
 function plot_density(density, n_steps, n_sites, L; normalize=true)
 
 	p = plot(density/n_steps*L, label="")
@@ -202,27 +198,6 @@ plot_residence_times_sweep(results, p, param_name) =  plot_residence_times_sweep
 
 """
 """
-function get_total_occupancy(density, params; start_bp=1, end_bp=nothing, normalize=false)
-
-	if end_bp === nothing
-		end_bp = params.n_sites
-	end
-	n_steps = params.n_steps
-	L = params.L
-
-	total_occupancy = sum(density[start_bp:end_bp])/(n_steps)*L
-
-	if normalize
-		total_occupancy = total_occupancy/(end_bp-start_bp)
-	end
-
-	return total_occupancy
-end
-
-get_total_occupancy(α_vec, p, densities, params) = [
-	get_total_occupancy(densities[p][α], params[p][1]) for α in α_vec
-]
-
 function plot_occupancy_sweep(α_vec, p, params, param_name, densities)
 
 	p1 = plot()
