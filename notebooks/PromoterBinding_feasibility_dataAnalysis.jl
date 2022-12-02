@@ -70,6 +70,8 @@ md"""
 - build the same analysis from the theoretical perspective (feasible points, etc.)
 
 - There is disagreement with the model when koff is negative ==> this means the constraint we set on the duration on the promoter cannot be guaranteed -- we need to see how to solve this. 
+
+- Clean the plotting functions
 """
 
 # ╔═╡ e5de0f99-a58d-4952-824e-f6ada230bef8
@@ -368,34 +370,14 @@ begin
 
 end;
 
-# ╔═╡ 884c8cb2-8863-4d4b-a9ab-d23e0be85814
-md"""## rescaling the occupancies
-we have computed the occupancy profile for a series of combinations of the parameters that are feasible. Let us try to use that for now"""
-
-# ╔═╡ 680d1245-c19e-4ac5-ab47-c57abd2d2f83
-# we load the new simulation results, that span a larger range of kon values
-results_wide = JLD2.load("results/feasible_points_wide_test.jld2");
-
-# ╔═╡ 4bdfc70d-01d9-4ebf-8001-1e971fd644dd
-n_feas = sum(feasible .== 1)
-
-# ╔═╡ 280e88ac-fe5b-46b6-915f-b4a30cd527c0
-begin
-	# occ_wide = results_wide["occupancy_feasible"]
-	params_iter_wide = results_wide["params_iter_feasible"]
-end;
-
-# ╔═╡ ae1d9063-91ac-4205-84eb-fa5e282dfcb4
-occupancy_wide = reshape(hcat(hcat(results_wide["occupancy_feasible"]...)...), 10, n_feas, :);
-
-# ╔═╡ 4982d64c-f6ad-4029-b25d-7dec59b67fd1
-occ_wide = [vec(median(occupancy_wide[:, ii, :], dims=2)) for ii in 1:n_feas];
-
 # ╔═╡ f91bb98a-7442-40b9-bd24-07e554fb65b5
 # kon fold changes
 # these apply across the board (for any bin/kon) because it is simply a change in 
 # [RNA]_free
-kon_fc = data.CV_to_RNAfree_interp(df_bins.cell_volume_fL) ./ data.CV_to_RNAfree_interp(df_bins.cell_volume_fL[3])
+kon_fc = CV_to_RNAfree_interp().(df_bins.cell_volume_fL) ./ CV_to_RNAfree_interp().(df_bins.cell_volume_fL[3])
+
+# ╔═╡ 6091c6c1-24c7-4901-91dc-68abe863de50
+length(feasible_pts)
 
 # ╔═╡ 286b0fab-7a1c-48b8-99db-e885629d5651
 # a linear interpolation is not really possible because the function is not monotonous (therefore, the inverse is not defined)
@@ -421,7 +403,7 @@ begin
 	# run the analysis and the comparative plotting for all the feasible points
 	
 	# params for the plotting
-	ref_idx = 3
+	ref_idx = 3 # idx of the reference cell size
 	ylim = (0.8, 1.7)
 	
 	colors = palette([:purple, :orange, :green], size(df_bins, 2)-1)
@@ -439,13 +421,13 @@ begin
 	push!(plots_fold_changes, p1)
 	
 	
-	for idx_ in 1:n_feas
+	for idx_ in 1:length(feasible_pts)
 		# @show idx_
 
-		kon_wide = params_iter_wide[idx_][3]
-		occ_model = linear_interpolation(kon_wide, occ_wide[idx_])
+		kon_wide = params_iter_wd[idx_][3]
+		occ_model = linear_interpolation(kon_wide, occupancy_wd[idx_])
 		
-		occ_avg_gene = occ_model(kon_wide[1] / 10^-1.5)
+		occ_avg_gene = occ_model(feasible_pts[idx_][1])
 		# occ_avg_gene = data.Rpb1_occupancy_haploid_interp(ps.avg_cell_size) * sfs[idx_]
 		
 		# rescale the occupancy data for each gene bin
@@ -459,7 +441,7 @@ begin
 		# kon at 54 fL for each bin under the selected feasible point
 		kons_54fL = map(
 			f -> invert_occupancy(
-				f, occ_wide[idx_], kon_wide
+				f, occupancy_wd[idx_], kon_wide
 				), 
 				collect(df_bins_[3, 2:end])
 		)
@@ -502,56 +484,65 @@ end
 # ╔═╡ 9d6f40f3-cb34-42ad-b97f-f185ea45fada
 @bind idx_p Slider(1:(length(plots_fold_changes)-1))
 
-# ╔═╡ e59cc0b2-2b5e-405b-9fc7-cc6e69952817
-# idx_p = 1
-
 # ╔═╡ 402294f8-2ccc-46d8-86c8-1778d679d1bf
 let
 
 	ε = 1e-4
 
-	kon_wide = params_iter_wide[idx_p][3]
+	kon_wide = params_iter_wd[idx_p][3]
+	params_ = params_iter_wd[idx_p]
+	α_ = params_[1]
+	β_ = params_[2]
+	konvec = params_[3]
+	koff_ = max(1/OCCUPANCY_PARAMS["Ω"] - α_, 0)
+	α_eff = effective_α.(konvec, koff_, α_)
+	ρ_th = map(f -> (ρ.(f, β_, OCCUPANCY_PARAMS["γ"], OCCUPANCY_PARAMS["L"]))[2], α_eff)
 	
 	p0 = plots_fold_changes[idx_p+1]
 	
-	p2 = plot(kon_wide, occ_wide[idx_p], label="", xscale=:log10)
-	scatter!(kon_wide, occ_wide[idx_p], label="", xscale=:log10)
+	p2 = plot(kon_wide, occupancy_wd[idx_p], label="", xscale=:log10)
+	scatter!(kon_wide, occupancy_wd[idx_p], label="", xscale=:log10)
 	plot!(xlabel="kon", ylabel="occupancy")
 	vline!([kon_wide[1] * kon_fc[1], kon_wide[1] * kon_fc[end]], label="")
 	vline!([kon_wide[end] * kon_fc[1], kon_wide[end] * kon_fc[end]], label="")
+	plot!(konvec, ρ_th * OCCUPANCY_PARAMS["n_sites"], xscale=:log10, linestyle=:dash, linewidth=3, label="theory", color=:firebrick)		
+	plot!(legend=:topleft)
 
 
 	q=plot()
-	for kk in 1:13
+	for kk in 1:length(feasible_pts)
 		if kk == idx_p
 			c = :blue
 			lw = 2
 
-			q_up = [
-				quantile(occupancy_wide[k, kk, :], .7) for k in 1:size(occupancy_wide, 1)
-			]
-			q_down = [
-				quantile(occupancy_wide[k, kk, :], .3) for k in 1:size(occupancy_wide, 1)
-			]
+			q_up = q_up_occ_wd[kk]
+			q_dwn = q_dwn_occ_wd[kk]
 
 
-			mid = (q_up+q_down)/2
-			w = q_up - q_down
+			mid = (q_up+q_dwn)/2
+			w = q_up - q_dwn
 
-			plot!(params_iter_wide[kk][3], mid, ribbon=w, fillalpha=.3, label="")
+			plot!(params_iter_wd[kk][3], mid, ribbon=w, fillalpha=.3, label="")
+			
 		else
 			c = :gray
 			lw = 1
 		end
 		
-		plot!(params_iter_wide[kk][3], max.(occ_wide[kk], ε), label="", color=c, linewidth=lw)
+		plot!(params_iter_wd[kk][3], max.(occupancy_wd[kk], ε), label="", color=c, linewidth=lw)
 	end
+
+	# plot the theory
+
+	plot!(konvec, ρ_th * OCCUPANCY_PARAMS["n_sites"], xscale=:log10, linestyle=:dash, linewidth=3, label="theory", color=:firebrick)
+	
 	plot!(xscale=:log10, yscale=:log10)
 	plot!(xlabel="kon", ylabel="occupancy")
 	plot!(ylim=(1e-3, 1e1))
+	plot!(legend=:topleft)
 	q
 	
-	plot([p1, p0, p2, q]..., layout=(2, 2), size=(1000, 1000))	
+	plot([p1, p0, p2, q]..., layout=(2, 2), size=(700, 700))	
 end
 
 # ╔═╡ 1cc3f01f-e036-4b8b-b726-734ddd3f217d
@@ -561,7 +552,7 @@ md"""Question: why are the vertical lines sometimes out of the range? how is it 
 let
 	p_fc_all = plot((plots_fold_changes[1:10])..., layout = (5, 2))
 	plot!(size=(1000, 1000))
-	savefig("figs/fold_changes.png")
+	savefig(joinpath(PATH, "figs", "fold_changes.png"))
 
 	p_fc_all
 end
@@ -587,7 +578,7 @@ md"""TODO: promoter occupancy plots for the `wide` dataset"""
 # ╟─46e6137c-cecd-4763-8f45-b1076ae36e13
 # ╠═b12bfc38-3f7f-40d2-ac84-a140cd8ddb13
 # ╠═09916819-dbf6-4b04-bf69-950a0c7e136b
-# ╟─a4b4db5a-483a-4af2-90f9-5ed46c1892b8
+# ╠═a4b4db5a-483a-4af2-90f9-5ed46c1892b8
 # ╠═3d778cb5-17dc-46bf-8523-e7cd220f276d
 # ╟─c2a6b9a6-bab2-45cf-93ab-8c6751b0254c
 # ╠═d8069c70-d820-49f8-add6-9e85f5ca88da
@@ -601,17 +592,11 @@ md"""TODO: promoter occupancy plots for the `wide` dataset"""
 # ╠═de2f8fde-98a1-4c9b-8317-86638fe4485b
 # ╠═aef445ad-08ec-4b8e-8ac5-9a6f1d217cf2
 # ╠═ac788865-7558-4736-8920-cbcd93efe83b
-# ╟─884c8cb2-8863-4d4b-a9ab-d23e0be85814
-# ╠═680d1245-c19e-4ac5-ab47-c57abd2d2f83
-# ╠═4bdfc70d-01d9-4ebf-8001-1e971fd644dd
-# ╠═280e88ac-fe5b-46b6-915f-b4a30cd527c0
-# ╠═ae1d9063-91ac-4205-84eb-fa5e282dfcb4
-# ╠═4982d64c-f6ad-4029-b25d-7dec59b67fd1
 # ╠═f91bb98a-7442-40b9-bd24-07e554fb65b5
+# ╠═6091c6c1-24c7-4901-91dc-68abe863de50
 # ╠═3142e3a8-5b7c-46e4-9de1-4568cb001dfa
 # ╠═286b0fab-7a1c-48b8-99db-e885629d5651
 # ╠═9d6f40f3-cb34-42ad-b97f-f185ea45fada
-# ╠═e59cc0b2-2b5e-405b-9fc7-cc6e69952817
 # ╠═402294f8-2ccc-46d8-86c8-1778d679d1bf
 # ╟─1cc3f01f-e036-4b8b-b726-734ddd3f217d
 # ╠═4b82c6d9-a148-4004-8451-58a80f99840f

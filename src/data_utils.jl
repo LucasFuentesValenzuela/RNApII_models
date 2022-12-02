@@ -1,5 +1,5 @@
 """Functions for use with the ChIP data"""
-using XLSX
+# using XLSX
 
 DATA_PATH = "/Users/lucasfuentes/RNApII_models/data"
 
