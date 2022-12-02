@@ -11,14 +11,18 @@ using Statistics
 using DataFrames
 using CSV
 using Interpolations
+using JLD2
+using ArgParse
 
 # Exports
 export J, get_regime, ρ, effective_α, check_γ
 export Params, DEFAULT_PARAMS, OCCUPANCY_PARAMS, LITERATURE_PARAMS
+export avg_cell_size
 export run_walker, set_Δt, get_total_occupancy
 export run_occupancy_simulation
 export load_ChIP_data, RNA_free_frac, Rpb1_occupancy_haploid_interp
 export CV_to_RNAfree_interp, RNAfree_to_CV_interp
+
 
 # Files
 include("parameters.jl")
