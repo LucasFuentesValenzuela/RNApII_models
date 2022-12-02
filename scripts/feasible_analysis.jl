@@ -1,5 +1,9 @@
 using RNApIIModels
-PATH_TO_REPO = "/Users/lucasfuentes/RNApII_models"
+using ArgParse
+using JLD2
+using ProgressBars
+
+PATH = "/Users/lucasfuentes/RNApII_models"
 
 n_kon_pts = 10
 n_α_values = 8
@@ -45,9 +49,7 @@ function build_iteration_params(type)
     elseif type=="narrow"
 
         # unpack the results from the screen
-        results_fs = JLD2.load(joinpath(PATH, "results", "feasible_pts_screen.jld2"))
-        params_iter = results_fs["params_iter"]
-        feasible = results_fs["feasible"]
+        feasible_points = get_feasible_pts()
 
         params_iter = []
         # kon_to_CV_interps = [] # I think you can go around that
@@ -55,10 +57,11 @@ function build_iteration_params(type)
         RNA_free_interps = CV_to_RNAfree_interp().(CV_interps)
         RNA_free_avgCell = CV_to_RNAfree_interp()(avg_cell_size)
 
-        for (idx_k, idx_α) in Tuple.(findall(feasible .== 1))
+        # for (idx_k, idx_α) in Tuple.(findall(feasible .== 1))
+        for (k_crt, α_crt) in feasible_points
 
-            k_crt = k_on_vec_screen[idx_k]
-            α_crt = α_vec_screen[idx_α]
+            # k_crt = k_on_vec_screen[idx_k]
+            # α_crt = α_vec_screen[idx_α]
 
             kon_C_crt = k_crt / RNA_free_avgCell
 
@@ -75,16 +78,12 @@ function build_iteration_params(type)
     elseif type=="wide"
 
         # unpack the results from the screen
-        results_fs = JLD2.load(joinpath(PATH, "results", "feasible_pts_screen.jld2"))
-        params_iter = results_fs["params_iter"]
-        feasible = results_fs["feasible"]
+
+        feasible_points = get_feasible_pts()
 
         params_iter = []
 
-        for (idx_k, idx_α) in Tuple.(findall(feasible .== 1))
-
-            k_crt = k_on_vec_screen[idx_k]
-            α_crt = α_vec_screen[idx_α]
+        for (k_crt, α_crt) in feasible_points
 
             k_on_vec_crt = k_crt .* (10 .^(LinRange(-1.5, 1.5, 10)))
 
@@ -95,6 +94,30 @@ function build_iteration_params(type)
     end
 
     return params_iter
+
+end
+
+function get_feasible_pts()
+
+    # unpack the results
+    results_fs = JLD2.load(joinpath(PATH, "results", "feasible_pts_screen.jld2"))
+    feasible = results_fs["feasible"]
+
+    # 2. Determine feasible points
+    # 
+    # TODO: this needs to be updated if there are more than one try (e.g. take the median)
+    occ_mat = reduce(hcat, occupancy)
+    occ_mat = (occ_mat .< max_ρ_g) .& (occ_mat .> min_ρ_g)
+    prom_occ_mat = reduce(hcat, promoter_occ)
+    prom_occ_mat = (prom_occ_mat .< max_ρ_p) .& (prom_occ_mat .> min_ρ_p)
+    feasible = (occ_mat .& prom_occ_mat)
+
+    feasible_pts = []
+    for (idx_k, idx_α) in Tuple.(findall(feasible .== 1))
+        push!(feasible_pts, (k_on_vec_screen[idx_k], α_vec_screen[idx_α]))
+    end
+
+    return feasible_pts
 
 end
 
@@ -114,7 +137,7 @@ function main()
 
     for _ in ProgressBar(1:n_times[type])
 
-        occupancy_crt, promoter_occ_crt, params_occ = run_occupancy_simulation(
+        occupancy_crt, promoter_occ_crt, params_occ_crt = run_occupancy_simulation(
             params_iter, OCCUPANCY_PARAMS
         )
 
@@ -123,18 +146,11 @@ function main()
         push!(params_occ, params_occ_crt)
     end
 
-    # 2. Determine feasible points
-    occ_mat = reduce(hcat, occupancy)
-    occ_mat = (occ_mat .< max_ρ_g) .& (occ_mat .> min_ρ_g)
-    prom_occ_mat = reduce(hcat, promoter_occ)
-    prom_occ_mat = (prom_occ_mat .< max_ρ_p) .& (prom_occ_mat .> min_ρ_p)
-    feasible = (occ_mat .& prom_occ_mat)
     
-    # 3. Save the data
+    # 2. Save the data
     JLD2.jldsave(
         joinpath(PATH, "results", "feasible_pts_$(type).jld2"); 
-        occupancy, promoter_occ, params_occ, params_iter, 
-        feasible
+        occupancy, promoter_occ, params_occ, params_iter
     )
 
 
