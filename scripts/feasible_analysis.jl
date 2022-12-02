@@ -5,6 +5,7 @@ using ProgressBars
 using Statistics
 
 PATH = "/Users/lucasfuentes/RNApII_models"
+fnm_screen = joinpath(PATH, "results", "feasible_pts_screen.jld2")
 
 
 """
@@ -26,20 +27,22 @@ function build_iteration_params(type)
 
     if type=="screen"
 
-        k_on_vec = k_on_vec_screen
-        α_vec = α_vec_screen
+        # k_on_vec = k_on_vec_screen
+        # α_vec = α_vec_screen
         params_iter = collect(
-        Iterators.product(α_vec, β_screen, [k_on_vec])
+            Iterators.product(
+                RNApIIModels.α_vec_screen, RNApIIModels.β_screen, [RNApIIModels.k_on_vec_screen]
+                )
         )
 
     elseif type=="narrow"
 
         # unpack the results from the screen
-        feasible_points = get_feasible_pts()
+        _, feasible_points = get_feasible_pts(fnm_screen)
 
         params_iter = []
         # kon_to_CV_interps = [] # I think you can go around that
-        CV_interps = LinRange(30, 200, n_kon_pts)
+        CV_interps = LinRange(30, 200, RNApIIModels.n_kon_pts_screen)
         RNA_free_interps = CV_to_RNAfree_interp().(CV_interps)
         RNA_free_avgCell = CV_to_RNAfree_interp()(avg_cell_size)
 
@@ -53,7 +56,7 @@ function build_iteration_params(type)
 
             k_on_vec_crt = RNA_free_interps .* kon_C_crt
 
-            push!(params_iter, (α_crt, β_screen, k_on_vec_crt))
+            push!(params_iter, (α_crt, RNApIIModels.β_screen, k_on_vec_crt))
 
             # kon_to_CV_interp = linear_interpolation(
             #         RNA_free_frac * kon_C_crt, df[!, :cell_volume_fL]
@@ -65,7 +68,7 @@ function build_iteration_params(type)
 
         # unpack the results from the screen
 
-        feasible_points = get_feasible_pts()
+        _, feasible_points = get_feasible_pts(fnm_screen)
 
         params_iter = []
 
@@ -73,7 +76,7 @@ function build_iteration_params(type)
 
             k_on_vec_crt = k_crt .* (10 .^(LinRange(-1.5, 1.5, 10)))
 
-            push!(params_iter, (α_crt, β_screen, k_on_vec_crt))
+            push!(params_iter, (α_crt, RNApIIModels.β_screen, k_on_vec_crt))
         end
 
     end
@@ -82,39 +85,7 @@ function build_iteration_params(type)
 
 end
 
-reshape_occ_screen(x) = reshape(
-    hcat(hcat(x...)...), n_kon_pts, n_α_values, n_times["screen"]
-) 
 
-function get_feasible_pts()
-
-    # unpack the results
-    results_fs = JLD2.load(joinpath(PATH, "results", "feasible_pts_screen.jld2"))
-    occupancy = results_fs["occupancy"]
-    promoter_occ = results_fs["promoter_occ"]
-
-    occupancy = reshape_occ_screen(occupancy)
-    promoter_occ = reshape_occ_screen(promoter_occ)
-
-    # taking the median over potentially many different simulations
-    occ_median = [vec(median(occupancy[:, k, :], dims=2)) for k in 1:n_α_values]
-    prom_occ_median = [vec(median(promoter_odd[:, k, :], dims=2)) for k in 1:n_α_values]
-
-    # determine feasible points
-    occ_mat = reduce(hcat, occ_median)
-    occ_mat = (occ_mat .< RNApIIModels.max_ρ_g) .& (occ_mat .> RNApIIModels.min_ρ_g)
-    prom_occ_mat = reduce(hcat, prom_occ_median)
-    prom_occ_mat = (prom_occ_mat .< RNApIIModels.max_ρ_p) .& (prom_occ_mat .> RNApIIModels.min_ρ_p)
-    feasible = (occ_mat .& prom_occ_mat)
-
-    feasible_pts = []
-    for (idx_k, idx_α) in Tuple.(findall(feasible .== 1))
-        push!(feasible_pts, (k_on_vec_screen[idx_k], α_vec_screen[idx_α]))
-    end
-
-    return feasible, feasible_pts
-
-end
 
 """
 """

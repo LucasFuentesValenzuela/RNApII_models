@@ -108,8 +108,12 @@ end
 """
 Effective initiation rate with a promoter
 """
-function effective_α(kon, koff, α)
-    return kon * α / (kon + koff + α)
-end
+effective_α(kon, koff, α) = kon * α / (kon + koff + α)
+
 
 check_γ(γ) = γ === nothing ? LARGE_γ : γ
+
+"""
+Promoter occupancy
+"""
+ρp(kon, koff, α) = kon / (kon + koff + α)

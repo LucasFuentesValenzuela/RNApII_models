@@ -143,9 +143,23 @@ function sweep_params(α_vec, p_vec, param_name; params=DEFAULT_PARAMS)
 	return params_dict, trans_rates, residence_times, densities
 end
 
-reshape_occ_screen(x) = reshape(
+reshape_results(x) = reshape(
     hcat(hcat(x...)...), length(x[1][2]), length(x[1]), :  
 ) 
+
+function get_quantile(x, q)
+
+	# dims are (nk, nα, n_iter)
+	x = reshape_results(x)
+
+	nk = size(x, 1)
+	nα = size(x, 2)
+
+	return [
+		[quantile(x[k, α, :], q) for k in 1:nk] for α in 1:nα
+	]
+
+end
 
 function get_feasible_pts(fnm)
 
@@ -154,17 +168,8 @@ function get_feasible_pts(fnm)
     occupancy = results_fs["occupancy"]
     promoter_occ = results_fs["promoter_occ"]
 
-	# dims are (nk, nα, n_iter)
-    occupancy = reshape_occ_screen(occupancy)
-    promoter_occ = reshape_occ_screen(promoter_occ)
-
-	@show size(occupancy), size(promoter_occ)
-
-	nα = size(occupancy, 2)
-
-    # taking the median over potentially many different simulations
-    occ_median = [vec(median(occupancy[:, k, :], dims=2)) for k in 1:nα]
-    prom_occ_median = [vec(median(promoter_occ[:, k, :], dims=2)) for k in 1:nα]
+	occ_median = get_quantile(occupancy, .5)
+	prom_occ_median = get_quantile(promoter_occ, .5)
 
     # determine feasible points
     occ_mat = reduce(hcat, occ_median)
@@ -172,8 +177,6 @@ function get_feasible_pts(fnm)
     prom_occ_mat = reduce(hcat, prom_occ_median)
     prom_occ_mat = (prom_occ_mat .< RNApIIModels.max_ρ_p) .& (prom_occ_mat .> RNApIIModels.min_ρ_p)
     feasible = (occ_mat .& prom_occ_mat)
-
-	@show size(occ_mat), size(prom_occ_mat)
 
     feasible_pts = []
     for (idx_k, idx_α) in Tuple.(findall(feasible .== 1))

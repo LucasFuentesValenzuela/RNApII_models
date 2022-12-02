@@ -133,13 +133,13 @@ n_α_values_screen = 8
 
 # Parameters for a narrow screen with feasible and infeasible points
 k_on_vec_screen = 10 .^(LinRange(
-    log10(LITERATURE_PARAMS["min_k_on"]/1.5), log10(LITERATURE_PARAMS["max_k_on"]*1.5), n_kon_pts_screen
+    log10(LITERATURE_PARAMS["min_k_on"]/1.2), log10(LITERATURE_PARAMS["max_k_on"]*1.2), n_kon_pts_screen
 ))
-α_vec_screen = LinRange(LITERATURE_PARAMS["min_α"], LITERATURE_PARAMS["max_α"], n_α_values_screen)
+α_vec_screen = LinRange(LITERATURE_PARAMS["min_α"], LITERATURE_PARAMS["max_α"] * 1.5, n_α_values_screen)
 β_screen = LITERATURE_PARAMS["max_β"] / OCCUPANCY_PARAMS["δ"]
 
 n_times = Dict(
     "screen" => 1, 
-    "wide" => 1,
-    "narrow" => 1
+    "narrow" => 10,
+    "wide" => 10,
 )

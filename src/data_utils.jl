@@ -1,11 +1,25 @@
-"""Functions for use with the chip data"""
+"""Functions for use with the ChIP data"""
+using XLSX
+
+DATA_PATH = "/Users/lucasfuentes/RNApII_models/data"
 
 """
 """
 function load_ChIP_data()
 	return DataFrame(
 		CSV.File(
-			"/Users/lucasfuentes/RNApII_models/data/data_exp_nuclear_fraction.csv")
+			joinpath(DATA_PATH, "data_exp_nuclear_fraction.csv")
+			)
+	);
+end
+
+"""
+"""
+function load_gene_bins()
+	return DataFrame(
+		XLSX.readtable(
+		joinpath(DATA_PATH, "global_norm_filtered-noCC-noESR.xlsx"), "Sheet1"
+		)
 	);
 end
 
