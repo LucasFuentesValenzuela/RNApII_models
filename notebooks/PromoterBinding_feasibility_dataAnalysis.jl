@@ -40,9 +40,6 @@ using Statistics
 # ╔═╡ 9581b94f-0c7d-4c4d-bfc6-2c9824ba3ac7
 TableOfContents()
 
-# ╔═╡ f8860d33-57e9-4684-a2ec-244c94f7f410
-RNApIIModels.ρ_p
-
 # ╔═╡ 94cec09f-d40e-4a80-8cb8-e6a1c2c3b6ba
 md"""# Description
 
@@ -579,7 +576,6 @@ md"""TODO: promoter occupancy plots for the `wide` dataset"""
 # ╠═38975f19-7e86-491b-8794-b2e7841b1967
 # ╠═9581b94f-0c7d-4c4d-bfc6-2c9824ba3ac7
 # ╠═87cfce1e-2624-46d7-8540-0c552508d9c4
-# ╠═f8860d33-57e9-4684-a2ec-244c94f7f410
 # ╟─94cec09f-d40e-4a80-8cb8-e6a1c2c3b6ba
 # ╠═d0a5c973-a446-4ce9-9151-d903295200a5
 # ╠═e5de0f99-a58d-4952-824e-f6ada230bef8
