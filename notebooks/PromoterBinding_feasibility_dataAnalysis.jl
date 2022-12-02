@@ -65,14 +65,15 @@ md"""
 
 - visualize the promoter and gene occupancy as a function of kon and alpha
 
-- careful with some parameter combinations where koff is negative because alpha is too large!
-
 - build the same analysis from the theoretical perspective (feasible points, etc.)
 
 - There is disagreement with the model when koff is negative ==> this means the constraint we set on the duration on the promoter cannot be guaranteed -- we need to see how to solve this. 
 
 - Clean the plotting functions
 """
+
+# ╔═╡ b19fd665-236a-458f-ab90-e223d0cc2cda
+md"""# Feasible points screen"""
 
 # ╔═╡ e5de0f99-a58d-4952-824e-f6ada230bef8
 PATH = "/Users/lucasfuentes/RNApII_models"
@@ -112,11 +113,6 @@ end
 # ╔═╡ b12bfc38-3f7f-40d2-ac84-a140cd8ddb13
 md"""
 *TODO* indicate which ones are the feasible points
-"""
-
-# ╔═╡ 09916819-dbf6-4b04-bf69-950a0c7e136b
-md"""
-At higher values of α the agreement with theory is not good... why? 
 """
 
 # ╔═╡ a4b4db5a-483a-4af2-90f9-5ed46c1892b8
@@ -174,7 +170,7 @@ let
 	# )
 	xlabel!("k_on")
 	ylabel!("occupancy")
-	plot!(xscale=:log10, yscale=:log10)
+	plot!(xscale=:log10)
 	plot!(title="Promoter occupancy")
 	# hline!([ps.min_ρ_p, ps.max_ρ_p], label = "occupancy, average gene", linewidth=2)
 	# vline!([min_α, max_α], label="α, average gene")
@@ -376,9 +372,6 @@ end;
 # [RNA]_free
 kon_fc = CV_to_RNAfree_interp().(df_bins.cell_volume_fL) ./ CV_to_RNAfree_interp().(df_bins.cell_volume_fL[3])
 
-# ╔═╡ 6091c6c1-24c7-4901-91dc-68abe863de50
-length(feasible_pts)
-
 # ╔═╡ 286b0fab-7a1c-48b8-99db-e885629d5651
 # a linear interpolation is not really possible because the function is not monotonous (therefore, the inverse is not defined)
 # we will bracket the value of occupancy and linearly interpolate the kon
@@ -487,6 +480,9 @@ end
 # ╔═╡ 402294f8-2ccc-46d8-86c8-1778d679d1bf
 let
 
+	normalize_occ = true
+	n_sites = OCCUPANCY_PARAMS["n_sites"]
+	
 	ε = 1e-4
 
 	kon_wide = params_iter_wd[idx_p][3]
@@ -497,15 +493,27 @@ let
 	koff_ = max(1/OCCUPANCY_PARAMS["Ω"] - α_, 0)
 	α_eff = effective_α.(konvec, koff_, α_)
 	ρ_th = map(f -> (ρ.(f, β_, OCCUPANCY_PARAMS["γ"], OCCUPANCY_PARAMS["L"]))[2], α_eff)
+	ρp_th = ρp.(konvec, koff_, α_)
 	
 	p0 = plots_fold_changes[idx_p+1]
 	
-	p2 = plot(kon_wide, occupancy_wd[idx_p], label="", xscale=:log10)
-	scatter!(kon_wide, occupancy_wd[idx_p], label="", xscale=:log10)
-	plot!(xlabel="kon", ylabel="occupancy")
+	p2 = plot(kon_wide, occupancy_wd[idx_p] ./ n_sites, label="")
+	scatter!(kon_wide, occupancy_wd[idx_p] ./ n_sites, label="gene body (sim)")
+	plot!(konvec, ρ_th, linestyle=:dash, linewidth=3, label="gene body (theory)", color=:firebrick)
+	
+	plot!(kon_wide, promoter_occ_wd[idx_p], label="")
+	scatter!(kon_wide, promoter_occ_wd[idx_p], label="promoter (sim)")
+	plot!(konvec, ρp_th, linestyle=:dash, linewidth=3, label="promoter (theory)")
+	
+	plot!(
+		xlabel="kon", ylabel="normalized occupancy", 
+		xscale=:log10,
+		# yscale=:log10
+	)
+	
 	vline!([kon_wide[1] * kon_fc[1], kon_wide[1] * kon_fc[end]], label="")
 	vline!([kon_wide[end] * kon_fc[1], kon_wide[end] * kon_fc[end]], label="")
-	plot!(konvec, ρ_th * OCCUPANCY_PARAMS["n_sites"], xscale=:log10, linestyle=:dash, linewidth=3, label="theory", color=:firebrick)		
+	
 	plot!(legend=:topleft)
 
 
@@ -557,9 +565,6 @@ let
 	p_fc_all
 end
 
-# ╔═╡ 5a765471-87f2-406b-ace1-ee2b51cf35b6
-md"""TODO: promoter occupancy plots for the `wide` dataset"""
-
 # ╔═╡ Cell order:
 # ╠═fde65485-580c-4aab-b2be-104f35ea3e53
 # ╠═3d6e8c09-dc5c-47a0-83c1-83fbcbd7bf58
@@ -569,6 +574,7 @@ md"""TODO: promoter occupancy plots for the `wide` dataset"""
 # ╠═87cfce1e-2624-46d7-8540-0c552508d9c4
 # ╟─94cec09f-d40e-4a80-8cb8-e6a1c2c3b6ba
 # ╠═d0a5c973-a446-4ce9-9151-d903295200a5
+# ╠═b19fd665-236a-458f-ab90-e223d0cc2cda
 # ╠═e5de0f99-a58d-4952-824e-f6ada230bef8
 # ╠═4bd04289-7f6c-4fa5-9e10-6de3b2040c23
 # ╠═35a0da09-d22b-4e08-82e3-7edb88e003a8
@@ -577,7 +583,6 @@ md"""TODO: promoter occupancy plots for the `wide` dataset"""
 # ╠═287994aa-7329-4a18-a7ac-9556a485306c
 # ╟─46e6137c-cecd-4763-8f45-b1076ae36e13
 # ╠═b12bfc38-3f7f-40d2-ac84-a140cd8ddb13
-# ╠═09916819-dbf6-4b04-bf69-950a0c7e136b
 # ╠═a4b4db5a-483a-4af2-90f9-5ed46c1892b8
 # ╠═3d778cb5-17dc-46bf-8523-e7cd220f276d
 # ╟─c2a6b9a6-bab2-45cf-93ab-8c6751b0254c
@@ -593,11 +598,9 @@ md"""TODO: promoter occupancy plots for the `wide` dataset"""
 # ╠═aef445ad-08ec-4b8e-8ac5-9a6f1d217cf2
 # ╠═ac788865-7558-4736-8920-cbcd93efe83b
 # ╠═f91bb98a-7442-40b9-bd24-07e554fb65b5
-# ╠═6091c6c1-24c7-4901-91dc-68abe863de50
 # ╠═3142e3a8-5b7c-46e4-9de1-4568cb001dfa
 # ╠═286b0fab-7a1c-48b8-99db-e885629d5651
 # ╠═9d6f40f3-cb34-42ad-b97f-f185ea45fada
 # ╠═402294f8-2ccc-46d8-86c8-1778d679d1bf
 # ╟─1cc3f01f-e036-4b8b-b726-734ddd3f217d
 # ╠═4b82c6d9-a148-4004-8451-58a80f99840f
-# ╠═5a765471-87f2-406b-ace1-ee2b51cf35b6
