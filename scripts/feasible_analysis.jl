@@ -2,6 +2,7 @@ using RNApIIModels
 using ArgParse
 using JLD2
 using ProgressBars
+using Statistics
 
 PATH = "/Users/lucasfuentes/RNApII_models"
 
@@ -13,7 +14,7 @@ k_on_vec_screen = 10 .^(LinRange(
     log10(LITERATURE_PARAMS["min_k_on"]/1.5), log10(LITERATURE_PARAMS["max_k_on"]*1.5), n_kon_pts
 ))
 α_vec_screen = LinRange(LITERATURE_PARAMS["min_α"], LITERATURE_PARAMS["max_α"], n_α_values)
-β_screen = LITERATURE_PARAMS["max_β"] 
+β_screen = LITERATURE_PARAMS["max_β"] / OCCUPANCY_PARAMS["δ"]
 
 n_times = Dict(
     "screen" => 1, 
@@ -90,26 +91,35 @@ function build_iteration_params(type)
             push!(params_iter, (α_crt, β_screen, k_on_vec_crt))
         end
 
-
     end
 
     return params_iter
 
 end
 
+reshape_occ_screen(x) = reshape(
+    hcat(hcat(x...)...), n_kon_pts, n_α_values, n_times["screen"]
+) 
+
 function get_feasible_pts()
 
     # unpack the results
     results_fs = JLD2.load(joinpath(PATH, "results", "feasible_pts_screen.jld2"))
-    feasible = results_fs["feasible"]
+    occupancy = results_fs["occupancy"]
+    promoter_occ = results_fs["promoter_occ"]
 
-    # 2. Determine feasible points
-    # 
-    # TODO: this needs to be updated if there are more than one try (e.g. take the median)
-    occ_mat = reduce(hcat, occupancy)
-    occ_mat = (occ_mat .< max_ρ_g) .& (occ_mat .> min_ρ_g)
-    prom_occ_mat = reduce(hcat, promoter_occ)
-    prom_occ_mat = (prom_occ_mat .< max_ρ_p) .& (prom_occ_mat .> min_ρ_p)
+    occupancy = reshape_occ_screen(occupancy)
+    promoter_occ = reshape_occ_screen(promoter_occ)
+
+    # taking the median over potentially many different simulations
+    occ_median = [vec(median(occupancy[:, k, :], dims=2)) for k in 1:n_α_values]
+    prom_occ_median = [vec(median(promoter_odd[:, k, :], dims=2)) for k in 1:n_α_values]
+
+    # determine feasible points
+    occ_mat = reduce(hcat, occ_median)
+    occ_mat = (occ_mat .< RNApIIModels.max_ρ_g) .& (occ_mat .> RNApIIModels.min_ρ_g)
+    prom_occ_mat = reduce(hcat, prom_occ_median)
+    prom_occ_mat = (prom_occ_mat .< RNApIIModels.max_ρ_p) .& (prom_occ_mat .> RNApIIModels.min_ρ_p)
     feasible = (occ_mat .& prom_occ_mat)
 
     feasible_pts = []
@@ -145,15 +155,12 @@ function main()
         push!(promoter_occ, promoter_occ_crt)
         push!(params_occ, params_occ_crt)
     end
-
     
     # 2. Save the data
     JLD2.jldsave(
         joinpath(PATH, "results", "feasible_pts_$(type).jld2"); 
         occupancy, promoter_occ, params_occ, params_iter
     )
-
-
 
 end
 
