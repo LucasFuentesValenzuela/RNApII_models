@@ -173,10 +173,9 @@ function get_feasible_pts(fnm)
 
     # determine feasible points
     occ_mat = reduce(hcat, occ_median)
-    occ_mat = (occ_mat .< RNApIIModels.max_ρ_g) .& (occ_mat .> RNApIIModels.min_ρ_g)
     prom_occ_mat = reduce(hcat, prom_occ_median)
-    prom_occ_mat = (prom_occ_mat .< RNApIIModels.max_ρ_p) .& (prom_occ_mat .> RNApIIModels.min_ρ_p)
-    feasible = (occ_mat .& prom_occ_mat)
+
+	feasible = is_feasible.(occ_mat, prom_occ_mat)
 
     feasible_pts = []
     for (idx_k, idx_α) in Tuple.(findall(feasible .== 1))
@@ -185,4 +184,12 @@ function get_feasible_pts(fnm)
 
     return feasible, feasible_pts
 
+end
+
+""" Determines if a point is feasible
+"""
+function is_feasible(occ, prom_occ)
+    occ_fs = (occ .< RNApIIModels.max_ρ_g) .& (occ .> RNApIIModels.min_ρ_g)
+    prom_occ_fs = (prom_occ .< RNApIIModels.max_ρ_p) .& (prom_occ .> RNApIIModels.min_ρ_p)
+	return (occ_fs .& prom_occ_fs)
 end

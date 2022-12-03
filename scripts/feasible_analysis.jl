@@ -41,16 +41,12 @@ function build_iteration_params(type)
         _, feasible_points = get_feasible_pts(fnm_screen)
 
         params_iter = []
-        # kon_to_CV_interps = [] # I think you can go around that
         CV_interps = LinRange(30, 200, RNApIIModels.n_kon_pts_screen)
         RNA_free_interps = CV_to_RNAfree_interp().(CV_interps)
         RNA_free_avgCell = CV_to_RNAfree_interp()(avg_cell_size)
 
-        # for (idx_k, idx_α) in Tuple.(findall(feasible .== 1))
         for (k_crt, α_crt) in feasible_points
 
-            # k_crt = k_on_vec_screen[idx_k]
-            # α_crt = α_vec_screen[idx_α]
 
             kon_C_crt = k_crt / RNA_free_avgCell
 
@@ -58,10 +54,6 @@ function build_iteration_params(type)
 
             push!(params_iter, (α_crt, RNApIIModels.β_screen, k_on_vec_crt))
 
-            # kon_to_CV_interp = linear_interpolation(
-            #         RNA_free_frac * kon_C_crt, df[!, :cell_volume_fL]
-            # )
-            # push!(kon_to_CV_interps, kon_to_CV_interp)
         end
 
     elseif type=="wide"
