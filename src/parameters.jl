@@ -117,7 +117,7 @@ OCCUPANCY_PARAMS = Dict(
     "n_end_sites" => DEFAULT_n_end_sites,
     "γ" => nothing, 
     "Δt" => nothing, # we will set it adaptively
-    "n_events" => 5e3
+    "n_events" => 1e4
 )
 
 DEFAULT_PARAMS = Params(

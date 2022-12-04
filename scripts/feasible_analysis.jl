@@ -17,6 +17,10 @@ function parse_commandline()
             help = "type of analysis to run"
             arg_type = String
             default = "screen"
+        "--fnm" 
+            help = "output filename"
+            arg_type = String
+            default = nothing
     end
     return parse_args(s)
 end
@@ -105,8 +109,14 @@ function main()
     end
     
     # 2. Save the data
+    if parsed_args["fnm"] === nothing
+        fnm = "feasible_pts_$(type).jld2"
+    else
+        fnm = parsed_pargs["fnm"]
+    end
+
     JLD2.jldsave(
-        joinpath(PATH, "results", "feasible_pts_$(type).jld2"); 
+        joinpath(PATH, "results", fnm); 
         occupancy, promoter_occ, params_occ, params_iter
     )
 

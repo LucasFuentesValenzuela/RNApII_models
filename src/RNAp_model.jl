@@ -66,7 +66,7 @@ function step(
 		# detachment can occur at any point in the termination zone
 		if (j <= length(gene)) & (j >= n_sites+1)
 
-			if (rand(Bernoulli(γ*Δt))) # detach
+			if (γ === nothing) || (rand(Bernoulli(γ*Δt))) # detach
 				gene[j] = 0
 
 				push!(tracker_end["terminated"], tracker_end["current"][j-n_sites])

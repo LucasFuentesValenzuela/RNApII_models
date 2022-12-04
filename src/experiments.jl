@@ -39,15 +39,15 @@ function run_occupancy_simulation(
 				else
 					Δt_crt = Δt
 				end
-
-				if γ === nothing
-					γ_crt = 1/Δt_crt
+				
+				if γ===nothing
+					γ_crt = 1/Δt_crt * (1-1e-4)
 				else
 					γ_crt = γ
 				end
 
 				if n_events !== nothing
-					n_steps = Int(round(n_events/k_on))
+					n_steps = Int(round(n_events/effective_α(k_on, k_off, α)))
 				end
 			
 				params_crt = Params(
