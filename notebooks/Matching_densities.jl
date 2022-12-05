@@ -28,9 +28,20 @@ md"""
 TODO: 
 - Check why there is discrepancy for larger values of k_on: In simulations for the feasibility study we see that for large values of k_on there is a discrepancy between simulations and theory. Why is that? It seems that the discrepancy starts to appear around kon = 1e-1. Let's see. I think the plot we want is error as a function of kon and alpha.  I think it is because I implement the number of iterations based on the number of *binding* events. While I should implement it as a function of the number of *initiation* events. I think that makes more sense. Why? Right now the number of iterations is n_events/kon. But if we are saturating the promoter, we are decreasing the number of iterations without changing the effective initiation rate, really. So I think we want at least the same number of steps as before, not fewer. And right now, increasing kon changes the number of iterations by the exact same amount!
 
+- I thought this was solved --- but apparently this is not the case in the results - why? 
+
 
 - How does the result change with δ?
 """
+
+# ╔═╡ 7fe13856-cf5c-4870-8fbc-aa1389f4a66d
+xx = 2
+
+# ╔═╡ 06fc6fe5-d724-4131-a651-cc0b2e948a2e
+xx == 2 ? y = true : y = false
+
+# ╔═╡ a3b6fe9a-e566-424e-8307-b0e658579a07
+y
 
 # ╔═╡ 5b0f57dd-af58-446f-8aac-0fbec9ba3217
 md"""# Load"""
@@ -98,6 +109,9 @@ end
 # ╔═╡ Cell order:
 # ╠═7fa20536-710b-11ed-1d6e-d5ea9ba16f39
 # ╠═63606801-a5f5-472b-80b0-fccc2287c634
+# ╠═7fe13856-cf5c-4870-8fbc-aa1389f4a66d
+# ╠═06fc6fe5-d724-4131-a651-cc0b2e948a2e
+# ╠═a3b6fe9a-e566-424e-8307-b0e658579a07
 # ╟─5b0f57dd-af58-446f-8aac-0fbec9ba3217
 # ╠═3d756f7c-24d9-49fd-9e46-6bcee639ecf9
 # ╠═645482f3-eca3-4a0b-966b-640a502a9051

@@ -33,6 +33,9 @@ md"""# Description
 
 We want to replicate the same type of analysis we do with the simulations purely from a theoretical basis. This allows faster iterations, results verification, and more fine-grained analysis
 
+## TODO
+
+- How does the result generally change with δ (and therefore with L)? 
 """
 
 # ╔═╡ 77bf5141-2715-4016-bd3d-e7aeaeee3a51
@@ -205,7 +208,7 @@ There are two things here:
 """
 
 # ╔═╡ Cell order:
-# ╠═798003cc-abd9-42f2-8f28-a52713ac72f7
+# ╟─798003cc-abd9-42f2-8f28-a52713ac72f7
 # ╠═77bf5141-2715-4016-bd3d-e7aeaeee3a51
 # ╠═6fa6e566-eb31-4803-924f-8e4e1a10b9f6
 # ╠═3cb614e0-cbfa-40d6-b2fd-5e2a925a3216

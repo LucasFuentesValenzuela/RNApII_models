@@ -21,6 +21,10 @@ function parse_commandline()
             help = "output filename"
             arg_type = String
             default = nothing
+        "--ntimes"
+            help = "number of times each simulation is run"
+            arg_type = Int
+            default = 1
     end
     return parse_args(s)
 end
@@ -31,8 +35,6 @@ function build_iteration_params(type)
 
     if type=="screen"
 
-        # k_on_vec = k_on_vec_screen
-        # α_vec = α_vec_screen
         params_iter = collect(
             Iterators.product(
                 RNApIIModels.α_vec_screen, RNApIIModels.β_screen, [RNApIIModels.k_on_vec_screen]
@@ -91,13 +93,21 @@ function main()
 
     type = parsed_args["type"]
 
+    parsed_args["fnm"] === nothing ? fnm = "feasible_pts_$(type).jld2" : fnm = parsed_args["fnm"]
+
+    ntimes = parsed_args["ntimes"]
+
+    println(
+        "Running analyis $(type) with $(ntimes) repetitions and saving in $(fnm)"
+    )
+
     params_iter = build_iteration_params(type)
 
     occupancy = []
     promoter_occ = []
     params_occ = []
 
-    for _ in ProgressBar(1:n_times[type])
+    for _ in ProgressBar(1:ntimes)
 
         occupancy_crt, promoter_occ_crt, params_occ_crt = run_occupancy_simulation(
             params_iter, OCCUPANCY_PARAMS
@@ -108,13 +118,6 @@ function main()
         push!(params_occ, params_occ_crt)
     end
     
-    # 2. Save the data
-    if parsed_args["fnm"] === nothing
-        fnm = "feasible_pts_$(type).jld2"
-    else
-        fnm = parsed_pargs["fnm"]
-    end
-
     JLD2.jldsave(
         joinpath(PATH, "results", fnm); 
         occupancy, promoter_occ, params_occ, params_iter

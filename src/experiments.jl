@@ -47,6 +47,7 @@ function run_occupancy_simulation(
 				end
 
 				if n_events !== nothing
+					# steps defined by a given number of INITIATION EVENT
 					n_steps = Int(round(n_events/effective_α(k_on, k_off, α)))
 				end
 			

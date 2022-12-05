@@ -350,7 +350,8 @@ The model gives us how the average gene in the average cell (50fL) scales in occ
 # ╔═╡ ac788865-7558-4736-8920-cbcd93efe83b
 # loading the "wide" dataset
 begin
-	fnm_wd = fnm("wide")
+	# fnm_wd = fnm("wide")
+	fnm_wd = joinpath(PATH, "results", "feasible_pts_wide_update.jld2")
 
 	results_wd = JLD2.load(
 		fnm_wd;
@@ -477,6 +478,9 @@ end
 # ╔═╡ 9d6f40f3-cb34-42ad-b97f-f185ea45fada
 @bind idx_p Slider(1:(length(plots_fold_changes)-1))
 
+# ╔═╡ 915aa7e7-b60e-435a-8d3c-dee4632fbbbc
+occupancy_wd[idx_p]
+
 # ╔═╡ 402294f8-2ccc-46d8-86c8-1778d679d1bf
 let
 
@@ -601,6 +605,7 @@ end
 # ╠═3142e3a8-5b7c-46e4-9de1-4568cb001dfa
 # ╠═286b0fab-7a1c-48b8-99db-e885629d5651
 # ╠═9d6f40f3-cb34-42ad-b97f-f185ea45fada
+# ╠═915aa7e7-b60e-435a-8d3c-dee4632fbbbc
 # ╠═402294f8-2ccc-46d8-86c8-1778d679d1bf
 # ╟─1cc3f01f-e036-4b8b-b726-734ddd3f217d
 # ╠═4b82c6d9-a148-4004-8451-58a80f99840f
