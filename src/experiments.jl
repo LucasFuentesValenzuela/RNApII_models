@@ -23,6 +23,7 @@ function run_occupancy_simulation(
     occupancy = []
 	promoter_occ = []
 	params_occ = []
+	α_eff = []
 
 	for (α, β, k_on_vec) in params_iter
 			k_off = max(0, 1/Ω-α)
@@ -30,6 +31,7 @@ function run_occupancy_simulation(
 			occupancy_crt = []
 			prom_occ_crt = []
 			params_list = []
+			α_eff_crt = []
 	
 			for k_on in k_on_vec
 
@@ -47,8 +49,7 @@ function run_occupancy_simulation(
 				end
 
 				if n_events !== nothing
-					# steps defined by a given number of INITIATION EVENT
-					n_steps = Int(round(n_events/effective_α(k_on, k_off, α)))
+					n_steps = Int(round(n_events/effective_α(k_on, k_off, α)./Δt_crt)) 
 				end
 			
 				params_crt = Params(
@@ -58,7 +59,7 @@ function run_occupancy_simulation(
 					β/8
 				)
 
-				_, density, _, _ = run_walker(params_crt);
+				_, density, _, _, n_inits = run_walker(params_crt);
 
 				# only works with L = 1
 				push!(
@@ -74,16 +75,18 @@ function run_occupancy_simulation(
 					)
 				)
 				push!(params_list, params_crt)
+				push!(α_eff_crt, n_inits / (n_steps * Δt_crt))
 				
 			end
 	
 			push!(occupancy, occupancy_crt)
 			push!(promoter_occ, prom_occ_crt)
 			push!(params_occ, params_list)
+			push!(α_eff, α_eff_crt)
 			
 	end
 
-    return occupancy, promoter_occ, params_occ
+    return occupancy, promoter_occ, params_occ, α_eff
 end
 
 
@@ -144,8 +147,9 @@ function sweep_params(α_vec, p_vec, param_name; params=DEFAULT_PARAMS)
 	return params_dict, trans_rates, residence_times, densities
 end
 
+# dims are (n_kon_points, npoints, ntimes)
 reshape_results(x) = reshape(
-    hcat(hcat(x...)...), length(x[1][2]), length(x[1]), :  
+    hcat(hcat(x...)...), length(x[1][1]), length(x[1]), :  
 ) 
 
 function get_quantile(x, q)

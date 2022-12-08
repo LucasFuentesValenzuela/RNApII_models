@@ -365,13 +365,19 @@ begin
 	q_up_occ_wd = get_quantile(results_wd["occupancy"], .9)
 	q_dwn_occ_wd = get_quantile(results_wd["occupancy"], .1)
 
+	q_up_prom_occ_wd = get_quantile(results_wd["promoter_occ"], .9)
+	q_dwn_prom_occ_wd = get_quantile(results_wd["promoter_occ"], .1)
+
 end;
 
 # ╔═╡ f91bb98a-7442-40b9-bd24-07e554fb65b5
 # kon fold changes
 # these apply across the board (for any bin/kon) because it is simply a change in 
 # [RNA]_free
-kon_fc = CV_to_RNAfree_interp().(df_bins.cell_volume_fL) ./ CV_to_RNAfree_interp().(df_bins.cell_volume_fL[3])
+kon_fc = CV_to_RNAfree_interp().(df_bins.cell_volume_fL) ./ CV_to_RNAfree_interp().(df_bins.cell_volume_fL[3]);
+
+# ╔═╡ d92ad4b6-f36b-4ffb-b55f-7ff76d5c0c03
+colors = palette([:purple, :orange, :green], size(df_bins, 2)-1);
 
 # ╔═╡ 286b0fab-7a1c-48b8-99db-e885629d5651
 # a linear interpolation is not really possible because the function is not monotonous (therefore, the inverse is not defined)
@@ -393,45 +399,29 @@ function invert_occupancy(x, occ, kon)
 end
 
 # ╔═╡ 3142e3a8-5b7c-46e4-9de1-4568cb001dfa
+# run the analysis and the comparative plotting for all the feasible points
 begin
-	# run the analysis and the comparative plotting for all the feasible points
-	
 	# params for the plotting
-	ref_idx = 3 # idx of the reference cell size
+	ref_idx = 3 # idx of the reference cell size in the df_bins DataFrame
 	ylim = (0.8, 1.7)
 	
-	colors = palette([:purple, :orange, :green], size(df_bins, 2)-1)
-	
 	plots_fold_changes = []
-
-	p1 = plot()
-	for (k, bin) in enumerate(names(df_bins)[2:end])
-		plot!(df_bins[:, "cell_volume_fL"], df_bins[:, bin] / df_bins[ref_idx, bin], label="", color=colors[k])
-	end
-	plot!(xlabel="Cell Volume [fL]", ylabel="Occupancy fold change")
-	plot!(ylim=ylim)
-	plot!(title="Data")
-
-	push!(plots_fold_changes, p1)
-	
+	plots_fold_changes_th = []
+	kons_lims = []
 	
 	for idx_ in 1:length(feasible_pts)
-		# @show idx_
 
+		α_wide = params_iter_wd[idx_][1]
+		β_wide = params_iter_wd[idx_][2]
 		kon_wide = params_iter_wd[idx_][3]
 		occ_model = linear_interpolation(kon_wide, occupancy_wd[idx_])
 		
 		occ_avg_gene = occ_model(feasible_pts[idx_][1])
-		# occ_avg_gene = data.Rpb1_occupancy_haploid_interp(ps.avg_cell_size) * sfs[idx_]
 		
 		# rescale the occupancy data for each gene bin
 		df_bins_ = copy(df_bins)
 		df_bins_[:, 2:end] .= df_bins_[:, 2:end] .* occ_avg_gene
-	
-		
 
-		# @show minimum(df_bins_[3, 2:end]), maximum(df_bins_[3, 2:end])
-		# @show minimum(occ_wide[idx_]), maximum(occ_wide[idx_])
 		# kon at 54 fL for each bin under the selected feasible point
 		kons_54fL = map(
 			f -> invert_occupancy(
@@ -439,14 +429,20 @@ begin
 				), 
 				collect(df_bins_[3, 2:end])
 		)
+		
+		push!(
+			kons_lims, [
+			(kons_54fL[1] .* kon_fc[1], kons_54fL[1] .* kon_fc[end]), 
+			(kons_54fL[end] .* kon_fc[1], kons_54fL[end] .* kon_fc[end])
+		]
+		)
 	
 		# DataFrame with the occupancy from the model
+		df_kons = copy(df_bins_)
 		df_occ_model = copy(df_bins_)
-		for bin_nbr in 1:(length(kons_54fL)-1)
-			# @show bin_nbr
+		for bin_nbr in 1:(length(kons_54fL))
 			kon_values = kons_54fL[bin_nbr] .* kon_fc
-			# @show minimum(kon_values), maximum(kon_values)
-			# @show minimum(kon_wide), maximum(kon_wide)
+			df_kons[:, bin_nbr+1] = kon_values
 			occ_values = occ_model.(kon_values)
 			df_occ_model[:, bin_nbr+1] = occ_values
 		end
@@ -461,7 +457,11 @@ begin
 	
 		p_crt = plot()
 		for (k, bin) in enumerate(names(df_bins)[2:end])
-			plot!(df_occ_model[:, "cell_volume_fL"], df_occ_model[:, bin] / df_occ_model[ref_idx, bin], label="", color=colors[k])
+			plot!(
+				df_occ_model[:, "cell_volume_fL"], 
+				df_occ_model[:, bin] / df_occ_model[ref_idx, bin], 
+				label="", color=colors[k]
+			)
 		# scatter!(df_bins[:, "cell_volume_fL"], df_bins[:, bin] / df_bins[3, bin], label="")
 		end
 		plot!(xlabel="Cell Volume [fL]", ylabel="Occupancy fold change")
@@ -470,16 +470,44 @@ begin
 	
 	
 		push!(plots_fold_changes, p_crt)
+
+		p_th_crt = plot()
+		for (k, bin) in enumerate(names(df_bins)[2:end])
+			kons = df_kons[:, bin]
+			α_eff = effective_α.(kons, 1/OCCUPANCY_PARAMS["Ω"] - α_wide, α_wide)
+
+			ρs = [(ρ.(
+				α, β_wide, OCCUPANCY_PARAMS["γ"], OCCUPANCY_PARAMS["L"])
+			)[2] for α in α_eff]
+			
+			plot!(
+				df_kons[:, "cell_volume_fL"], 
+				ρs ./ ρs[3], 
+				label="", 
+				color = colors[k]
+			)
+		end
+		plot!(xlabel="Cell Size [fL]", ylabel="Occupancy fold change")
+
+		push!(plots_fold_changes_th, p_th_crt)
 	
 	
 	end
 end
 
-# ╔═╡ 9d6f40f3-cb34-42ad-b97f-f185ea45fada
-@bind idx_p Slider(1:(length(plots_fold_changes)-1))
+# ╔═╡ abddf0af-85e8-44f3-8e68-5f0c011cb3b8
+begin
+	p_fc_data = plot()
+	for (k, bin) in enumerate(names(df_bins)[2:end])
+		plot!(df_bins[:, "cell_volume_fL"], df_bins[:, bin] / df_bins[ref_idx, bin], label="", color=colors[k])
+	end
+	plot!(xlabel="Cell Volume [fL]", ylabel="Occupancy fold change")
+	plot!(ylim=ylim)
+	plot!(title="Data")
+end;
 
-# ╔═╡ 915aa7e7-b60e-435a-8d3c-dee4632fbbbc
-occupancy_wd[idx_p]
+# ╔═╡ 9d6f40f3-cb34-42ad-b97f-f185ea45fada
+@bind idx_p Slider(1:(length(plots_fold_changes)))
 
 # ╔═╡ 402294f8-2ccc-46d8-86c8-1778d679d1bf
 let
@@ -498,14 +526,26 @@ let
 	α_eff = effective_α.(konvec, koff_, α_)
 	ρ_th = map(f -> (ρ.(f, β_, OCCUPANCY_PARAMS["γ"], OCCUPANCY_PARAMS["L"]))[2], α_eff)
 	ρp_th = ρp.(konvec, koff_, α_)
+
+	q_up = q_up_occ_wd[idx_p]
+	q_dwn = q_dwn_occ_wd[idx_p]
+	mid = (q_up+q_dwn)/2
+	w = q_up - q_dwn
+
+	q_prom_up = q_up_prom_occ_wd[idx_p]
+	q_prom_dwn = q_dwn_prom_occ_wd[idx_p]
+	mid_prom = (q_prom_up + q_prom_dwn)/2
+	w_prom = (q_prom_up - q_prom_dwn)
 	
-	p0 = plots_fold_changes[idx_p+1]
-	
+	p0 = plots_fold_changes[idx_p]
+
 	p2 = plot(kon_wide, occupancy_wd[idx_p] ./ n_sites, label="")
+	plot!(kon_wide, mid ./ n_sites, ribbon=w ./ n_sites, fillalpha=.3, label="")
 	scatter!(kon_wide, occupancy_wd[idx_p] ./ n_sites, label="gene body (sim)")
 	plot!(konvec, ρ_th, linestyle=:dash, linewidth=3, label="gene body (theory)", color=:firebrick)
 	
 	plot!(kon_wide, promoter_occ_wd[idx_p], label="")
+	plot!(kon_wide, mid_prom, ribbon=w_prom, fillalpha=.3, label="")
 	scatter!(kon_wide, promoter_occ_wd[idx_p], label="promoter (sim)")
 	plot!(konvec, ρp_th, linestyle=:dash, linewidth=3, label="promoter (theory)")
 	
@@ -515,38 +555,42 @@ let
 		# yscale=:log10
 	)
 	
-	vline!([kon_wide[1] * kon_fc[1], kon_wide[1] * kon_fc[end]], label="")
-	vline!([kon_wide[end] * kon_fc[1], kon_wide[end] * kon_fc[end]], label="")
+	vline!([kons_lims[idx_p][1][1], kons_lims[idx_p][1][2]], label="")
+	vline!([kons_lims[idx_p][2][1], kons_lims[idx_p][2][2]], label="")
 	
 	plot!(legend=:topleft)
-
-
+	
+	err_gene = abs.((occupancy_wd[idx_p] ./ n_sites .- ρ_th) ./ ρ_th)
+	err_prom = abs.((promoter_occ_wd[idx_p] .- ρp_th) ./ ρp_th)
+	
+	err_plot = plot()
+	plot!(kon_wide, err_gene, label="")
+	scatter!(kon_wide, err_gene, label="gene")
+	plot!(kon_wide, err_prom, label="")
+	scatter!(kon_wide, err_prom, label="promoter")
+	plot!(xlabel="kon", ylabel="relative diff.")
+	plot!(legend=:topleft)
+	plot!(xscale=:log10)
+	plot!(ylim=(0, .2))
+	
 	q=plot()
 	for kk in 1:length(feasible_pts)
 		if kk == idx_p
 			c = :blue
 			lw = 2
-
-			q_up = q_up_occ_wd[kk]
-			q_dwn = q_dwn_occ_wd[kk]
-
-
-			mid = (q_up+q_dwn)/2
-			w = q_up - q_dwn
-
-			plot!(params_iter_wd[kk][3], mid, ribbon=w, fillalpha=.3, label="")
 			
 		else
 			c = :gray
 			lw = 1
 		end
 		
-		plot!(params_iter_wd[kk][3], max.(occupancy_wd[kk], ε), label="", color=c, linewidth=lw)
+		plot!(kon_wide, max.(occupancy_wd[kk], ε), label="", color=c, linewidth=lw)
 	end
+	plot!(kon_wide, mid, ribbon=w, fillalpha=.3, label="")
 
 	# plot the theory
 
-	plot!(konvec, ρ_th * OCCUPANCY_PARAMS["n_sites"], xscale=:log10, linestyle=:dash, linewidth=3, label="theory", color=:firebrick)
+	plot!(konvec, ρ_th * n_sites, xscale=:log10, linestyle=:dash, linewidth=3, label="theory", color=:firebrick)
 	
 	plot!(xscale=:log10, yscale=:log10)
 	plot!(xlabel="kon", ylabel="occupancy")
@@ -554,11 +598,12 @@ let
 	plot!(legend=:topleft)
 	q
 	
-	plot([p1, p0, p2, q]..., layout=(2, 2), size=(700, 700))	
+	plot([
+		p_fc_data, p0, 
+		plots_fold_changes_th[idx_p], err_plot, 
+		p2, q
+	]..., layout=(3, 2), size=(700, 700))	
 end
-
-# ╔═╡ 1cc3f01f-e036-4b8b-b726-734ddd3f217d
-md"""Question: why are the vertical lines sometimes out of the range? how is it even eable to interpolate in that range then?"""
 
 # ╔═╡ 4b82c6d9-a148-4004-8451-58a80f99840f
 let
@@ -602,10 +647,10 @@ end
 # ╠═aef445ad-08ec-4b8e-8ac5-9a6f1d217cf2
 # ╠═ac788865-7558-4736-8920-cbcd93efe83b
 # ╠═f91bb98a-7442-40b9-bd24-07e554fb65b5
+# ╠═d92ad4b6-f36b-4ffb-b55f-7ff76d5c0c03
+# ╠═abddf0af-85e8-44f3-8e68-5f0c011cb3b8
 # ╠═3142e3a8-5b7c-46e4-9de1-4568cb001dfa
 # ╠═286b0fab-7a1c-48b8-99db-e885629d5651
-# ╠═9d6f40f3-cb34-42ad-b97f-f185ea45fada
-# ╠═915aa7e7-b60e-435a-8d3c-dee4632fbbbc
+# ╟─9d6f40f3-cb34-42ad-b97f-f185ea45fada
 # ╠═402294f8-2ccc-46d8-86c8-1778d679d1bf
-# ╟─1cc3f01f-e036-4b8b-b726-734ddd3f217d
 # ╠═4b82c6d9-a148-4004-8451-58a80f99840f

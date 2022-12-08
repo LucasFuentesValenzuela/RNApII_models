@@ -137,9 +137,3 @@ k_on_vec_screen = 10 .^(LinRange(
 ))
 α_vec_screen = LinRange(LITERATURE_PARAMS["min_α"], LITERATURE_PARAMS["max_α"] * 1.5, n_α_values_screen)
 β_screen = LITERATURE_PARAMS["max_β"] / OCCUPANCY_PARAMS["δ"]
-
-n_times = Dict(
-    "screen" => 1, 
-    "narrow" => 10,
-    "wide" => 10,
-)

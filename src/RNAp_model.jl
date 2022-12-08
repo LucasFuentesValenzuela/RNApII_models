@@ -19,10 +19,11 @@ function run_walker(
 		"terminated" => [], 
 	) # tracks every RNA getting into the last strand
 	
+	n_inits = 0
 	for k in 1:n_steps # number of timesteps
 	
-		gene, finish_flag, tracker_end = step(
-			α, β, β2, γ, L, kon, koff, gene, n_sites, Δt, tracker_end
+		gene, finish_flag, tracker_end, n_inits = step(
+			α, β, β2, γ, L, kon, koff, gene, n_sites, Δt, tracker_end, n_inits
 		)
 		density += gene
 
@@ -30,7 +31,7 @@ function run_walker(
 
 	end
 
-	return exits, density, gene, tracker_end
+	return exits, density, gene, tracker_end, n_inits
 	
 end
 
@@ -50,7 +51,7 @@ Notes:
 * The RNAs are indicated by the left-most site they occupy
 """
 function step(
-	α, β, β2, γ, L, kon, koff, gene, n_sites, Δt, tracker_end
+	α, β, β2, γ, L, kon, koff, gene, n_sites, Δt, tracker_end, n_inits
 )
 
 	# update tracker for RNAs present on the second strand
@@ -111,11 +112,17 @@ function step(
 	# fix the thing with L > 1
 	if (gene[1]==1.)
 		s = wsample(["off", "init", "nothing"], [koff*Δt, α*Δt, 1-Δt*(koff+α)])
+
+		if s=="init"
+			n_inits +=1
+		end
+
 		if s=="off"
 			gene[1]=0.
 		elseif (s=="init") & (gene[2]==0)
 			gene[2]=1
 			gene[1]=0
+			# n_inits += 1 # here I am only counting the rate when it works -- but that's not the def
 		end
 	end
 
@@ -126,7 +133,7 @@ function step(
 	end
 
 
-	return gene, finish_flag, tracker_end
+	return gene, finish_flag, tracker_end, n_inits
 	
 end
 

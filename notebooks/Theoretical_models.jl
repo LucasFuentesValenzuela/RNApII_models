@@ -26,6 +26,7 @@ end
 begin
 	using Plots
 	using PlutoUI
+	using Distributions
 end
 
 # ╔═╡ 9c79970a-f98c-40fb-bd47-65a6164699bf
@@ -78,8 +79,8 @@ let
 
 		β = rates[k]
 		color = palette([:blue, :green], length(rates))[k]
-		plot!(rates/β, theory.J.(vec(rates), β, 1)/β, label="", linestyle=:dash, color=color)	
-		scatter!(rates/β, theory.J.(vec(rates), β, 1)/β, label="", color=color)
+		plot!(rates/β, J.(vec(rates), β, nothing, 1)/β, label="", linestyle=:dash, color=color)	
+		scatter!(rates/β, J.(vec(rates), β, nothing, 1)/β, label="", color=color)
 	end
 	
 	# ylims!(0, .5)
@@ -103,7 +104,7 @@ md"""
 """
 
 # ╔═╡ e8577416-39cc-4dac-a5b3-e04ae43d3d7b
-rates = 10. .^[-3, -2, -1, 0, 1]
+rates = 10. .^[-3, -2, -1, 0, 1, 2, 3]
 
 # ╔═╡ a2780f8f-20e9-49d0-a181-46ad13def02d
 @bind β Slider(rates)
@@ -127,7 +128,7 @@ md"""L = $L"""
 let 
 	α_vec = 10. .^(collect(LinRange(-3, 1, 100))) .* β
 
-	J = theory.J.(α_vec, β, γ, L)
+	J = J.(α_vec, β, γ, L)
 
 	plot(α_vec ./β, J, linewidth=2, label="")
 
@@ -173,7 +174,7 @@ let
 	p = plot()
 
 	for L in L_vec
-		plot!(α_vec/β, theory.J.(α_vec, β, L)/β, label="L=$L")
+		plot!(α_vec/β, J.(α_vec, β, nothing, L)/β, label="L=$L")
 	end
 	xlabel!("α/β")
 	ylabel!("J/β")
@@ -183,10 +184,83 @@ end
 # ╔═╡ c463821d-8a79-4fca-b59f-b4a354ceb606
 md"""We see that the transition point decreases with $L$ and that the current is smaller with increasing L"""
 
-# ╔═╡ 21d06d82-4f36-472c-b74c-30699056976a
-md"""
-We see that we make a gross mistake (about 4 fold) in the current densities if we reduce the resolution and represent it wrongly. Similarly, we underestimate the critical initiation rate.
+# ╔═╡ cc28a585-97b2-48f4-b133-b06d8ddf8927
+md"""## functional forms with rescaling"""
+
+# ╔═╡ cdbd7292-cdbe-4e40-bb68-f5115ede9c16
+# transition point α_c
+let
+	β = .1 
+	L̄ = 50
+	L_vec = LinRange(1, L̄, 100)
+	δ = L̄ ./ L_vec
+	β_vec = β ./ δ
+	α_c = β_vec ./ (1 .+ sqrt.(L_vec))
+
+	plot(L_vec, α_c, label="", xlabel="L", ylabel = "α_c", title="α_c with β rescaling")
+
+end
+
+# ╔═╡ e4e9dd81-6380-402c-ba2e-6147b0f32493
+md"""we see that the critical value for α with a rescaling of the elongation rate β changes as √L"""
+
+# ╔═╡ f654bd6b-6850-4bb0-b4bb-d45311d21769
+md"""**question** when does the transition appear if we make one assumption vs another? what is the scale of the difference/mistake/error?
+
+For instance, let's say that we want to compare the point of transition between the two regimes for 
+* the real parameters
+* a rescaled version of the parameters
+
+We have 
+$$α_c = \frac{β̄}{1 + \sqrt{L̄}}$$ and $$α_c' = \frac{β̄/δ}{1 + \sqrt{L̄ /δ}}$$
+
+The error is
+$$α_c' / α_c = \frac{1 + \sqrt{L̄}}{δ + \sqrt{δL̄}}$$
+
 """
+
+# ╔═╡ 3fff6894-bbe5-4589-93c8-aee7d06769a5
+αc_err(δ, L̄) = (1 + sqrt(L̄)) ./ (δ + sqrt.(δ*L̄))
+
+# ╔═╡ 889ff8cf-d1a7-4ade-adea-16c216694d2b
+let
+	p = plot()
+	
+	L̄_vec = [2, 5, 10, 20, 30, 50]
+	
+	for L̄ in L̄_vec
+		δ = LinRange(1, L̄, 100)
+		plot!(δ./L̄, αc_err(δ, L̄), label="L=$L̄")
+	end
+	plot!(xlabel="δ/L̄", ylabel="α_c'/α_c")
+
+	p
+end
+
+# ╔═╡ 31ad0b42-7a71-493f-89ec-0d980e95f7ef
+md"""We see that we make more and more error if we compress the system (i.e. δ is large). More particularly, let's look only at δ = L̄ (i.e. L = 1), as a function of L̄."""
+
+# ╔═╡ b031a2aa-c3e2-4be3-a049-df7a303972d7
+let
+	L̄ = LinRange(1, 100, 1000)
+
+	e = αc_err.(L̄, L̄)
+	
+	plot(
+		L̄, e, 
+		label="", 
+		xlabel="L̄", ylabel="α_c'/α_c", 
+		title="error for δ = L̄"
+	)
+end
+
+# ╔═╡ 3eae7ee1-4f9a-4509-82c2-b41a0f4c3b9c
+md"""
+In our case, we have δ = 35, L̄ = 35. We see that α_c will be underestimated by one order of magnitude! What this means, therefore, is that you need to actually be able to go 10x larger in your initiation rate to actually cause a change in densities.
+"""
+
+# ╔═╡ 56668918-92ed-49a7-b3fe-38f6b9215cd7
+@show αc_err(35, 35)
 
 # ╔═╡ 5275d868-09ab-43ea-a336-7267e2084353
 md"""
@@ -199,10 +273,14 @@ Here we want to grasp the impact of introducing granularity into the model.
 
 Right now we are assuming that the particles take 35 bp jumps. That is, all spatial coordinates have been rescaled by 35 (x' = x/35). Such that β is actually 35 x too small (it moves slower because takes larger steps). 
 
+Let us denote by δ the rescaling factor, i.e. δ = 35/L, and β = β̄ / δ. 
+
 Therefore, we have to compare three results: 
-* L = 1, β = β̄/L: everything scaled by L (what we are modelling now)
-* L = L, β = β̄: large particles moving at the given proper rate (what we should be modelling to be really accurate)
-* L = 1, β = β̄: what the impact of the extent really is
+* δ = 35 (i.e. L = 1), β = β̄/δ: everything scaled so that the RNAp takes only 1bp jumps (i.e. what we have mostly been modelling). 
+* δ = 1 (i.e. L = 35), β = β̄: large particles moving at the given proper rate (what we should be modelling to be really accurate)
+* δ = 35 (i.e. L=1), β = β̄: what is the impact of changing the size of the representation but keeping the actual rate
+
+Note: exploring the fourth possibility (i.e. δ = 1, L = 35 with β = β̄) does not make a lot of sense, as there is no reason it would help us. 
 """
 
 # ╔═╡ 2adc96f0-aeae-4c8a-80e6-1ed6c9ddffcc
@@ -212,7 +290,7 @@ Therefore, we have to compare three results:
 md""" β = $β_rescale"""
 
 # ╔═╡ 825da303-dd0b-494c-bc46-eb7b8cfaf444
-@bind γ_rescale Slider(rates)
+γ_rescale = nothing
 
 # ╔═╡ 8dfbb51d-5d37-4783-8467-6faec8111653
 md""" γ = $γ_rescale"""
@@ -221,28 +299,35 @@ md""" γ = $γ_rescale"""
 # currents, again assuming that we are not in γ limited regime
 
 let
-	β = β_rescale
-	L_ref = 10
-
-	α_vec = 10. .^(collect(LinRange(-3, 3, 1000)))
+	β̄ = β_rescale
+	L̄ = 35
+	L_vec = [1, 10, 20, 25, 30, L̄]
+	δ = L̄ ./ L_vec
+	β_vec = β̄ ./ δ
+		
+	α_ratio_vec = 10. .^(collect(LinRange(-3, 3, 1000)))
 
 	p = plot()
 
-	for L in [1, 2, 3]
+	for k in 1:length(β_vec)
+		β = β_vec[k]
+		L = L_vec[k]
+		αs = α_ratio_vec ./ β
+		
 		plot!(
-			α_vec.*β*L, theory.J.(α_vec.*β*L, β*L, γ_rescale, L), 
-			label="L=$L, β=$(round(β*L; digits=3))", linewidth=2
+			αs, J.(αs, β, γ_rescale, L), 
+			label="L=$L, β=$(round(β; digits=3))", linewidth=2
 		)
 
 	end
 	
 	xlabel!("α")
 	ylabel!("J")
-	plot!(legend=:topleft)
-	# plot!(xscale=:log)
-	xlims!(0, 5*β)
-	ylims!(0, β)
-	hline!([β], label="J=β", linestyle=:dash, linewidth=3)
+	plot!(legend=:outertopright)
+	plot!(xscale=:log10)
+	# xlims!(0, 5*β)
+	# ylims!(0, β)
+	# hline!([β], label="J=β", linestyle=:dash, linewidth=3)
 	p
 end
 
@@ -279,7 +364,7 @@ md"""### Entry limited"""
 let
 	
 	β =.1
-	γ = 1000
+	γ = nothing
 
 	x = [0, .5, 1]
 
@@ -291,7 +376,7 @@ let
 		p = plot()
 		
 		for (i,L) in enumerate([1, 10, 30])
-			ρL, ρN, ρR = theory.ρ(α, β, γ, L)
+			ρL, ρN, ρR = ρ(α, β, γ, L)
 			hline!([L*ρN], linestyle=:dash, color=color_palette[i], label="α/β=$(round(α/β; digits=2)), L=$L")
 			scatter!(x, [L*ρL, L*ρN, L*ρR], color=color_palette[i], label="", alpha=.3)
 		end
@@ -335,7 +420,7 @@ let
 		p = plot()
 		
 		for (i,L) in enumerate([1, 20, 30])
-			ρL, ρN, ρR = theory.ρ(α, β, γ, L)
+			ρL, ρN, ρR = ρ(α, β, γ, L)
 			hline!([L*ρN], linestyle=:dash, color=color_palette[i], label="γ/β=$(round(γ/β; digits=2)), L=$L")
 			scatter!(x, [L*ρL, L*ρN, L*ρR], color=color_palette[i], label="", alpha=.3)
 		end
@@ -358,11 +443,6 @@ md"""### Occupancy
 
 Can we say anything about the occupancy over the strand, and whether or not we see this abrupt transition?"""
 
-# ╔═╡ 0fa2bc84-73d5-43fd-8661-e7a84554cca7
-md"""
-We have expression for $\rho_{N/2}$. Assuming the density is homogeneous, it is therefore directly proportional to the occupancy. 
-"""
-
 # ╔═╡ 2d2c0d45-5d3b-4256-a9d8-86a44675db01
 # do we observe the transition as in both models I have analyzed last week? 
 
@@ -373,11 +453,11 @@ let
 	
 	color_palette = palette([:blue, :green], length(Ls))
 
-	αs = 10 .^collect(LinRange(-3, 1, 50)).*γ
+	αs = 10 .^collect(LinRange(-3, 1, 50)).* γ
 	p = plot()
 	
 	for (i,L) in enumerate(Ls)
-		ρs = theory.ρ.(αs, β, γ, L)
+		ρs = ρ.(αs, β, γ, L)
 		ρN = [ρ[2] for ρ in ρs]
 		plot!(
 			αs./γ, ρN, linestyle=:dash, label="L=$L", color=color_palette[i]
@@ -390,6 +470,7 @@ let
 	plot!(xscale=:log10, yscale=:log10)
 	vline!([1], label="", color=:red)
 	plot!(legend=:topleft)
+	plot!(title="Occupancy as a function of particle size")
 
 	xlabel!("α/γ")
 	ylabel!("~ Occupancy")
@@ -397,12 +478,46 @@ let
 
 end
 
-# ╔═╡ 0177b6b3-02a3-4166-86cc-4d4f7f7a5804
+# ╔═╡ 7e0462d8-e251-4b1c-9d22-3c905b89f95d
+# do we observe the transition as in both models I have analyzed last week? 
+
+let
+	β = 1
+	γ = nothing
+	Ls = [1, 2, 10, 20, 30]
+	
+	color_palette = palette([:blue, :green], length(Ls))
+
+	αs = 10 .^collect(LinRange(-3, 2, 100))
+	p = plot()
+	
+	for (i,L) in enumerate(Ls)
+		ρs = ρ.(αs, β*L, γ, L)
+		ρN = [ρ[2] for ρ in ρs]
+		plot!(
+			αs, ρN * L, linestyle=:dash, label="L=$L, β = $(round(β*L; digits=3))", color=color_palette[i], linewidth=2
+		)
+
+		vline!([β*L / (1 + L^(1/2))], color=:gray, linewidth=.5, label="")
+		# scatter!(
+		# 	αs, ρN, linestyle=:dash, label="", color=color_palette[i]
+		# )
+	end
+
+	plot!(xscale=:log10, yscale=:log10)
+	plot!(legend=:topleft)
+	plot!(title="Occupancy as a function of particle size")
+
+	xlabel!("α")
+	ylabel!("~ Occupancy")
+
+end
+
+# ╔═╡ 1c909f4b-7743-4ac8-bfc8-32f2de8fc63b
 md"""
-## fold changes
+We see that as long as the gene is not saturated (as long as we are in the entry-limited regime) there is little variation between the different representations.
 
-How would fold changes actually behave here? Do we have a good idea? Can we use theory for that? 
-
+**But** there is about one order of magnitude between the different transitions -- and the high δ cases saturate much faster
 """
 
 # ╔═╡ fa404ca1-049b-49fe-b894-0cba3080dc01
@@ -477,7 +592,7 @@ let
 	p = plot()
 
 	plot!(
-		γ_vec, theory.J.(α_, β_, γ_vec, 1), 
+		γ_vec, J.(α_, β_, γ_vec, 1), 
 		label="", linewidth=2
 	)
 
@@ -603,14 +718,15 @@ function simulate_promoter(k_on_vec, α, β, k_out, n_steps, Δt)
 				s = wsample(
 					["off", "init", "nothing"], [k_out*Δt, α*Δt, 1-Δt*(k_out+α)]
 				)
+				if s=="init"
+					n_inits_crt += 1
+				end
+				
 				if (s=="off")
 					sites[1]=0
 				elseif (s=="init") & (sites[2]==0)
 					sites[2]=1
 					sites[1]=0
-
-					# initiation
-					n_inits_crt += 1
 				end
 			end
 			
@@ -627,35 +743,112 @@ end
 
 # ╔═╡ a46cd130-d46a-4a3c-b99d-a8fe69640ea8
 begin
-	k_on_vec = 10. .^(LinRange(-4, 1, 20))
+	k_on_vec = 10. .^(LinRange(-1, 2, 20))
 	Δtp = 1e-2
-	βp = 33
+	βp = 1
 
 	Ω = 2
-	αp = 1/5
-	k_out_p = 1/2 - αp
+	αp = 1e0/1 * 1/Ω
+	k_out_p = 1/Ω - αp
+	@show k_out_p
 	n_steps = 1e6
 	
 	n_inits, n_bindings, promoter_occ = simulate_promoter(k_on_vec, αp, βp, k_out_p, n_steps, Δtp)
 end
 
 # ╔═╡ da26766c-f908-41da-bde4-ee2899237dac
-begin
-		scatter(k_on_vec, n_inits ./ (n_steps * Δtp), label="simulations")
-		plot!(k_on_vec, k_on_vec .* αp ./ (k_on_vec .+ αp .+ k_out_p), label="theory")
+let
+	p1 = scatter(k_on_vec, n_inits ./ (n_steps * Δtp), label="simulations")
+	plot!(k_on_vec, k_on_vec .* αp ./ (k_on_vec .+ αp .+ k_out_p), label="theory")
 	plot!(legend=:bottomright)
 	# plot!(xscale=:log10)
 	plot!(xlabel="kon", ylabel="effective initiation rate")
-end
+	plot!(xscale=:log10)
+	# hline!([βp], label="β/2")
 
-# ╔═╡ 1dcb0cfb-71e9-4db0-b6b3-b897e9f3ede6
-begin
-	scatter(k_on_vec, promoter_occ ./ (n_steps), label="simulations")
+	p2 = scatter(k_on_vec, promoter_occ ./ (n_steps), label="simulations")
 	plot!(k_on_vec, k_on_vec ./ (k_on_vec .+ αp .+ k_out_p), label="theory")
 	plot!(legend=:bottomright)
 	plot!(xlabel="kon", ylabel="promoter occupancy")
-	# plot!(xscale=:log10)
+	plot!(xscale=:log10)
+
+	plot([p1, p2]..., layout=(1, 2))
 end
+
+# ╔═╡ 0b5f1ed0-51c0-41d0-9946-9e3f6c91b524
+md"""
+The things that can change the validity of the predictions are:
+- value of β
+- value of α
+- value of Ω?
+"""
+
+# ╔═╡ 097625a8-43a1-44a7-86b3-04f0b718f505
+md"""
+What dictates the discrepancy between these values?  It seems that as I decrease β or increase α we have a difference between theory and prediction. 
+
+Let us check that for a single value of kon, many values of β, α
+"""
+
+# ╔═╡ ec875061-2f1d-4d9b-8c0a-d6a6925dc4a4
+function α_eff_map(Ω, α, β; kon_map = 1)
+	
+	α_eff = zeros(length(α), length(β))
+	α_eff_th = copy(α_eff)
+
+	k_out = 1/Ω .- α
+
+	Δt = 1e-2
+	n_steps = 5e6
+
+	for (i,j) in collect(Iterators.product(1:length(α), 1:length(β)))
+	
+		n_inits, n_bindings, promoter_occ = simulate_promoter(
+			kon_map, α[i], β[j], k_out[i], n_steps, Δt
+		)
+		α_eff[i,j] = n_inits[1] / (n_steps * Δt)
+
+		α_eff_th[i,j] = effective_α(kon_map, k_out[i], α[i])
+	end
+
+	return α_eff ./ α_eff_th
+	
+end
+
+# ╔═╡ e8703636-bbfe-46e2-9191-bd70f45d4a57
+begin
+	kon_map = 1
+
+	Ω_map = 1
+	α_map = (10. .^(collect(LinRange(-2, 0, 10)))) .* 1/Ω_map
+	β_map = 10. .^(collect(LinRange(-2, 1, 5)))
+end;
+
+# ╔═╡ 06fc9bd4-4f61-4c6f-b096-4fd94c7d26f3
+α_map
+
+# ╔═╡ 7345c8db-73ce-4a90-a1b2-9478ab4d8a41
+β_map
+
+# ╔═╡ 757777f2-889e-4156-afd7-79baf084b20d
+α_rat = α_eff_map(Ω_map, α_map, β_map; kon_map=kon_map);
+
+# ╔═╡ 24d55bf6-aed0-4d87-9682-00eb828b19bd
+heatmap(
+	β_map, α_map, α_rat, 
+	ylabel="α", xlabel="β", 
+	xscale=:log10, yscale=:log10, 
+	c=cgrad(:matter, 10, categorical = true)
+)
+
+# ╔═╡ 4960f6f2-7569-48f7-82f2-d5fd6af151ee
+md"""
+We see that the prediction fails for 
+- low values of β
+- high values of α
+
+We are not able to grasp the real value of the effective initiation rate
+"""
 
 # ╔═╡ Cell order:
 # ╠═78b6d800-c9b7-4487-aaec-c804410278f3
@@ -665,7 +858,7 @@ end
 # ╟─bfe95384-e816-4ae8-afc2-631fc824bbef
 # ╟─7359697b-cc44-47b6-8a8c-2230dbee2eeb
 # ╟─ca87554a-0149-446a-99e9-443ca7dfd389
-# ╠═b5342ffd-0d37-44d1-9656-7929e0418156
+# ╟─b5342ffd-0d37-44d1-9656-7929e0418156
 # ╟─c4edf93a-b67e-415c-8d73-43d2c44050ee
 # ╟─6ee4187d-f8fb-4617-83fe-b7b38a43404d
 # ╠═e8577416-39cc-4dac-a5b3-e04ae43d3d7b
@@ -677,19 +870,28 @@ end
 # ╟─6c541268-e624-4ea6-be16-830b2e3fccc9
 # ╟─52cc9dc6-b816-4d30-a9b2-abe8599e9616
 # ╟─a2fc5a3f-d5c8-4a74-8d83-c9639cc08a32
-# ╟─21f9f9a1-bc6a-4de2-99d6-b48738caca2c
+# ╠═21f9f9a1-bc6a-4de2-99d6-b48738caca2c
 # ╟─4173cf58-f5fc-4758-b1cd-1919cd34265e
 # ╟─b4b30449-3d6f-438e-a398-57d799888a68
-# ╟─f067ebdf-3ab8-4efd-ad93-e26ecadfe11a
+# ╠═f067ebdf-3ab8-4efd-ad93-e26ecadfe11a
 # ╟─c463821d-8a79-4fca-b59f-b4a354ceb606
-# ╟─21d06d82-4f36-472c-b74c-30699056976a
+# ╠═cc28a585-97b2-48f4-b133-b06d8ddf8927
+# ╠═cdbd7292-cdbe-4e40-bb68-f5115ede9c16
+# ╟─e4e9dd81-6380-402c-ba2e-6147b0f32493
+# ╠═f654bd6b-6850-4bb0-b4bb-d45311d21769
+# ╠═3fff6894-bbe5-4589-93c8-aee7d06769a5
+# ╠═889ff8cf-d1a7-4ade-adea-16c216694d2b
+# ╟─31ad0b42-7a71-493f-89ec-0d980e95f7ef
+# ╠═b031a2aa-c3e2-4be3-a049-df7a303972d7
+# ╟─3eae7ee1-4f9a-4509-82c2-b41a0f4c3b9c
+# ╠═56668918-92ed-49a7-b3fe-38f6b9215cd7
 # ╟─5275d868-09ab-43ea-a336-7267e2084353
 # ╟─2e9e5fd9-9e3e-44dd-8a47-61a647097325
 # ╟─ef2863e3-ad2f-45fc-9bee-3846581818fe
-# ╟─2adc96f0-aeae-4c8a-80e6-1ed6c9ddffcc
+# ╠═2adc96f0-aeae-4c8a-80e6-1ed6c9ddffcc
 # ╟─8dfbb51d-5d37-4783-8467-6faec8111653
-# ╟─825da303-dd0b-494c-bc46-eb7b8cfaf444
-# ╟─fd8625d5-0065-43a8-9dcf-1f0dabf043a7
+# ╠═825da303-dd0b-494c-bc46-eb7b8cfaf444
+# ╠═fd8625d5-0065-43a8-9dcf-1f0dabf043a7
 # ╟─425c6f37-936b-466a-acae-d5c2efdd5f3d
 # ╟─54bf5fb0-c219-4385-8ee6-88411821ac32
 # ╟─772e015a-fa71-4cab-83d9-ac24762b132b
@@ -698,10 +900,10 @@ end
 # ╟─42312f09-54d6-4ae9-a67b-d06f11c85c31
 # ╟─4a9578ac-1580-40ce-a72d-26815fea6129
 # ╟─de58ca4e-7134-4910-9532-6defa8e7689c
-# ╟─7e82dc32-10e0-4e55-84fd-80c6eca84514
-# ╟─0fa2bc84-73d5-43fd-8661-e7a84554cca7
-# ╠═2d2c0d45-5d3b-4256-a9d8-86a44675db01
-# ╠═0177b6b3-02a3-4166-86cc-4d4f7f7a5804
+# ╠═7e82dc32-10e0-4e55-84fd-80c6eca84514
+# ╟─2d2c0d45-5d3b-4256-a9d8-86a44675db01
+# ╠═7e0462d8-e251-4b1c-9d22-3c905b89f95d
+# ╟─1c909f4b-7743-4ac8-bfc8-32f2de8fc63b
 # ╟─fa404ca1-049b-49fe-b894-0cba3080dc01
 # ╟─c7ca281b-e980-44f1-8963-f2c04290225d
 # ╟─d15931d9-2263-4b34-b972-6cb1c7a7ae1b
@@ -727,4 +929,12 @@ end
 # ╠═5036ec33-5c94-4b5e-bcdf-089365166343
 # ╠═a46cd130-d46a-4a3c-b99d-a8fe69640ea8
 # ╟─da26766c-f908-41da-bde4-ee2899237dac
-# ╠═1dcb0cfb-71e9-4db0-b6b3-b897e9f3ede6
+# ╠═0b5f1ed0-51c0-41d0-9946-9e3f6c91b524
+# ╠═097625a8-43a1-44a7-86b3-04f0b718f505
+# ╠═ec875061-2f1d-4d9b-8c0a-d6a6925dc4a4
+# ╠═e8703636-bbfe-46e2-9191-bd70f45d4a57
+# ╠═06fc9bd4-4f61-4c6f-b096-4fd94c7d26f3
+# ╠═7345c8db-73ce-4a90-a1b2-9478ab4d8a41
+# ╠═757777f2-889e-4156-afd7-79baf084b20d
+# ╠═24d55bf6-aed0-4d87-9682-00eb828b19bd
+# ╠═4960f6f2-7569-48f7-82f2-d5fd6af151ee
