@@ -24,6 +24,7 @@ export run_walker, set_Δt, get_total_occupancy
 export run_occupancy_simulation, get_feasible_pts, is_feasible, get_quantile, reshape_results
 export load_ChIP_data, load_gene_bins, RNA_free_frac, Rpb1_occupancy_haploid_interp
 export CV_to_RNAfree_interp, RNAfree_to_CV_interp
+export ρp_MC, TransitionMatrix
 
 
 # Files

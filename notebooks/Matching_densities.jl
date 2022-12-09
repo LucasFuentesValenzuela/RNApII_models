@@ -54,7 +54,7 @@ md"""# Define parameters"""
 # ╔═╡ 6aa4adfc-beb4-4615-8ae2-1d0eff4684ce
 begin
 	α = 1/2 # LITERATURE_PARAMS["min_α"]
-	β = .6# LITERATURE_PARAMS["max_β"] / OCCUPANCY_PARAMS["δ"]
+	β = 1# LITERATURE_PARAMS["max_β"] / OCCUPANCY_PARAMS["δ"]
 	Ω = 2 # OCCUPANCY_PARAMS["Ω"]
 	γ = nothing
 	L = OCCUPANCY_PARAMS["L"]
@@ -67,7 +67,7 @@ begin
 
 	n_kon_pts = 8
 	k_on_vec = 10 .^(LinRange(
-		-.5, -.3, n_kon_pts
+		-2, 1.5, n_kon_pts
 	));
 	
 	params_iter = collect(
@@ -126,6 +126,10 @@ begin
 
 	prom_occ_th = ρp.(k_on_vec, koff, α)
 
+	prom_occ_MC = ρp_MC.(α, β, k_on_vec, koff; order=5)
+
+	occ_MC = map(f -> (ρ.(f, β, γ, L))[2], α * prom_occ_MC) .* OCCUPANCY_PARAMS["n_sites"]
+
 end;
 
 # ╔═╡ 6fe14578-5c4c-49e9-9020-97f8ac53c010
@@ -175,6 +179,18 @@ let
 		color=:forestgreen
 	)
 	plot!(
+		k_on_vec, occ_MC, 
+		xscale=:log10, label="", 
+		color=:darkorange
+	)
+	scatter!(
+		k_on_vec, occ_MC, 
+		xscale=:log10, 
+		label="MC", 
+		color=:darkorange
+	)
+	
+	plot!(
 		k_on_vec, occ_from_prom_occ, 
 		linestyle=:dash, linewidth=2, label="α_eff from prom occupancy"
 	)
@@ -213,6 +229,18 @@ let
 		color=:forestgreen
 	)
 
+	plot!(
+		k_on_vec, prom_occ_MC, 
+		xscale=:log10, label="", 
+		color=:darkorange
+	)
+	scatter!(
+		k_on_vec, prom_occ_MC, 
+		xscale=:log10, 
+		label="MC", 
+		color=:darkorange
+	)
+
 	plot!(xlabel="kon", ylabel="occupancy", title="promoter")
 	# plot!(yscale=:log10)
 	plot!(legend=:bottomright)
@@ -230,6 +258,9 @@ let
 
 	plot!(
 		k_on_vec, α_eff_prom, label="α_from_promoter", linewidth=2, color=:blue
+	)
+	plot!(
+		k_on_vec, α * prom_occ_MC, label="MC", color=:orange
 	)
 
 	plot!(xscale=:log10)
@@ -337,7 +368,7 @@ end
 # ╠═1ed4e2b1-4c8d-491c-b2fc-ee7005627aa8
 # ╠═2f71e54d-e676-4713-afd6-e49ed5f8736d
 # ╠═6a6b01b9-dc76-46df-9d1d-2687125b4781
-# ╟─3f858e05-5067-45fd-b5ea-77f726d5fe33
+# ╠═3f858e05-5067-45fd-b5ea-77f726d5fe33
 # ╟─6fe14578-5c4c-49e9-9020-97f8ac53c010
 # ╠═9b57f836-d6dc-4295-a75f-48b74d402ffc
 # ╠═2f92f886-10ae-4e58-ab24-c4f5cb8eea9c

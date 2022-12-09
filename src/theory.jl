@@ -117,3 +117,56 @@ check_γ(γ) = γ === nothing ? LARGE_γ : γ
 Promoter occupancy
 """
 ρp(kon, koff, α) = kon / (kon + koff + α)
+
+"""
+Transition matrix of a markov chain
+"""
+
+
+# Ts(α, β, kon, koff, Δt) = Dict(
+#     1 => T(α, β, kon, koff, Δt), 
+#     2 => T2(α, β, kon, koff, Δt)
+# )
+
+"""
+Promoter occupancy based on a MC approximation
+"""
+function ρp_MC(T)
+    n = size(T, 1)
+    sum(mean(T^1e3; dims=2)[Int(n/2)+1:end])
+end
+
+ρp_MC(α, β, kon, koff, Δt; order=2) = ρp_MC(TransitionMatrix(α, β, kon, koff, Δt; order=order))
+
+ρp_MC(α, β, kon, koff; order=2) = ρp_MC(α, β, kon, koff, set_Δt(α, β, β, kon, koff, nothing); order=order)
+
+"""
+"""
+function TransitionMatrix(α, β, kon, koff, Δt; order)
+	n = 2^order
+	T = zeros(n, n)
+
+	# 0-sites
+	T[1, 1] = 1-kon * Δt
+	T[Int(n/2)+1, 1] = kon * Δt
+	for k in 2:Int(n/2)
+		T[k-1, k] = β * Δt
+		T[k, k] = 1 - (β + kon) * Δt
+		T[Int(n/2) + k, k] = kon * Δt
+	end
+
+	# 1-sites
+	T[1, Int(n/2)+1] = koff * Δt
+	T[Int(n/4) + 1, Int(n/2) + 1] = α * Δt
+	T[Int(n/2) + 1, Int(n/2) + 1] = 1 - (α + koff) * Δt
+	for k in Int(n/2) + 2: Int(3*n/4)
+		T[Int(n/4) + k - Int(n/2), k] = α * Δt
+		T[Int(n/4) + k - Int(n/2) + 1, k] = β * Δt
+		T[Int(n/4) + k - Int(n/2) + 2, k] = 1 - (α+β) * Δt
+	end
+	for k in Int(3n/4)+1:n
+		T[k-1, k] = β*Δt
+		T[k, k] = 1-β*Δt
+	end
+	return T
+end
