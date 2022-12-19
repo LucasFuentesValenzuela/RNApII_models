@@ -65,8 +65,8 @@ max_ρ_p = 0.04
 
 
 # number of mRNA molecules in gene body [-]
-min_ρ_g = 0.15
-max_ρ_g = .4
+min_ρ_g = 0.15 - max_ρ_p
+max_ρ_g = .4 - min_ρ_p
 
 # total residence time on promoter + gene body [-]
 min_Ψ = 23

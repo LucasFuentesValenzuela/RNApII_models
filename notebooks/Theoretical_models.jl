@@ -850,6 +850,39 @@ We see that the prediction fails for
 We are not able to grasp the real value of the effective initiation rate
 """
 
+# ╔═╡ 5af99272-9b87-4b25-8eb4-e75e0a14cfc3
+md"""# Influence of Ω"""
+
+# ╔═╡ 24ae324c-8e00-4749-8440-1fb471ddf2b7
+@bind αΩ Slider(
+	LinRange(
+		LITERATURE_PARAMS["min_α"], 
+		min(LITERATURE_PARAMS["max_α"]), 
+		10
+	)
+)
+
+# ╔═╡ ca29e38b-171b-4dd7-b7ec-b3d31f66a19a
+koffs(x) = 1/x - αΩ
+
+# ╔═╡ 2585179f-14b1-4d28-81a3-f8e86b299f35
+let 
+	q = plot()
+	for Ω in 1:5
+		α_eff = effective_α.(RNApIIModels.k_on_vec_screen, koffs(Ω), αΩ)
+
+		plot!(RNApIIModels.k_on_vec_screen, α_eff, label="Ω=$Ω")
+	end
+	plot!(ylim=(0, 0.01))
+	plot!(xlabel="kon", ylabel="α_eff", title="α = $αΩ")
+	q
+end
+
+# ╔═╡ fe6b9eff-0963-4008-abc5-2efb99748bb2
+md"""
+We see that the initiation rate (effective) increases with its residence time. The reason is that koff decreases, so it is more likely to actually initiate. 
+"""
+
 # ╔═╡ Cell order:
 # ╠═78b6d800-c9b7-4487-aaec-c804410278f3
 # ╠═9d253cf6-a8c1-4f01-8604-b05044e4a72f
@@ -938,3 +971,8 @@ We are not able to grasp the real value of the effective initiation rate
 # ╠═757777f2-889e-4156-afd7-79baf084b20d
 # ╠═24d55bf6-aed0-4d87-9682-00eb828b19bd
 # ╠═4960f6f2-7569-48f7-82f2-d5fd6af151ee
+# ╠═5af99272-9b87-4b25-8eb4-e75e0a14cfc3
+# ╠═24ae324c-8e00-4749-8440-1fb471ddf2b7
+# ╠═ca29e38b-171b-4dd7-b7ec-b3d31f66a19a
+# ╠═2585179f-14b1-4d28-81a3-f8e86b299f35
+# ╠═fe6b9eff-0963-4008-abc5-2efb99748bb2

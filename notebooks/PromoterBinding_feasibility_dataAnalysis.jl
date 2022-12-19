@@ -34,8 +34,14 @@ using Plots
 # ╔═╡ 38975f19-7e86-491b-8794-b2e7841b1967
 using Interpolations
 
-# ╔═╡ ec58d9c0-ae9c-43cc-b2a8-bf9182204ebe
-using Statistics
+# ╔═╡ d0a7578b-39c9-44c7-af78-2123e763e4c5
+using CubicSplines
+
+# ╔═╡ 683257e7-3140-4bda-b88a-c25e0401f773
+using DataFrames
+
+# ╔═╡ 4feb63d1-7a61-47bb-97d6-d1ff7c5aad87
+using CSV
 
 # ╔═╡ 9581b94f-0c7d-4c4d-bfc6-2c9824ba3ac7
 TableOfContents()
@@ -78,8 +84,14 @@ md"""# Feasible points screen"""
 # ╔═╡ e5de0f99-a58d-4952-824e-f6ada230bef8
 PATH = "/Users/lucasfuentes/RNApII_models"
 
+# ╔═╡ 7e07d15c-a503-4575-9a4a-8415980c65d5
+PATH_OUT = "/Users/lucasfuentes/Library/CloudStorage/GoogleDrive-lucasfv@stanford.edu/My Drive/Work/Skotheim/Data/RNApIIModels_outputs"
+
+# ╔═╡ 629b3e35-3331-4bed-8186-541016e9fa58
+@bind Ω_val Select([1, 2, 3, 4])
+
 # ╔═╡ 4bd04289-7f6c-4fa5-9e10-6de3b2040c23
-fnm(x) = joinpath(PATH, "results", "feasible_pts_$(x).jld2")
+fnm(x) = joinpath(PATH, "results", "feasible_pts_$(x)_Omega$(Ω_val).jld2")
 
 # ╔═╡ 35a0da09-d22b-4e08-82e3-7edb88e003a8
 begin 
@@ -89,7 +101,7 @@ begin
 		typemap=Dict("Main.Params" => RNApIIModels.Params)
 	);
 
-	# taking the first element in the array to facilitate analysis
+	# taking the first element in }the array to facilitate analysis
 	occupancy = get_quantile(results["occupancy"], .5)
 	promoter_occ = get_quantile(results["promoter_occ"], .5)
 	params_iter = results["params_iter"]
@@ -98,22 +110,27 @@ end;
 # ╔═╡ 287994aa-7329-4a18-a7ac-9556a485306c
 feasible, feasible_pts = get_feasible_pts(fnm_screen);
 
+# ╔═╡ 5c24344c-ff17-4ec2-84c8-f981b36f55e3
+feasible_pts
+
 # ╔═╡ 67783a0e-82fb-46b2-b69b-c36a619a89bb
 begin
 	# heatmap(α_vec, k_on_vec, feasible)
-	heatmap(feasible)
-	# plot!(xlabel="α", ylabel="k_on")
+
+	α_vec_screen = [params_iter[k][1] for k in 1:length(params_iter)]
+	kon_vec_screen = params_iter[1][3]
+	heatmap(α_vec_screen, kon_vec_screen, feasible)
+	plot!(xlabel="α", ylabel="k_on")
+	hline!([RNApIIModels.min_k_on, RNApIIModels.max_k_on], label="limits kon", linewidth=2)
+	vline!([RNApIIModels.min_α, RNApIIModels.max_α], label="limits α", linewidth=2)
+	vline!([1/Ω_val], label="1/Ω", linewidth=4, color=:red)
+	plot!(title="Ω = $Ω_val")
 	# hline!([ps.min_k_on, ps.max_k_on], label="limits kon", linewidth=2)
 	# vline!([ps.min_α, ps.max_α], label="limits α", linewidth=2)
 end
 
 # ╔═╡ 46e6137c-cecd-4763-8f45-b1076ae36e13
 @bind iter_nb Slider(1:length(params_iter))
-
-# ╔═╡ b12bfc38-3f7f-40d2-ac84-a140cd8ddb13
-md"""
-*TODO* indicate which ones are the feasible points
-"""
 
 # ╔═╡ a4b4db5a-483a-4af2-90f9-5ed46c1892b8
 let
@@ -138,7 +155,7 @@ let
 	α_ = params_[1]
 	β_ = params_[2]
 	konvec = params_[3]
-	koff_ = max(1/OCCUPANCY_PARAMS["Ω"] - α_, 0)
+	koff_ = max(1/Ω_val - α_, 0)
 
 	α_eff = effective_α.(konvec, koff_, α_)
 
@@ -181,7 +198,7 @@ let
 	α_ = params_[1]
 	β_ = params_[2]
 	konvec = params_[3]
-	koff_ = max(1/OCCUPANCY_PARAMS["Ω"] - α_, 0)
+	koff_ = max(1/Ω_val - α_, 0)
 
 
 	ρ_p_th = RNApIIModels.ρp.(konvec, koff_, α_)
@@ -225,15 +242,20 @@ end;
 
 # ╔═╡ d23a3327-4e8c-4fc5-aeb0-ef1c166bb1b5
 # plotting the results for the feasible points
+# also saving the data in a DataFrame
 begin
+	
 	# plot the result
 	plots_feasible = []
 	sfs = []
 	plots_feasible_kon = []
 
 	df = load_ChIP_data()
+
+	dfs_avg_gene = []
 	
-	for idx_feasible_point in 1:length(params_iter_nw)
+	for idx_feasible_point in 1:length(feasible_pts)
+		
 		kon_vec_ = params_iter_nw[idx_feasible_point][3]
 		k_crt = feasible_pts[idx_feasible_point][1] # kon at 50fL
 		CV_crt = RNAfree_to_CV_interp().(kon_vec_ / k_crt * RNA_free_avgCell)
@@ -245,6 +267,24 @@ begin
 		w = q_up - q_dwn
 		
 		occ_crt = occupancy_nw[idx_feasible_point]
+
+		df_avg_gene_crt = DataFrame(
+			id = idx_feasible_point, 
+			kon = kon_vec_, 
+			cell_size = CV_crt, 
+			occ90 = q_up, 
+			occ10 = q_dwn, 
+			occ50 = occ_crt
+		)
+
+		push!(dfs_avg_gene, df_avg_gene_crt)
+
+		
+		###########
+		#
+		# Plotting occupancy as a function of kon
+		# 
+		###########
 
 		p_crt = plot(CV_crt, mid, ribbon=w, fillalpha=.3, label="")
 		plot!(CV_crt, occ_crt, label="")
@@ -304,7 +344,7 @@ end
 
 # ╔═╡ 01462590-ba62-4796-9d5c-8f0127de58d0
 let
-	p_all = plot((plots_feasible[1:10])..., layout = (5, 2))
+	p_all = plot((plots_feasible[1:8])..., layout = (4, 2))
 	plot!(size=(1000, 1000))
 	savefig(joinpath(PATH, "figs", "feasible_points.png"))
 
@@ -313,7 +353,7 @@ end
 
 # ╔═╡ 121e3d11-9a12-44a6-9403-0ab7dde865fc
 let
-	p_all = plot((plots_feasible_kon[1:10])..., layout = (5, 2))
+	p_all = plot((plots_feasible_kon[1:8])..., layout = (4, 2))
 	plot!(size=(1000, 1000))
 	savefig(joinpath(PATH, "figs", "feasible_points_kon.png"))
 
@@ -350,9 +390,10 @@ The model gives us how the average gene in the average cell (50fL) scales in occ
 # ╔═╡ ac788865-7558-4736-8920-cbcd93efe83b
 # loading the "wide" dataset
 begin
-	# fnm_wd = fnm("wide")
-	fnm_wd = joinpath(PATH, "results", "feasible_pts_wide_update.jld2")
-
+	fnm_wd = fnm("wide")
+	# fnm_wd = joinpath(PATH, "results", "feasible_pts_wide_2xlims_Omega4.jld2")
+	# fnm_wd = joinpath(PATH, "results", "feasible_pts_wide_evenkons_Omega1.jld2")
+	
 	results_wd = JLD2.load(
 		fnm_wd;
 		typemap=Dict("Main.Params" => RNApIIModels.Params)
@@ -374,7 +415,11 @@ end;
 # kon fold changes
 # these apply across the board (for any bin/kon) because it is simply a change in 
 # [RNA]_free
-kon_fc = CV_to_RNAfree_interp().(df_bins.cell_volume_fL) ./ CV_to_RNAfree_interp().(df_bins.cell_volume_fL[3]);
+begin
+	kon_fc = CV_to_RNAfree_interp().(df_bins.cell_volume_fL) ./ CV_to_RNAfree_interp().(df_bins.cell_volume_fL[3]);
+	# kon_fc[4:end] *= 1.2
+	# kon_fc[end] = 1.6
+end
 
 # ╔═╡ d92ad4b6-f36b-4ffb-b55f-7ff76d5c0c03
 colors = palette([:purple, :orange, :green], size(df_bins, 2)-1);
@@ -408,13 +453,19 @@ begin
 	plots_fold_changes = []
 	plots_fold_changes_th = []
 	kons_lims = []
+
+	dfs_occ_model = []
 	
 	for idx_ in 1:length(feasible_pts)
 
 		α_wide = params_iter_wd[idx_][1]
 		β_wide = params_iter_wd[idx_][2]
 		kon_wide = params_iter_wd[idx_][3]
-		occ_model = linear_interpolation(kon_wide, occupancy_wd[idx_])
+		
+		# occ_model = linear_interpolation(kon_wide, occupancy_wd[idx_])
+		occ_model(x) = (CubicSpline(kon_wide, occupancy_wd[idx_]))[x]
+		
+		# occ_model = cubic_spline_interpolation(kon_wide, occupancy_wd[idx_])
 		
 		occ_avg_gene = occ_model(feasible_pts[idx_][1])
 		
@@ -446,7 +497,12 @@ begin
 			occ_values = occ_model.(kon_values)
 			df_occ_model[:, bin_nbr+1] = occ_values
 		end
-	
+
+		df_occ_model[!, :id] .= idx_
+
+		push!(dfs_occ_model, df_occ_model)
+
+		
 	
 		#######
 		#
@@ -474,7 +530,7 @@ begin
 		p_th_crt = plot()
 		for (k, bin) in enumerate(names(df_bins)[2:end])
 			kons = df_kons[:, bin]
-			α_eff = effective_α.(kons, 1/OCCUPANCY_PARAMS["Ω"] - α_wide, α_wide)
+			α_eff = effective_α.(kons, 1/Ω_val - α_wide, α_wide)
 
 			ρs = [(ρ.(
 				α, β_wide, OCCUPANCY_PARAMS["γ"], OCCUPANCY_PARAMS["L"])
@@ -487,7 +543,8 @@ begin
 				color = colors[k]
 			)
 		end
-		plot!(xlabel="Cell Size [fL]", ylabel="Occupancy fold change")
+		plot!(xlabel="Cell Size [fL]", ylabel="Occupancy fold change", title="Theory")
+		plot!(ylim=ylim)
 
 		push!(plots_fold_changes_th, p_th_crt)
 	
@@ -522,10 +579,18 @@ let
 	α_ = params_[1]
 	β_ = params_[2]
 	konvec = params_[3]
-	koff_ = max(1/OCCUPANCY_PARAMS["Ω"] - α_, 0)
+	koff_ = max(1/Ω_val - α_, 0)
 	α_eff = effective_α.(konvec, koff_, α_)
 	ρ_th = map(f -> (ρ.(f, β_, OCCUPANCY_PARAMS["γ"], OCCUPANCY_PARAMS["L"]))[2], α_eff)
 	ρp_th = ρp.(konvec, koff_, α_)
+
+	ρp_MC_ = ρp_MC.(α_, β_, konvec, koff_; order=4)
+	α_eff_MC = α_ * ρp_MC_
+	ρ_MC = map(f -> (ρ.(f, β_, OCCUPANCY_PARAMS["γ"], OCCUPANCY_PARAMS["L"]))[2], α_eff_MC)
+
+	δ = OCCUPANCY_PARAMS["δ"]
+	ρ_L = map(f -> (ρ.(f, β_ * δ, OCCUPANCY_PARAMS["γ"], OCCUPANCY_PARAMS["L"] * δ))[2], α_eff) .* δ
+
 
 	q_up = q_up_occ_wd[idx_p]
 	q_dwn = q_dwn_occ_wd[idx_p]
@@ -543,11 +608,25 @@ let
 	plot!(kon_wide, mid ./ n_sites, ribbon=w ./ n_sites, fillalpha=.3, label="")
 	scatter!(kon_wide, occupancy_wd[idx_p] ./ n_sites, label="gene body (sim)")
 	plot!(konvec, ρ_th, linestyle=:dash, linewidth=3, label="gene body (theory)", color=:firebrick)
+	plot!(konvec, ρ_MC, linestyle=:dot, linewidth=2, label="gene body (MC)")
+	plot!(konvec, ρ_L, linewidth=2, label="gene body (L)")
+	plot!(
+		xlabel="kon", ylabel="normalized occupancy", 
+		# xscale=:log10,
+		# yscale=:log10
+		legend=:bottomright
+	)
 	
-	plot!(kon_wide, promoter_occ_wd[idx_p], label="")
+	vline!([kons_lims[idx_p][1][1], kons_lims[idx_p][1][2]], label="")
+	vline!([kons_lims[idx_p][2][1], kons_lims[idx_p][2][2]], label="")
+	
+	# plot!(legend=:topleft)
+	
+	p3 = plot(kon_wide, promoter_occ_wd[idx_p], label="")
 	plot!(kon_wide, mid_prom, ribbon=w_prom, fillalpha=.3, label="")
 	scatter!(kon_wide, promoter_occ_wd[idx_p], label="promoter (sim)")
 	plot!(konvec, ρp_th, linestyle=:dash, linewidth=3, label="promoter (theory)")
+	plot!(konvec, ρp_MC_, linestyle=:dot, linewidth=2, label="promoter (MC)")
 	
 	plot!(
 		xlabel="kon", ylabel="normalized occupancy", 
@@ -558,10 +637,10 @@ let
 	vline!([kons_lims[idx_p][1][1], kons_lims[idx_p][1][2]], label="")
 	vline!([kons_lims[idx_p][2][1], kons_lims[idx_p][2][2]], label="")
 	
-	plot!(legend=:topleft)
+	# plot!(legend=:topleft)
 	
-	err_gene = abs.((occupancy_wd[idx_p] ./ n_sites .- ρ_th) ./ ρ_th)
-	err_prom = abs.((promoter_occ_wd[idx_p] .- ρp_th) ./ ρp_th)
+	err_gene = abs.((occupancy_wd[idx_p] ./ n_sites .- ρ_MC) ./ ρ_MC)
+	err_prom = abs.((promoter_occ_wd[idx_p] .- ρp_MC_) ./ ρp_MC_)
 	
 	err_plot = plot()
 	plot!(kon_wide, err_gene, label="")
@@ -596,6 +675,8 @@ let
 	plot!(xlabel="kon", ylabel="occupancy")
 	plot!(ylim=(1e-3, 1e1))
 	plot!(legend=:topleft)
+	vline!([kons_lims[idx_p][1][1], kons_lims[idx_p][1][2]], label="")
+	vline!([kons_lims[idx_p][2][1], kons_lims[idx_p][2][2]], label="")
 	q
 	
 	plot([
@@ -607,11 +688,72 @@ end
 
 # ╔═╡ 4b82c6d9-a148-4004-8451-58a80f99840f
 let
-	p_fc_all = plot((plots_fold_changes[1:10])..., layout = (5, 2))
+	p_fc_all = plot((plots_fold_changes[1:8])..., layout = (4, 2))
 	plot!(size=(1000, 1000))
-	savefig(joinpath(PATH, "figs", "fold_changes.png"))
+	savefig(joinpath(PATH, "figs", "fold_changes_Ω$(Ω_val).png"))
 
 	p_fc_all
+end
+
+# ╔═╡ 362c3c71-7cc6-4d56-bf4f-d2ae3cdfd486
+md"""
+# OUTPUTS for Matt
+"""
+
+# ╔═╡ 1a37c91c-2bef-4545-b93a-74ab68862eba
+# feasible point map -- I don't know how to output it properly
+# begin
+# 	df_feasible = DataFrame(
+# 		α = α_vec_screen, 
+# 		kon = Int.(feasible[10, :])
+		
+# 	)
+# end
+
+# ╔═╡ 1959a44a-23bb-435a-9470-392437fb94ed
+# outputting the feasible points and their statistics
+begin
+	# output cells
+	df_feasible_stats = DataFrame(
+		id = [k for k in 1:length(feasible_pts)],
+		kon = [pt[1] for pt in feasible_pts], 
+		α = [pt[2] for pt in feasible_pts], 
+		gene_body_occupancy = [
+			occupancy[idx_α][idx_k] for (idx_k, idx_α) in Tuple.(findall(feasible .== 1))
+		], 
+		promoter_occupancy = [
+			promoter_occ[idx_α][idx_k] for (idx_k, idx_α) in Tuple.(findall(feasible .== 1))
+		]
+	)
+	
+	CSV.write(
+		joinpath(PATH_OUT, "feasible_pts_Ω$(Ω_val).csv"), df_feasible_stats
+	)
+end
+
+# ╔═╡ 99e21b1a-47e0-4b77-b799-0b9e7cf993f1
+begin
+	df_avg_gene = vcat(
+		dfs_avg_gene...
+	)
+	
+	CSV.write(
+			joinpath(PATH_OUT, "avg_gene_scaling_Ω$(Ω_val).csv"), df_avg_gene
+	)
+end
+
+# ╔═╡ 93824239-5784-4c5b-9233-c66efb52611a
+begin
+	# write the occupancy model dataset
+	
+	dfs_occ_models = vcat(dfs_occ_model...)
+	dfs_occ_models = dfs_occ_models[!, vcat([52], collect(1:51))]
+	CSV.write(
+		joinpath(PATH_OUT, "occupancy_bins_Ω$(Ω_val).csv"),
+		dfs_occ_models
+		
+	)
+	
 end
 
 # ╔═╡ Cell order:
@@ -620,25 +762,29 @@ end
 # ╠═c83b06d1-d6fa-4f15-9515-183999289582
 # ╠═38975f19-7e86-491b-8794-b2e7841b1967
 # ╠═9581b94f-0c7d-4c4d-bfc6-2c9824ba3ac7
+# ╠═d0a7578b-39c9-44c7-af78-2123e763e4c5
+# ╠═683257e7-3140-4bda-b88a-c25e0401f773
+# ╠═4feb63d1-7a61-47bb-97d6-d1ff7c5aad87
 # ╠═87cfce1e-2624-46d7-8540-0c552508d9c4
 # ╟─94cec09f-d40e-4a80-8cb8-e6a1c2c3b6ba
 # ╠═d0a5c973-a446-4ce9-9151-d903295200a5
-# ╠═b19fd665-236a-458f-ab90-e223d0cc2cda
+# ╟─b19fd665-236a-458f-ab90-e223d0cc2cda
 # ╠═e5de0f99-a58d-4952-824e-f6ada230bef8
+# ╠═7e07d15c-a503-4575-9a4a-8415980c65d5
+# ╠═629b3e35-3331-4bed-8186-541016e9fa58
 # ╠═4bd04289-7f6c-4fa5-9e10-6de3b2040c23
 # ╠═35a0da09-d22b-4e08-82e3-7edb88e003a8
-# ╠═ec58d9c0-ae9c-43cc-b2a8-bf9182204ebe
-# ╠═67783a0e-82fb-46b2-b69b-c36a619a89bb
 # ╠═287994aa-7329-4a18-a7ac-9556a485306c
+# ╠═5c24344c-ff17-4ec2-84c8-f981b36f55e3
+# ╠═67783a0e-82fb-46b2-b69b-c36a619a89bb
 # ╟─46e6137c-cecd-4763-8f45-b1076ae36e13
-# ╠═b12bfc38-3f7f-40d2-ac84-a140cd8ddb13
 # ╠═a4b4db5a-483a-4af2-90f9-5ed46c1892b8
 # ╠═3d778cb5-17dc-46bf-8523-e7cd220f276d
 # ╟─c2a6b9a6-bab2-45cf-93ab-8c6751b0254c
 # ╠═d8069c70-d820-49f8-add6-9e85f5ca88da
 # ╠═e22c410c-eeb0-4e5d-b435-8d54943936d1
+# ╠═d23a3327-4e8c-4fc5-aeb0-ef1c166bb1b5
 # ╠═01462590-ba62-4796-9d5c-8f0127de58d0
-# ╟─d23a3327-4e8c-4fc5-aeb0-ef1c166bb1b5
 # ╠═121e3d11-9a12-44a6-9403-0ab7dde865fc
 # ╟─510d3054-85f1-4942-8068-467cdc3a7e4b
 # ╟─b7dcd8cf-f775-4e9a-ae65-d244623d1213
@@ -654,3 +800,8 @@ end
 # ╟─9d6f40f3-cb34-42ad-b97f-f185ea45fada
 # ╠═402294f8-2ccc-46d8-86c8-1778d679d1bf
 # ╠═4b82c6d9-a148-4004-8451-58a80f99840f
+# ╟─362c3c71-7cc6-4d56-bf4f-d2ae3cdfd486
+# ╠═1a37c91c-2bef-4545-b93a-74ab68862eba
+# ╠═1959a44a-23bb-435a-9470-392437fb94ed
+# ╠═99e21b1a-47e0-4b77-b799-0b9e7cf993f1
+# ╠═93824239-5784-4c5b-9233-c66efb52611a

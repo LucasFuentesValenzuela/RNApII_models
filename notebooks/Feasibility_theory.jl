@@ -62,8 +62,13 @@ md"""
 Remember, those limits are only for the average gene in the average cell. 
 """
 
+# ╔═╡ 693e7709-159e-4dce-ab68-4badf8f3f95f
+md"""
+The vertical 1/Ω line gives the maximum value of α beyond which we are not able to ensure that the RNAp actually remains the amount of time we tell it to (Ω). 
+"""
+
 # ╔═╡ 5a82ec54-7d95-4281-b84c-fd918bf29d70
-Ω = OCCUPANCY_PARAMS["Ω"]
+Ω = 1
 
 # ╔═╡ 7914de87-192d-4176-b4ca-b3ad13a5be95
 # range of parameters
@@ -106,11 +111,6 @@ end;
 # ╔═╡ c064f0e1-891b-4418-bb6e-400cce570957
 feasible = is_feasible.(ρ_g_th, ρ_p_th);
 
-# ╔═╡ 693e7709-159e-4dce-ab68-4badf8f3f95f
-md"""
-The vertical 1/Ω line gives the maximum value of α beyond which we are not able to ensure that the RNAp actually remains the amount of time we tell it to (Ω). 
-"""
-
 # ╔═╡ afca47ff-3552-4b86-940b-770a6311f48b
 begin
 	heatmap(α_vec, k_on_vec, feasible)
@@ -118,12 +118,73 @@ begin
 	hline!([RNApIIModels.min_k_on, RNApIIModels.max_k_on], label="limits kon", linewidth=2)
 	vline!([RNApIIModels.min_α, RNApIIModels.max_α], label="limits α", linewidth=2)
 	vline!([1/Ω], label="1/Ω", linewidth=4, color=:red)
+	plot!(title="Ω = $Ω")
+	plot!(xlim=(0, 1))
 end
 
 # ╔═╡ c2e302d2-c02f-444f-bf92-134d6a7467be
 md"""
 Very minor differences in terms of which points are feasible in between the two represenations
 """
+
+# ╔═╡ e6ae1115-a82a-4e95-a7f9-d9f9308c1b72
+md"""
+# Fold changes
+"""
+
+# ╔═╡ 753f983b-2612-49d9-8fa8-94bc60ab81ca
+@bind Ωfc Slider(1:5)
+
+# ╔═╡ 621e9282-c17a-422f-b291-01a0ae9cff8a
+md"""Ωfc = $Ωfc"""
+
+# ╔═╡ 2093cec3-c705-4f01-a38c-07f6d386deb2
+md"""
+Ωfc does have an impact because it scales the initiation rate (effective). BUT it also scales the feasible points (because it means higher occupancy, effectively). We see that if we rescale the kons with Ωfc it does not change anything to the distribution of fold changes. This is because in this regime everything is linear. 
+"""
+
+# ╔═╡ 7e4226a5-2223-4916-8482-2f1966c346fe
+@bind αfc Slider(LinRange(LITERATURE_PARAMS["min_α"], min.(LITERATURE_PARAMS["max_α"] * 1.5, 1/Ωfc), n_α_pts))
+
+# ╔═╡ e00ea34c-0954-44aa-be03-7085c8562908
+md"""αfc = $(αfc)"""
+
+# ╔═╡ 42aa81d2-270e-45b4-8434-dd1f2fe1fa81
+md"""
+We see that αfc has no impact on the fold changes. This is true because the density is linear in the initiation rate. Therefore, fold changes will be constnat. 
+"""
+
+# ╔═╡ 8fcddff7-97b8-4edd-a322-faec03a25e87
+cs = LinRange(50, 150, 10)
+
+# ╔═╡ 5e9bc538-7c92-4351-9fea-16da63ad275d
+RNAs = RNApIIModels.CV_to_RNAfree_interp().(cs)
+
+# ╔═╡ 23a735c9-1921-45ad-afe6-9909efe46beb
+begin
+	kons = 10. .^(LinRange(-3, -.5, 10))
+	α_eff_fc(x) = effective_α(x, 1/Ωfc - αfc, αfc)
+	
+	ρs(x) = map(
+		f -> ρ.(f, β_screen, OCCUPANCY_PARAMS["γ"], OCCUPANCY_PARAMS["L"])[2], α_eff_fc.(x)
+	)
+	
+	xx = RNAs/RNAs[1]
+	
+	fcs = [ρs.(xx .* kon) ./ ρs(kon) for kon in kons]
+end;
+
+# ╔═╡ 47cdcca2-f7f9-429c-8146-3931c407cf06
+begin
+	colors = palette([:purple, :orange, :green], length(fcs))
+	q = plot()
+	for (k,fc) in enumerate(fcs)
+		plot!(cs, fc, label="", color=colors[k])
+	end
+	plot!(xlabel="Cell volume [fl]", ylabel="Occ. FC")
+	plot!(title="Ω = $Ωfc, α = $αfc")
+	q
+end
 
 # ╔═╡ e6c51b0b-cf93-4934-9615-3ad3ae35d019
 md"""
@@ -241,15 +302,26 @@ There are two things here:
 # ╠═8e66639e-0b2f-4c0b-ac34-1c70ce7c3565
 # ╠═089db03c-d59a-49ec-a4d9-08489347715d
 # ╟─50f02860-1673-4a38-b690-b9d8ecbd6a2c
-# ╠═5a82ec54-7d95-4281-b84c-fd918bf29d70
 # ╠═7914de87-192d-4176-b4ca-b3ad13a5be95
 # ╠═99508ec5-1b8b-4402-92f1-8c86f001e5c6
 # ╠═ce561af2-24e2-40fc-9664-dcb23ffbe861
 # ╠═751e8d87-69cb-492b-ac48-d8ae6eb630a3
 # ╠═c064f0e1-891b-4418-bb6e-400cce570957
 # ╠═693e7709-159e-4dce-ab68-4badf8f3f95f
+# ╠═5a82ec54-7d95-4281-b84c-fd918bf29d70
 # ╠═afca47ff-3552-4b86-940b-770a6311f48b
 # ╠═c2e302d2-c02f-444f-bf92-134d6a7467be
+# ╟─e6ae1115-a82a-4e95-a7f9-d9f9308c1b72
+# ╟─621e9282-c17a-422f-b291-01a0ae9cff8a
+# ╠═753f983b-2612-49d9-8fa8-94bc60ab81ca
+# ╠═2093cec3-c705-4f01-a38c-07f6d386deb2
+# ╟─e00ea34c-0954-44aa-be03-7085c8562908
+# ╟─7e4226a5-2223-4916-8482-2f1966c346fe
+# ╠═42aa81d2-270e-45b4-8434-dd1f2fe1fa81
+# ╠═23a735c9-1921-45ad-afe6-9909efe46beb
+# ╠═47cdcca2-f7f9-429c-8146-3931c407cf06
+# ╠═5e9bc538-7c92-4351-9fea-16da63ad275d
+# ╠═8fcddff7-97b8-4edd-a322-faec03a25e87
 # ╟─e6c51b0b-cf93-4934-9615-3ad3ae35d019
 # ╟─694cdb4b-2434-4a4c-aea9-d7d317ce6389
 # ╟─f72a9a4b-8e48-4aeb-8fdb-00dc1ad10862

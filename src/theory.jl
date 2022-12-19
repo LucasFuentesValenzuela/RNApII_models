@@ -136,9 +136,9 @@ function ρp_MC(T)
     sum(mean(T^1e3; dims=2)[Int(n/2)+1:end])
 end
 
-ρp_MC(α, β, kon, koff, Δt; order=2) = ρp_MC(TransitionMatrix(α, β, kon, koff, Δt; order=order))
+ρp_MC(α, β, kon, koff, Δt; order=4) = ρp_MC(TransitionMatrix(α, β, kon, koff, Δt; order=order))
 
-ρp_MC(α, β, kon, koff; order=2) = ρp_MC(α, β, kon, koff, set_Δt(α, β, β, kon, koff, nothing); order=order)
+ρp_MC(α, β, kon, koff; order=4) = ρp_MC(α, β, kon, koff, set_Δt(α, β, β, kon, koff, nothing); order=order)
 
 """
 """
