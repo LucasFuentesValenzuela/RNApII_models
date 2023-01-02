@@ -25,8 +25,8 @@ function parse_commandline()
             default = 1
         "--Omega"
             help = "residence time of RNAp on the promoter"
-            arg_type = Int
-            default = 2
+            arg_type = Float64
+            default = 1.7
     end
     return parse_args(s)
 end

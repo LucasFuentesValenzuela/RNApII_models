@@ -68,7 +68,7 @@ The vertical 1/Ω line gives the maximum value of α beyond which we are not abl
 """
 
 # ╔═╡ 5a82ec54-7d95-4281-b84c-fd918bf29d70
-Ω = 1
+Ω = 2
 
 # ╔═╡ 7914de87-192d-4176-b4ca-b3ad13a5be95
 # range of parameters
@@ -119,7 +119,7 @@ begin
 	vline!([RNApIIModels.min_α, RNApIIModels.max_α], label="limits α", linewidth=2)
 	vline!([1/Ω], label="1/Ω", linewidth=4, color=:red)
 	plot!(title="Ω = $Ω")
-	plot!(xlim=(0, 1))
+	plot!(xlim=(0, 1/Ω))
 end
 
 # ╔═╡ c2e302d2-c02f-444f-bf92-134d6a7467be

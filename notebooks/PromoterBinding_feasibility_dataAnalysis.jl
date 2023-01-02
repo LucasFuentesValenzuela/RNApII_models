@@ -43,6 +43,9 @@ using DataFrames
 # ╔═╡ 4feb63d1-7a61-47bb-97d6-d1ff7c5aad87
 using CSV
 
+# ╔═╡ 3f79c487-6617-43e2-b2cb-48d31da2f4dc
+using Tables
+
 # ╔═╡ 9581b94f-0c7d-4c4d-bfc6-2c9824ba3ac7
 TableOfContents()
 
@@ -82,16 +85,13 @@ md"""
 md"""# Feasible points screen"""
 
 # ╔═╡ e5de0f99-a58d-4952-824e-f6ada230bef8
-PATH = "/Users/lucasfuentes/RNApII_models"
-
-# ╔═╡ 7e07d15c-a503-4575-9a4a-8415980c65d5
-PATH_OUT = "/Users/lucasfuentes/Library/CloudStorage/GoogleDrive-lucasfv@stanford.edu/My Drive/Work/Skotheim/Data/RNApIIModels_outputs"
+PATH = "/Users/lucasfuentes/Library/CloudStorage/GoogleDrive-lucasfv@stanford.edu/My Drive/Work/Skotheim/Data/RNApIIModels_data"
 
 # ╔═╡ 629b3e35-3331-4bed-8186-541016e9fa58
-@bind Ω_val Select([1, 2, 3, 4])
+@bind Ω_val Select([1.7, 1, 2, 3, 4], default=1.7)
 
 # ╔═╡ 4bd04289-7f6c-4fa5-9e10-6de3b2040c23
-fnm(x) = joinpath(PATH, "results", "feasible_pts_$(x)_Omega$(Ω_val).jld2")
+fnm(x) = joinpath(PATH, "simulation_results", "feasible_pts_$(x)_Omega$(Ω_val).jld2")
 
 # ╔═╡ 35a0da09-d22b-4e08-82e3-7edb88e003a8
 begin 
@@ -125,6 +125,7 @@ begin
 	vline!([RNApIIModels.min_α, RNApIIModels.max_α], label="limits α", linewidth=2)
 	vline!([1/Ω_val], label="1/Ω", linewidth=4, color=:red)
 	plot!(title="Ω = $Ω_val")
+	# plot!(grid=true)
 	# hline!([ps.min_k_on, ps.max_k_on], label="limits kon", linewidth=2)
 	# vline!([ps.min_α, ps.max_α], label="limits α", linewidth=2)
 end
@@ -268,16 +269,6 @@ begin
 		
 		occ_crt = occupancy_nw[idx_feasible_point]
 
-		df_avg_gene_crt = DataFrame(
-			id = idx_feasible_point, 
-			kon = kon_vec_, 
-			cell_size = CV_crt, 
-			occ90 = q_up, 
-			occ10 = q_dwn, 
-			occ50 = occ_crt
-		)
-
-		push!(dfs_avg_gene, df_avg_gene_crt)
 
 		
 		###########
@@ -338,15 +329,28 @@ begin
 		plot!(ylims=(0 * RNApIIModels.min_ρ_g, 2 * RNApIIModels.max_ρ_g))
 	
 		push!(plots_feasible_kon, p_kon)
+
+		
+		df_avg_gene_crt = DataFrame(
+			id = idx_feasible_point, 
+			kon = kon_vec_, 
+			cell_size = CV_crt, 
+			occ90 = q_up, 
+			occ10 = q_dwn, 
+			occ50 = occ_crt, 
+			dyn_eq_haploid = Rpb1_occupancy_haploid_interp().(CV_crt) .* sf_crt,
+		)
+
+		push!(dfs_avg_gene, df_avg_gene_crt)
 	end
 	
 end
 
 # ╔═╡ 01462590-ba62-4796-9d5c-8f0127de58d0
 let
-	p_all = plot((plots_feasible[1:8])..., layout = (4, 2))
+	p_all = plot((plots_feasible[1:10])..., layout = (5, 2))
 	plot!(size=(1000, 1000))
-	savefig(joinpath(PATH, "figs", "feasible_points.png"))
+	# savefig(joinpath(PATH, "figs", "feasible_points_Ω$(Ω_val).png"))
 
 	p_all
 end
@@ -355,7 +359,7 @@ end
 let
 	p_all = plot((plots_feasible_kon[1:8])..., layout = (4, 2))
 	plot!(size=(1000, 1000))
-	savefig(joinpath(PATH, "figs", "feasible_points_kon.png"))
+	# savefig(joinpath(PATH, "figs", "feasible_points_kon.png"))
 
 	p_all
 end
@@ -681,8 +685,8 @@ let
 	
 	plot([
 		p_fc_data, p0, 
-		plots_fold_changes_th[idx_p], err_plot, 
-		p2, q
+		plots_fold_changes_th[idx_p], p2, 
+		err_plot, q
 	]..., layout=(3, 2), size=(700, 700))	
 end
 
@@ -690,14 +694,14 @@ end
 let
 	p_fc_all = plot((plots_fold_changes[1:8])..., layout = (4, 2))
 	plot!(size=(1000, 1000))
-	savefig(joinpath(PATH, "figs", "fold_changes_Ω$(Ω_val).png"))
+	# savefig(joinpath(PATH, "figs", "fold_changes_Ω$(Ω_val).png"))
 
 	p_fc_all
 end
 
 # ╔═╡ 362c3c71-7cc6-4d56-bf4f-d2ae3cdfd486
 md"""
-# OUTPUTS for Matt
+# File outputs
 """
 
 # ╔═╡ 1a37c91c-2bef-4545-b93a-74ab68862eba
@@ -710,6 +714,20 @@ md"""
 # 	)
 # end
 
+# ╔═╡ 7648928d-5707-4140-9630-e7655aee6ba0
+feasible_mat = hcat(
+	vcat(
+		["kon|alpha"], reshape(kon_vec_screen, (10, 1))
+	), vcat(
+		reshape(α_vec_screen, (1, 8)), feasible
+	)
+);
+
+# ╔═╡ ad148034-87f3-4235-b6e8-46326f9328fb
+CSV.write(
+	joinpath(PATH, "data_out", "feasible_grid_Ω$(Ω_val).csv"), Tables.table(feasible_mat), writeheader=false
+)
+
 # ╔═╡ 1959a44a-23bb-435a-9470-392437fb94ed
 # outputting the feasible points and their statistics
 begin
@@ -718,16 +736,17 @@ begin
 		id = [k for k in 1:length(feasible_pts)],
 		kon = [pt[1] for pt in feasible_pts], 
 		α = [pt[2] for pt in feasible_pts], 
+		koff = [max.(1/Ω_val - pt[2], 0) for pt in feasible_pts],
 		gene_body_occupancy = [
 			occupancy[idx_α][idx_k] for (idx_k, idx_α) in Tuple.(findall(feasible .== 1))
 		], 
 		promoter_occupancy = [
 			promoter_occ[idx_α][idx_k] for (idx_k, idx_α) in Tuple.(findall(feasible .== 1))
-		]
+		],
 	)
 	
 	CSV.write(
-		joinpath(PATH_OUT, "feasible_pts_Ω$(Ω_val).csv"), df_feasible_stats
+		joinpath(PATH, "data_out", "feasible_pts_Ω$(Ω_val).csv"), df_feasible_stats
 	)
 end
 
@@ -738,7 +757,7 @@ begin
 	)
 	
 	CSV.write(
-			joinpath(PATH_OUT, "avg_gene_scaling_Ω$(Ω_val).csv"), df_avg_gene
+			joinpath(PATH, "data_out", "avg_gene_scaling_Ω$(Ω_val).csv"), df_avg_gene
 	)
 end
 
@@ -749,7 +768,7 @@ begin
 	dfs_occ_models = vcat(dfs_occ_model...)
 	dfs_occ_models = dfs_occ_models[!, vcat([52], collect(1:51))]
 	CSV.write(
-		joinpath(PATH_OUT, "occupancy_bins_Ω$(Ω_val).csv"),
+		joinpath(PATH, "data_out", "occupancy_bins_Ω$(Ω_val).csv"),
 		dfs_occ_models
 		
 	)
@@ -770,14 +789,13 @@ end
 # ╠═d0a5c973-a446-4ce9-9151-d903295200a5
 # ╟─b19fd665-236a-458f-ab90-e223d0cc2cda
 # ╠═e5de0f99-a58d-4952-824e-f6ada230bef8
-# ╠═7e07d15c-a503-4575-9a4a-8415980c65d5
 # ╠═629b3e35-3331-4bed-8186-541016e9fa58
 # ╠═4bd04289-7f6c-4fa5-9e10-6de3b2040c23
 # ╠═35a0da09-d22b-4e08-82e3-7edb88e003a8
 # ╠═287994aa-7329-4a18-a7ac-9556a485306c
 # ╠═5c24344c-ff17-4ec2-84c8-f981b36f55e3
 # ╠═67783a0e-82fb-46b2-b69b-c36a619a89bb
-# ╟─46e6137c-cecd-4763-8f45-b1076ae36e13
+# ╠═46e6137c-cecd-4763-8f45-b1076ae36e13
 # ╠═a4b4db5a-483a-4af2-90f9-5ed46c1892b8
 # ╠═3d778cb5-17dc-46bf-8523-e7cd220f276d
 # ╟─c2a6b9a6-bab2-45cf-93ab-8c6751b0254c
@@ -802,6 +820,9 @@ end
 # ╠═4b82c6d9-a148-4004-8451-58a80f99840f
 # ╟─362c3c71-7cc6-4d56-bf4f-d2ae3cdfd486
 # ╠═1a37c91c-2bef-4545-b93a-74ab68862eba
+# ╠═7648928d-5707-4140-9630-e7655aee6ba0
+# ╠═3f79c487-6617-43e2-b2cb-48d31da2f4dc
+# ╠═ad148034-87f3-4235-b6e8-46326f9328fb
 # ╠═1959a44a-23bb-435a-9470-392437fb94ed
 # ╠═99e21b1a-47e0-4b77-b799-0b9e7cf993f1
 # ╠═93824239-5784-4c5b-9233-c66efb52611a

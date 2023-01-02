@@ -60,13 +60,13 @@ min_Ω = 2
 max_Ω = 4
 
 # number of mRNA molecules on promoter [-]
-min_ρ_p = 0.02
-max_ρ_p = 0.04
+min_ρ_p = 0.017
+max_ρ_p = 0.055
 
 
 # number of mRNA molecules in gene body [-]
-min_ρ_g = 0.15 - max_ρ_p
-max_ρ_g = .4 - min_ρ_p
+min_ρ_g = 0.177 - max_ρ_p
+max_ρ_g = .67 - min_ρ_p
 
 # total residence time on promoter + gene body [-]
 min_Ψ = 23
