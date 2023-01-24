@@ -23,6 +23,7 @@ function run_occupancy_simulation(
     occupancy = []
 	promoter_occ = []
 	params_occ = []
+	α_eff = []
 
 	for (α, β, k_on_vec) in params_iter
 			k_off = max(0, 1/Ω-α)
@@ -30,6 +31,7 @@ function run_occupancy_simulation(
 			occupancy_crt = []
 			prom_occ_crt = []
 			params_list = []
+			α_eff_crt = []
 	
 			for k_on in k_on_vec
 
@@ -39,15 +41,15 @@ function run_occupancy_simulation(
 				else
 					Δt_crt = Δt
 				end
-
-				if γ === nothing
-					γ_crt = 1/Δt_crt
+				
+				if γ===nothing
+					γ_crt = 1/Δt_crt * (1-1e-4)
 				else
 					γ_crt = γ
 				end
 
 				if n_events !== nothing
-					n_steps = Int(round(n_events/k_on))
+					n_steps = Int(round(n_events/effective_α(k_on, k_off, α)./Δt_crt)) 
 				end
 			
 				params_crt = Params(
@@ -57,7 +59,7 @@ function run_occupancy_simulation(
 					β/8
 				)
 
-				_, density, _, _ = run_walker(params_crt);
+				_, density, _, _, n_inits = run_walker(params_crt);
 
 				# only works with L = 1
 				push!(
@@ -73,16 +75,18 @@ function run_occupancy_simulation(
 					)
 				)
 				push!(params_list, params_crt)
+				push!(α_eff_crt, n_inits / (n_steps * Δt_crt))
 				
 			end
 	
 			push!(occupancy, occupancy_crt)
 			push!(promoter_occ, prom_occ_crt)
 			push!(params_occ, params_list)
+			push!(α_eff, α_eff_crt)
 			
 	end
 
-    return occupancy, promoter_occ, params_occ
+    return occupancy, promoter_occ, params_occ, α_eff
 end
 
 
@@ -143,8 +147,9 @@ function sweep_params(α_vec, p_vec, param_name; params=DEFAULT_PARAMS)
 	return params_dict, trans_rates, residence_times, densities
 end
 
+# dims are (n_kon_points, npoints, ntimes)
 reshape_results(x) = reshape(
-    hcat(hcat(x...)...), length(x[1][2]), length(x[1]), :  
+    hcat(hcat(x...)...), length(x[1][1]), length(x[1]), :  
 ) 
 
 function get_quantile(x, q)
@@ -161,6 +166,8 @@ function get_quantile(x, q)
 
 end
 
+"""
+"""
 function get_feasible_pts(fnm)
 
     # unpack the results
@@ -173,10 +180,9 @@ function get_feasible_pts(fnm)
 
     # determine feasible points
     occ_mat = reduce(hcat, occ_median)
-    occ_mat = (occ_mat .< RNApIIModels.max_ρ_g) .& (occ_mat .> RNApIIModels.min_ρ_g)
     prom_occ_mat = reduce(hcat, prom_occ_median)
-    prom_occ_mat = (prom_occ_mat .< RNApIIModels.max_ρ_p) .& (prom_occ_mat .> RNApIIModels.min_ρ_p)
-    feasible = (occ_mat .& prom_occ_mat)
+
+	feasible = is_feasible.(occ_mat, prom_occ_mat)
 
     feasible_pts = []
     for (idx_k, idx_α) in Tuple.(findall(feasible .== 1))
@@ -185,4 +191,12 @@ function get_feasible_pts(fnm)
 
     return feasible, feasible_pts
 
+end
+
+""" Determines if a point is feasible
+"""
+function is_feasible(occ, prom_occ)
+    occ_fs = (occ .< RNApIIModels.max_ρ_g) .& (occ .> RNApIIModels.min_ρ_g)
+    prom_occ_fs = (prom_occ .< RNApIIModels.max_ρ_p) .& (prom_occ .> RNApIIModels.min_ρ_p)
+	return (occ_fs .& prom_occ_fs)
 end

@@ -60,13 +60,13 @@ min_Ω = 2
 max_Ω = 4
 
 # number of mRNA molecules on promoter [-]
-min_ρ_p = 0.02
-max_ρ_p = 0.04
+min_ρ_p = 0.017
+max_ρ_p = 0.055
 
 
 # number of mRNA molecules in gene body [-]
-min_ρ_g = 0.15
-max_ρ_g = .4
+min_ρ_g = 0.177 - max_ρ_p
+max_ρ_g = .67 - min_ρ_p
 
 # total residence time on promoter + gene body [-]
 min_Ψ = 23
@@ -117,7 +117,7 @@ OCCUPANCY_PARAMS = Dict(
     "n_end_sites" => DEFAULT_n_end_sites,
     "γ" => nothing, 
     "Δt" => nothing, # we will set it adaptively
-    "n_events" => 5e3
+    "n_events" => 1e3
 )
 
 DEFAULT_PARAMS = Params(
@@ -137,9 +137,3 @@ k_on_vec_screen = 10 .^(LinRange(
 ))
 α_vec_screen = LinRange(LITERATURE_PARAMS["min_α"], LITERATURE_PARAMS["max_α"] * 1.5, n_α_values_screen)
 β_screen = LITERATURE_PARAMS["max_β"] / OCCUPANCY_PARAMS["δ"]
-
-n_times = Dict(
-    "screen" => 1, 
-    "narrow" => 10,
-    "wide" => 10,
-)

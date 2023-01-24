@@ -1,14 +1,14 @@
 """Functions for use with the ChIP data"""
 # using XLSX
 
-DATA_PATH = "/Users/lucasfuentes/RNApII_models/data"
+PATH = "/Users/lucasfuentes/Library/CloudStorage/GoogleDrive-lucasfv@stanford.edu/My Drive/Work/Skotheim/Data/RNApIIModels_data"
 
 """
 """
 function load_ChIP_data()
 	return DataFrame(
 		CSV.File(
-			joinpath(DATA_PATH, "data_exp_nuclear_fraction.csv")
+			joinpath(PATH, "data_out", "data_exp_nuclear_fraction.csv")
 			)
 	);
 end
@@ -18,7 +18,7 @@ end
 function load_gene_bins()
 	return DataFrame(
 		XLSX.readtable(
-		joinpath(DATA_PATH, "global_norm_filtered-noCC-noESR.xlsx"), "Sheet1"
+		joinpath(PATH, "data_in", "global_norm_filtered-noCC-noESR.xlsx"), "Sheet1"
 		)
 	);
 end
