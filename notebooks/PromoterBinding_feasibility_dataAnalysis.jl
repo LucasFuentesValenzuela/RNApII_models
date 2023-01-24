@@ -459,6 +459,7 @@ begin
 	kons_lims = []
 
 	dfs_occ_model = []
+	dfs_occ_model_fc = [] # with fold change instead of absolute occupancies
 	
 	for idx_ in 1:length(feasible_pts)
 
@@ -495,16 +496,20 @@ begin
 		# DataFrame with the occupancy from the model
 		df_kons = copy(df_bins_)
 		df_occ_model = copy(df_bins_)
+		df_occ_model_fc = copy(df_bins_)
 		for bin_nbr in 1:(length(kons_54fL))
 			kon_values = kons_54fL[bin_nbr] .* kon_fc
 			df_kons[:, bin_nbr+1] = kon_values
 			occ_values = occ_model.(kon_values)
 			df_occ_model[:, bin_nbr+1] = occ_values
+			df_occ_model_fc[:, bin_nbr+1] = occ_values ./ occ_values[3]
 		end
 
 		df_occ_model[!, :id] .= idx_
-
+		df_occ_model_fc[!, :id] .= idx_
+		
 		push!(dfs_occ_model, df_occ_model)
+		push!(dfs_occ_model_fc, df_occ_model_fc)
 
 		
 	
@@ -566,6 +571,9 @@ begin
 	plot!(ylim=ylim)
 	plot!(title="Data")
 end;
+
+# ╔═╡ b763557d-8a59-4455-97ba-16946e50600d
+dfs_occ_model[1]
 
 # ╔═╡ 9d6f40f3-cb34-42ad-b97f-f185ea45fada
 @bind idx_p Slider(1:(length(plots_fold_changes)))
@@ -704,16 +712,6 @@ md"""
 # File outputs
 """
 
-# ╔═╡ 1a37c91c-2bef-4545-b93a-74ab68862eba
-# feasible point map -- I don't know how to output it properly
-# begin
-# 	df_feasible = DataFrame(
-# 		α = α_vec_screen, 
-# 		kon = Int.(feasible[10, :])
-		
-# 	)
-# end
-
 # ╔═╡ 7648928d-5707-4140-9630-e7655aee6ba0
 feasible_mat = hcat(
 	vcat(
@@ -772,6 +770,14 @@ begin
 		dfs_occ_models
 		
 	)
+
+	dfs_occ_models_fc = vcat(dfs_occ_model_fc...)
+	dfs_occ_models_fc = dfs_occ_models_fc[!, vcat([52], collect(1:51))]
+	CSV.write(
+		joinpath(PATH, "data_out", "occupancy_bins_foldChanges_Ω$(Ω_val).csv"),
+		dfs_occ_models_fc
+		
+	)
 	
 end
 
@@ -813,15 +819,15 @@ end
 # ╠═f91bb98a-7442-40b9-bd24-07e554fb65b5
 # ╠═d92ad4b6-f36b-4ffb-b55f-7ff76d5c0c03
 # ╠═abddf0af-85e8-44f3-8e68-5f0c011cb3b8
+# ╠═b763557d-8a59-4455-97ba-16946e50600d
 # ╠═3142e3a8-5b7c-46e4-9de1-4568cb001dfa
 # ╠═286b0fab-7a1c-48b8-99db-e885629d5651
 # ╟─9d6f40f3-cb34-42ad-b97f-f185ea45fada
 # ╠═402294f8-2ccc-46d8-86c8-1778d679d1bf
 # ╠═4b82c6d9-a148-4004-8451-58a80f99840f
 # ╟─362c3c71-7cc6-4d56-bf4f-d2ae3cdfd486
-# ╠═1a37c91c-2bef-4545-b93a-74ab68862eba
-# ╠═7648928d-5707-4140-9630-e7655aee6ba0
 # ╠═3f79c487-6617-43e2-b2cb-48d31da2f4dc
+# ╠═7648928d-5707-4140-9630-e7655aee6ba0
 # ╠═ad148034-87f3-4235-b6e8-46326f9328fb
 # ╠═1959a44a-23bb-435a-9470-392437fb94ed
 # ╠═99e21b1a-47e0-4b77-b799-0b9e7cf993f1
