@@ -884,9 +884,9 @@ We see that the initiation rate (effective) increases with its residence time. T
 """
 
 # ╔═╡ Cell order:
+# ╠═4ddbce24-6f3d-4e54-83cb-efddb662546e
 # ╠═78b6d800-c9b7-4487-aaec-c804410278f3
 # ╠═9d253cf6-a8c1-4f01-8604-b05044e4a72f
-# ╠═9c79970a-f98c-40fb-bd47-65a6164699bf
 # ╟─94c158e1-4de0-4b20-89e8-b318b6ca3923
 # ╟─bfe95384-e816-4ae8-afc2-631fc824bbef
 # ╟─7359697b-cc44-47b6-8a8c-2230dbee2eeb
