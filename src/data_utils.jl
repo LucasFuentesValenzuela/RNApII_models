@@ -1,9 +1,9 @@
 """Functions for use with the ChIP data"""
-# using XLSX
 
 PATH = "/Users/lucasfuentes/Library/CloudStorage/GoogleDrive-lucasfv@stanford.edu/My Drive/Work/Skotheim/Data/RNApIIModels_data"
 
 """
+Load the ChIP dataset.
 """
 function load_ChIP_data()
 	return DataFrame(
@@ -14,6 +14,7 @@ function load_ChIP_data()
 end
 
 """
+Load the gene bins dataset.
 """
 function load_gene_bins()
 	return DataFrame(
@@ -23,9 +24,10 @@ function load_gene_bins()
 	);
 end
 
-# fraction * cell volume = amount
-# amount/nuc_vol = concentration
+# Series of functions used to compare data with simulations
+
 RNA_free_frac(df) = (1 .-df[!, :Rpb1_bound_fraction_haploid_prediction]) ./ (df[!, :nuclear_volume] ./ df[!, :cell_volume_fL])
+
 RNA_free_frac() = RNA_free_frac(load_ChIP_data())
 
 Rpb1_occupancy_haploid_interp(df) = linear_interpolation(
