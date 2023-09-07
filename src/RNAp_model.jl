@@ -1,5 +1,24 @@
 """
-Runs the walker for a specified number of steps.
+	run_walker(
+		α, β, γ, L, kon, koff, Δt, n_steps, n_sites, n_end_sites; 
+		β2=nothing, ratio_β2=5
+	)
+
+Runs the simulation for a specified number of steps.
+
+Parameters:
+	`α`: initiation rate
+	`β`: elongation rate
+	`γ`: termination rate
+	`L`: particle footprint
+	`kon`: binding rate to the promoter
+	`koff`: unbinding rate from the promoter
+	`Δt`: timestep
+	`n_steps`: number of timesteps to run the simulation
+	`n_sites`: number of gene sites
+	`n_end_sites`: number of sites past the termination point
+	`β2`: elongation rate in the termination region
+	`ratio_β2`: ratio of elongation rates between the gene body and the termination region
 """
 function run_walker(
 	α, β, γ, L, kon, koff, Δt, n_steps, n_sites, n_end_sites; 
@@ -42,13 +61,25 @@ run_walker(params) = run_walker(
 )
 
 """
-Takes a step forward, for a given model. The kwarg `model` defines the behavior of the RNAs on the second strand. 
+	step(
+		α, β, β2, γ, L, kon, koff, gene, n_sites, Δt, tracker_end, n_inits
+	)
 
+Takes a step forward, for a given model.
 
-Notes: 
-* Right now the function is run linearly. But for a real MC approach you would have to pick the location at random, for a sufficient number of times that it actually represents one real time step across the entire strand. 
-* I have to check the Poisson process document again to make sure the probabilities are properly encoded. 
-* The RNAs are indicated by the left-most site they occupy
+Parameters:
+	`α`: initiation rate
+	`β`: elongation rate
+	`β2`: elongation rate in the termination region
+	`γ`: termination rate
+	`L`: particle footprint
+	`kon`: binding rate to the promoter
+	`koff`: unbinding rate from the promoter
+	`gene`: vector representing the occupancy of the gene
+	`n_sites`: number of gene sites
+	`Δt`: timestep
+	`tracker_end`: Dict() tracking the terminations
+	`n_inits`: counter of the number of attempted initiations
 """
 function step(
 	α, β, β2, γ, L, kon, koff, gene, n_sites, Δt, tracker_end, n_inits
@@ -88,7 +119,6 @@ function step(
 		end
 		
 		# in the gene body
-		# fix the thing with L > 1
 		if (j<=n_sites) & (j>=2)
 			if (gene[j+L]==0.) & (rand(Bernoulli(β*Δt)))
 
@@ -108,8 +138,6 @@ function step(
 	end
 
 	# initiation
-
-	# fix the thing with L > 1
 	if (gene[1]==1.)
 		s = wsample(["off", "init", "nothing"], [koff*Δt, α*Δt, 1-Δt*(koff+α)])
 
@@ -122,7 +150,6 @@ function step(
 		elseif (s=="init") & (gene[2]==0)
 			gene[2]=1
 			gene[1]=0
-			# n_inits += 1 # here I am only counting the rate when it works -- but that's not the def
 		end
 	end
 
@@ -138,18 +165,32 @@ function step(
 end
 
 """
+	get_t_d(γ, n_end_sites, β2)
+
+Compute the characteristic time for detachment after reaching the termination point, from
+the termination rate `γ`, the number of termination sites `n_end_sites` and the elongation rate
+in the termination region `β2`.
 """
 get_t_d(γ, n_end_sites, β2) = 1/γ - (n_end_sites)/β2
 
 get_t_d(params) = get_t_d(params.γ, params.n_end_sites, params.β2)
 
-"""Compute the transcription rate.
+"""
+	get_trans_rate(exits, β, Δt)
+
+Compute the transcription rate from the number of termination `exits`, the elongation rate `β`
+and the timestep `Δt`.
 """
 get_trans_rate(exits, β, Δt) = mean(exits)/β/Δt
 
 get_trans_rate(exits, params) = get_trans_rate(exits, params.β, params.Δt)
 
-"""Set the Δt for the simulation.
+"""
+	set_Δt(α, β, β2, kon, koff, γ)
+
+Set the Δt for the simulation, from the initiation rate `α`, the elongation rate `β`, 
+the elongation rate in the termination region `β2`, the binding rate `kon`, the unbinding
+rate `koff` and the termination rate `γ`.
 """
 function set_Δt(α, β, β2, kon, koff, γ)
 
@@ -160,7 +201,12 @@ function set_Δt(α, β, β2, kon, koff, γ)
 	end
 end
 
-"""Get the total occupancy of the gene
+"""
+	get_total_occupancy(density, params; start_bp=1, end_bp=nothing)
+
+Compute the total occupancy on the gene, with `density` representing the occupied sites on the gene, 
+`params` containing the parameters for the current simulation, `start_bp` representing the site after the promoter region
+and `end_bp` the termination site.
 """
 function get_total_occupancy(density, params; start_bp=1, end_bp=nothing)
 
@@ -174,7 +220,3 @@ function get_total_occupancy(density, params; start_bp=1, end_bp=nothing)
 
 	return total_occupancy
 end
-
-get_total_occupancyδ(α_vec, p, densities, params) = [
-	get_total_occupancy(densities[p][α], params[p][1]) for α in α_vec
-]

@@ -24,7 +24,7 @@ Params(
 
 
 """
-Default parameters ---> TODO: update! 
+Default parameters
 """
 # gene length for average gene [bp]
 gL = 1e3
@@ -46,25 +46,25 @@ koff_default = 1
 
 δ_default = 35 / L_default
 
-DEFAULT_nsteps = 5e5
+DEFAULT_nsteps = 1e6
+DEFAULT_n_events = 1e3
 
 DEFAULT_n_sites = Int(round(gL/δ_default))
-DEFAULT_n_end_sites = Int(round(3))
+DEFAULT_n_end_sites = 3 # small termination region as we neglect the termination rate in the end
+
 """
 Ranges of acceptable metrics from the literature
 """
 
-
-# residence time of mRNA molecules on promoter [s]
+# residence time of RNAp on promoter [s]
 min_Ω = 2
 max_Ω = 4
 
-# number of mRNA molecules on promoter [-]
+# number of RNAp on promoter [-]
 min_ρ_p = 0.017
 max_ρ_p = 0.055
 
-
-# number of mRNA molecules in gene body [-]
+# number of RNAp in gene body [-]
 min_ρ_g = 0.177 - max_ρ_p
 max_ρ_g = .67 - min_ρ_p
 
@@ -110,14 +110,14 @@ LITERATURE_PARAMS = Dict(
 
 OCCUPANCY_PARAMS = Dict(
     "Ω" => min_Ω, 
-    "n_steps" => 1e6, 
+    "n_steps" => DEFAULT_nsteps, 
     "L" => L_default,
     "δ" => δ_default,
     "n_sites" => DEFAULT_n_sites, 
     "n_end_sites" => DEFAULT_n_end_sites,
     "γ" => nothing, 
     "Δt" => nothing, # we will set it adaptively
-    "n_events" => 1e3
+    "n_events" => DEFAULT_n_events
 )
 
 DEFAULT_PARAMS = Params(
@@ -125,15 +125,22 @@ DEFAULT_PARAMS = Params(
 	DEFAULT_nsteps, DEFAULT_n_sites, DEFAULT_n_end_sites, β2_default
 )
 
-#####
 # other parameters for the screening experiments
 
-n_kon_pts_screen = 10
-n_α_values_screen = 8
+n_kon_pts_screen = 10 # how many different values of kon to simulate for
+n_α_values_screen = 8 # how many different values of α to simulate for
 
 # Parameters for a narrow screen with feasible and infeasible points
 k_on_vec_screen = 10 .^(LinRange(
-    log10(LITERATURE_PARAMS["min_k_on"]/1.2), log10(LITERATURE_PARAMS["max_k_on"]*1.2), n_kon_pts_screen
+    log10(LITERATURE_PARAMS["min_k_on"]/1.2), 
+	log10(LITERATURE_PARAMS["max_k_on"]*1.2), 
+	n_kon_pts_screen
 ))
-α_vec_screen = LinRange(LITERATURE_PARAMS["min_α"], LITERATURE_PARAMS["max_α"] * 1.5, n_α_values_screen)
+
+α_vec_screen = LinRange(
+	LITERATURE_PARAMS["min_α"], 
+	LITERATURE_PARAMS["max_α"] * 1.5, 
+	n_α_values_screen
+	)
+
 β_screen = LITERATURE_PARAMS["max_β"] / OCCUPANCY_PARAMS["δ"]

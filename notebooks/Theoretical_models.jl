@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.9
+# v0.19.26
 
 using Markdown
 using InteractiveUtils
@@ -16,10 +16,10 @@ end
 
 # ╔═╡ 9d253cf6-a8c1-4f01-8604-b05044e4a72f
 begin
-	using Revise
-	import Pkg
-	Pkg.activate()
+	using Pkg
+	Pkg.activate("../")
 	using RNApIIModels
+	using Revise
 end
 
 # ╔═╡ 78b6d800-c9b7-4487-aaec-c804410278f3
@@ -29,41 +29,24 @@ begin
 	using Distributions
 end
 
-# ╔═╡ 9c79970a-f98c-40fb-bd47-65a6164699bf
+# ╔═╡ 4ddbce24-6f3d-4e54-83cb-efddb662546e
 md"""
-# Questions
+# Description
 
-* What can we really extract from the analytical models: scaling of the current, critical parameters, scaling of the densities, ...? 
+In this notebook, we explore the theoretical TASEP models from Lakatos, Chou, 2003.
 
-* What is the impact of the termination rate? Do we **really** care about the way the end is modeled? I don't think so. However, if we want to model the occupancy, we probably need it, right? Or we approximate densities from Eqs (25) in Lazaros, Chou and take ρ_(N/2) as an approximation for the steady-state density and ignore the boundary effects. 
-
-* What is the real impact of δ and L? How do results actually change, in what regime? How to make sense of everything? 
+Those explorations come in support of the main stochastic models, to build intuition and to help in quick prototyping.
 """
+
+# ╔═╡ a6a1b29d-070a-47b6-bfca-2bd223f8d261
+TableOfContents()
 
 # ╔═╡ 94c158e1-4de0-4b20-89e8-b318b6ca3923
 md"""# Models"""
 
-# ╔═╡ bfe95384-e816-4ae8-afc2-631fc824bbef
-md"""We can analyze the limit regimes from (Klumpp, Hwa - 2008). 
-
-$J(α) = α (ε - α) / (ε + α (L-1)),$
-
-$J_{max}= ε/(1+L^{1/2})^2.$ 
-
-In the above: 
-- L is the object size
-- ε is the attempt rate of elongation
-- α is the initiation rate
-"""
-
-# ╔═╡ 7359697b-cc44-47b6-8a8c-2230dbee2eeb
-md"""
-**Note**: the general model is actually derived in Lakatos, Chou, 2003. 
-"""
-
 # ╔═╡ ca87554a-0149-446a-99e9-443ca7dfd389
 md"""
-### Transcription rates for d = 1
+### Currents for varying elongation rates, for a footprint = 1.
 """
 
 # ╔═╡ b5342ffd-0d37-44d1-9656-7929e0418156
@@ -72,8 +55,6 @@ md"""
 let
 
 	plot()
-
-
 	rates = collect(LinRange(0.01, 0.1, 20))
 	for k in 1:length(rates)
 
@@ -185,7 +166,7 @@ end
 md"""We see that the transition point decreases with $L$ and that the current is smaller with increasing L"""
 
 # ╔═╡ cc28a585-97b2-48f4-b133-b06d8ddf8927
-md"""## functional forms with rescaling"""
+md"""### Critical parameter with rescaling"""
 
 # ╔═╡ cdbd7292-cdbe-4e40-bb68-f5115ede9c16
 # transition point α_c
@@ -205,7 +186,7 @@ end
 md"""we see that the critical value for α with a rescaling of the elongation rate β changes as √L"""
 
 # ╔═╡ f654bd6b-6850-4bb0-b4bb-d45311d21769
-md"""**question** when does the transition appear if we make one assumption vs another? what is the scale of the difference/mistake/error?
+md"""**Question:** when does the transition appear if we make one assumption vs another? what is the scale of the difference/mistake/error?
 
 For instance, let's say that we want to compare the point of transition between the two regimes for 
 * the real parameters
@@ -284,7 +265,7 @@ Note: exploring the fourth possibility (i.e. δ = 1, L = 35 with β = β̄) does
 """
 
 # ╔═╡ 2adc96f0-aeae-4c8a-80e6-1ed6c9ddffcc
-@bind β_rescale Slider(rates)
+@bind β_rescale Slider(rates; default=10)
 
 # ╔═╡ ef2863e3-ad2f-45fc-9bee-3846581818fe
 md""" β = $β_rescale"""
@@ -325,9 +306,6 @@ let
 	ylabel!("J")
 	plot!(legend=:outertopright)
 	plot!(xscale=:log10)
-	# xlims!(0, 5*β)
-	# ylims!(0, β)
-	# hline!([β], label="J=β", linestyle=:dash, linewidth=3)
 	p
 end
 
@@ -344,99 +322,6 @@ $J \propto \bar{β}L/(\sqrt{L}+1)^2)$
 Therefore the current really maxes out at β, and gets there as $L$ increases
 
 """
-
-# ╔═╡ 54bf5fb0-c219-4385-8ee6-88411821ac32
-md"""
-# Densities
-"""
-
-# ╔═╡ 772e015a-fa71-4cab-83d9-ac24762b132b
-md"""
-there must be something useful/interesting to extract regarding densities, even if it is only the limit + medium densities. You can probably make some assumptions purely from the theoretical models. 
-"""
-
-# ╔═╡ c2062357-22d5-48e5-976a-8cb2b473d0f0
-md"""### Entry limited"""
-
-# ╔═╡ 4cfa3406-a838-4449-9ec6-ebe033d4fae6
-# for γ very large
-
-let
-	
-	β =.1
-	γ = nothing
-
-	x = [0, .5, 1]
-
-	color_palette = palette([:blue, :green], 3)
-
-	plots = []
-	
-	for (k,α) in enumerate([.1, 1, 10] .* β)
-		p = plot()
-		
-		for (i,L) in enumerate([1, 10, 30])
-			ρL, ρN, ρR = ρ(α, β, γ, L)
-			hline!([L*ρN], linestyle=:dash, color=color_palette[i], label="α/β=$(round(α/β; digits=2)), L=$L")
-			scatter!(x, [L*ρL, L*ρN, L*ρR], color=color_palette[i], label="", alpha=.3)
-		end
-		xlabel!("Relative length")
-		ylabel!("Lρ")
-		plot!(legend=:outertopright)
-		xlims!(-.1, 1.1)
-		ylims!(-.1, 1.1)
-
-		push!(plots, p)
-	
-	end
-
-	plot(plots..., layout = (length(plots), 1))
-	
-end
-
-# ╔═╡ 42312f09-54d6-4ae9-a67b-d06f11c85c31
-md"""
-**Note** I don't understand why the densities are very low at the beginning if α is very large...? I would expect the opposite... 
-"""
-
-# ╔═╡ 4a9578ac-1580-40ce-a72d-26815fea6129
-md"""### Exit limited"""
-
-# ╔═╡ de58ca4e-7134-4910-9532-6defa8e7689c
-# for α very large
-
-let
-	
-	β =.1
-	α = 1000
-
-	x = [0, .5, 1]
-
-	color_palette = palette([:blue, :green], 3)
-
-	plots = []
-	
-	for (k,γ) in enumerate([.1, 1, 10] .* β)
-		p = plot()
-		
-		for (i,L) in enumerate([1, 20, 30])
-			ρL, ρN, ρR = ρ(α, β, γ, L)
-			hline!([L*ρN], linestyle=:dash, color=color_palette[i], label="γ/β=$(round(γ/β; digits=2)), L=$L")
-			scatter!(x, [L*ρL, L*ρN, L*ρR], color=color_palette[i], label="", alpha=.3)
-		end
-		xlabel!("Relative length")
-		ylabel!("Lρ")
-		plot!(legend=:outertopright)
-		xlims!(-.1, 1.1)
-		ylims!(-.1, 1.1)
-
-		push!(plots, p)
-	
-	end
-
-	plot(plots..., layout = (length(plots), 1))
-	
-end
 
 # ╔═╡ 7e82dc32-10e0-4e55-84fd-80c6eca84514
 md"""### Occupancy
@@ -520,46 +405,6 @@ We see that as long as the gene is not saturated (as long as we are in the entry
 **But** there is about one order of magnitude between the different transitions -- and the high δ cases saturate much faster
 """
 
-# ╔═╡ fa404ca1-049b-49fe-b894-0cba3080dc01
-md"""
-## Where are we on the phase space? 
-
-We have values for all the parameters, can we make a statement about where we are in the phase space? 
-"""
-
-# ╔═╡ c7ca281b-e980-44f1-8963-f2c04290225d
-md"""
-The current parameters are: 
-* β = 20
-* γ = 1/70
-* α = 0.0033
-* L = 35
-"""
-
-# ╔═╡ d15931d9-2263-4b34-b972-6cb1c7a7ae1b
-md"""
-Therefore, the normalized parameters (wrt β) have the following value:
-
-* α = 0.000165
-* γ = 0.0007
-* L = 35
-"""
-
-# ╔═╡ 32741bf0-ef1a-4ba1-9a48-2363bdb52e57
-md"""
-According to (Lakatos, Chou) the critical parameter values for α and γ are
-
-$α_c = γ_c = \frac{1}{\sqrt{d} + 1} = 0.15$
-
-Therefore, we see that $α \ll α_c$ and $\gamma \ll \gamma_c$. 
-"""
-
-# ╔═╡ a0fb1d2c-56a8-42e1-bfeb-aae5040df1cd
-md"""To determine whether we are in the entry or exit limited regime, we have to determine whether $α \lesseqgtr \gamma$.
-
-Basically, it really seems that $\gamma$ will act as the threshold rate at which we get a strong change in density.
-""" 
-
 # ╔═╡ 29246f54-4220-421c-ae41-62d9593686cb
 md"""
 # Dependence of transcription rate on γ
@@ -607,69 +452,6 @@ let
 	p
 end
 
-# ╔═╡ 2e8e2d60-ec3a-440a-b178-33f7c541dea7
-md"""
-## What is a probable termination rate? 
-"""
-
-# ╔═╡ 89ecf69e-3d2c-4aac-abea-556fbadba1d5
-θ = collect(LinRange(0, 1, 1000))
-
-# ╔═╡ 7bc355fd-fb4d-4c18-ab2a-486b8ba21680
-Tt(θ, Et) = (21 - 5θ)/(1-θ) - Et
-
-# ╔═╡ 16db0c80-a9e4-439d-8c8b-fbab797e9690
-let
-	p = plot()
-	for Et in LinRange(30, 80, 10)
-		plot!(θ, Tt.(θ, Et), label="", linewidth=2, color=:gray)
-	end
-	hline!([0], linestyle=:dash, label="", linewidth=2)
-	ylims!(0, 100)
-	xlabel!("Relative fraction of promoter to gene-body bound RNApII")
-	ylabel!("Tt (s)")
-end
-
-# ╔═╡ 7d66c043-19bf-4bbf-ab4f-8ab597dc4ee6
-md"""
-## Second strand models
-"""
-
-# ╔═╡ 0babe808-4ec9-424c-8ffa-9e686f0ca4d9
-md"""
-## Trying to understand how the occupancy should really scale with `α` or `kon`. 
-"""
-
-# ╔═╡ 1f759a4f-5dca-46d1-b8d1-482e7a610f79
-let 
-	
-	xx = collect(10. .^(collect(LinRange(-5, 2, 100)))) # kon
-	kin = 1/2
-	kout = 1/4
-	α(xx) = xx * kin ./ (xx .+ kin .+ kout) # effective alpha
-
-	p0 = plot(xx, α.(xx), label="")
-	plot!(xlabel="kon", ylabel="α_eff")
-	plot!(title="theoretical model")
-	plot!(xscale=:log10)
-	
-	ρ(α) = 1/2 .* (1 .- sqrt.(1 .- 4α .* (1 .- α)))
-
-	p1 = plot(xx, ρ.(α.(xx)), label="")
-	plot!(yscale=:log10, xscale=:log10)
-	plot!(xlabel="kon", ylabel="occupancy at N/2")
-
-	fc(x) = ρ(α(2*x))/ ρ(α(x))
-
-	p2 = plot(xx, fc.(xx), label="", ylim=(0, 3.), xscale=:log10)
-	plot!(xlabel="kon", ylabel="occ f.c.")
-
-	plot([p0, p1, p2]..., layout=(3, 1), size=(800, 900))
-end
-
-# ╔═╡ fd8d3155-226d-43e1-b545-35e520673e9b
-
-
 # ╔═╡ 3f2c4518-a44b-4d79-bba0-51187c84dad9
 md"""
 # Promoter model
@@ -687,6 +469,9 @@ Let us test that, and see when this breaks down (which I guess will be whenever 
 """
 
 # ╔═╡ 5036ec33-5c94-4b5e-bcdf-089365166343
+"""
+Simple simulation of the promoter system.
+"""
 function simulate_promoter(k_on_vec, α, β, k_out, n_steps, Δt)
 	sites = [0, 0]
 	n_inits = []
@@ -754,7 +539,7 @@ begin
 	n_steps = 1e6
 	
 	n_inits, n_bindings, promoter_occ = simulate_promoter(k_on_vec, αp, βp, k_out_p, n_steps, Δtp)
-end
+end;
 
 # ╔═╡ da26766c-f908-41da-bde4-ee2899237dac
 let
@@ -775,14 +560,6 @@ let
 	plot([p1, p2]..., layout=(1, 2))
 end
 
-# ╔═╡ 0b5f1ed0-51c0-41d0-9946-9e3f6c91b524
-md"""
-The things that can change the validity of the predictions are:
-- value of β
-- value of α
-- value of Ω?
-"""
-
 # ╔═╡ 097625a8-43a1-44a7-86b3-04f0b718f505
 md"""
 What dictates the discrepancy between these values?  It seems that as I decrease β or increase α we have a difference between theory and prediction. 
@@ -791,6 +568,9 @@ Let us check that for a single value of kon, many values of β, α
 """
 
 # ╔═╡ ec875061-2f1d-4d9b-8c0a-d6a6925dc4a4
+"""
+Extract a comparison between the effective α (from theory) and the `measured` α from simulations.
+"""
 function α_eff_map(Ω, α, β; kon_map = 1)
 	
 	α_eff = zeros(length(α), length(β))
@@ -824,12 +604,6 @@ begin
 	β_map = 10. .^(collect(LinRange(-2, 1, 5)))
 end;
 
-# ╔═╡ 06fc9bd4-4f61-4c6f-b096-4fd94c7d26f3
-α_map
-
-# ╔═╡ 7345c8db-73ce-4a90-a1b2-9478ab4d8a41
-β_map
-
 # ╔═╡ 757777f2-889e-4156-afd7-79baf084b20d
 α_rat = α_eff_map(Ω_map, α_map, β_map; kon_map=kon_map);
 
@@ -841,17 +615,16 @@ heatmap(
 	c=cgrad(:matter, 10, categorical = true)
 )
 
-# ╔═╡ 4960f6f2-7569-48f7-82f2-d5fd6af151ee
+# ╔═╡ 76fee27e-ea89-49e0-b074-7f335a1b0b21
 md"""
-We see that the prediction fails for 
-- low values of β
-- high values of α
-
-We are not able to grasp the real value of the effective initiation rate
+We indeed identify a few regions where there is discrepancy. More analysis would be needed to make that fully quantitative.
 """
 
 # ╔═╡ 5af99272-9b87-4b25-8eb4-e75e0a14cfc3
-md"""# Influence of Ω"""
+md"""# Influence of Ω
+
+Ω is the average residence times of RNAps on the promoter, in seconds.
+"""
 
 # ╔═╡ 24ae324c-8e00-4749-8440-1fb471ddf2b7
 @bind αΩ Slider(
@@ -861,6 +634,9 @@ md"""# Influence of Ω"""
 		10
 	)
 )
+
+# ╔═╡ 74d876ba-4091-4143-adcb-16ddfd2c231b
+αΩ
 
 # ╔═╡ ca29e38b-171b-4dd7-b7ec-b3d31f66a19a
 koffs(x) = 1/x - αΩ
@@ -884,14 +660,13 @@ We see that the initiation rate (effective) increases with its residence time. T
 """
 
 # ╔═╡ Cell order:
-# ╠═78b6d800-c9b7-4487-aaec-c804410278f3
+# ╟─4ddbce24-6f3d-4e54-83cb-efddb662546e
 # ╠═9d253cf6-a8c1-4f01-8604-b05044e4a72f
-# ╠═9c79970a-f98c-40fb-bd47-65a6164699bf
+# ╠═78b6d800-c9b7-4487-aaec-c804410278f3
+# ╠═a6a1b29d-070a-47b6-bfca-2bd223f8d261
 # ╟─94c158e1-4de0-4b20-89e8-b318b6ca3923
-# ╟─bfe95384-e816-4ae8-afc2-631fc824bbef
-# ╟─7359697b-cc44-47b6-8a8c-2230dbee2eeb
 # ╟─ca87554a-0149-446a-99e9-443ca7dfd389
-# ╟─b5342ffd-0d37-44d1-9656-7929e0418156
+# ╠═b5342ffd-0d37-44d1-9656-7929e0418156
 # ╟─c4edf93a-b67e-415c-8d73-43d2c44050ee
 # ╟─6ee4187d-f8fb-4617-83fe-b7b38a43404d
 # ╠═e8577416-39cc-4dac-a5b3-e04ae43d3d7b
@@ -903,19 +678,19 @@ We see that the initiation rate (effective) increases with its residence time. T
 # ╟─6c541268-e624-4ea6-be16-830b2e3fccc9
 # ╟─52cc9dc6-b816-4d30-a9b2-abe8599e9616
 # ╟─a2fc5a3f-d5c8-4a74-8d83-c9639cc08a32
-# ╠═21f9f9a1-bc6a-4de2-99d6-b48738caca2c
+# ╟─21f9f9a1-bc6a-4de2-99d6-b48738caca2c
 # ╟─4173cf58-f5fc-4758-b1cd-1919cd34265e
 # ╟─b4b30449-3d6f-438e-a398-57d799888a68
-# ╠═f067ebdf-3ab8-4efd-ad93-e26ecadfe11a
+# ╟─f067ebdf-3ab8-4efd-ad93-e26ecadfe11a
 # ╟─c463821d-8a79-4fca-b59f-b4a354ceb606
-# ╠═cc28a585-97b2-48f4-b133-b06d8ddf8927
-# ╠═cdbd7292-cdbe-4e40-bb68-f5115ede9c16
+# ╟─cc28a585-97b2-48f4-b133-b06d8ddf8927
+# ╟─cdbd7292-cdbe-4e40-bb68-f5115ede9c16
 # ╟─e4e9dd81-6380-402c-ba2e-6147b0f32493
-# ╠═f654bd6b-6850-4bb0-b4bb-d45311d21769
+# ╟─f654bd6b-6850-4bb0-b4bb-d45311d21769
 # ╠═3fff6894-bbe5-4589-93c8-aee7d06769a5
-# ╠═889ff8cf-d1a7-4ade-adea-16c216694d2b
+# ╟─889ff8cf-d1a7-4ade-adea-16c216694d2b
 # ╟─31ad0b42-7a71-493f-89ec-0d980e95f7ef
-# ╠═b031a2aa-c3e2-4be3-a049-df7a303972d7
+# ╟─b031a2aa-c3e2-4be3-a049-df7a303972d7
 # ╟─3eae7ee1-4f9a-4509-82c2-b41a0f4c3b9c
 # ╠═56668918-92ed-49a7-b3fe-38f6b9215cd7
 # ╟─5275d868-09ab-43ea-a336-7267e2084353
@@ -924,55 +699,33 @@ We see that the initiation rate (effective) increases with its residence time. T
 # ╠═2adc96f0-aeae-4c8a-80e6-1ed6c9ddffcc
 # ╟─8dfbb51d-5d37-4783-8467-6faec8111653
 # ╠═825da303-dd0b-494c-bc46-eb7b8cfaf444
-# ╠═fd8625d5-0065-43a8-9dcf-1f0dabf043a7
+# ╟─fd8625d5-0065-43a8-9dcf-1f0dabf043a7
 # ╟─425c6f37-936b-466a-acae-d5c2efdd5f3d
-# ╟─54bf5fb0-c219-4385-8ee6-88411821ac32
-# ╟─772e015a-fa71-4cab-83d9-ac24762b132b
-# ╟─c2062357-22d5-48e5-976a-8cb2b473d0f0
-# ╟─4cfa3406-a838-4449-9ec6-ebe033d4fae6
-# ╟─42312f09-54d6-4ae9-a67b-d06f11c85c31
-# ╟─4a9578ac-1580-40ce-a72d-26815fea6129
-# ╟─de58ca4e-7134-4910-9532-6defa8e7689c
-# ╠═7e82dc32-10e0-4e55-84fd-80c6eca84514
+# ╟─7e82dc32-10e0-4e55-84fd-80c6eca84514
 # ╟─2d2c0d45-5d3b-4256-a9d8-86a44675db01
-# ╠═7e0462d8-e251-4b1c-9d22-3c905b89f95d
+# ╟─7e0462d8-e251-4b1c-9d22-3c905b89f95d
 # ╟─1c909f4b-7743-4ac8-bfc8-32f2de8fc63b
-# ╟─fa404ca1-049b-49fe-b894-0cba3080dc01
-# ╟─c7ca281b-e980-44f1-8963-f2c04290225d
-# ╟─d15931d9-2263-4b34-b972-6cb1c7a7ae1b
-# ╠═32741bf0-ef1a-4ba1-9a48-2363bdb52e57
-# ╟─a0fb1d2c-56a8-42e1-bfeb-aae5040df1cd
-# ╠═29246f54-4220-421c-ae41-62d9593686cb
-# ╠═e87db36e-70bf-4006-bd08-9eecb2f396d5
+# ╟─29246f54-4220-421c-ae41-62d9593686cb
+# ╟─e87db36e-70bf-4006-bd08-9eecb2f396d5
 # ╟─5cdb2d51-257a-4f82-80c3-308a7d624d06
 # ╟─ce96621b-bdf2-4a8c-b127-6306b395e5c9
 # ╟─d22e249b-8bce-47d1-8dd9-dbb75fb15997
 # ╟─e3bbb1f0-52f3-4279-b426-5c902305709b
-# ╠═9560d375-ed9b-4ef6-8cf1-9f7b509f2af3
-# ╠═2e8e2d60-ec3a-440a-b178-33f7c541dea7
-# ╟─89ecf69e-3d2c-4aac-abea-556fbadba1d5
-# ╠═7bc355fd-fb4d-4c18-ab2a-486b8ba21680
-# ╠═16db0c80-a9e4-439d-8c8b-fbab797e9690
-# ╠═7d66c043-19bf-4bbf-ab4f-8ab597dc4ee6
-# ╠═0babe808-4ec9-424c-8ffa-9e686f0ca4d9
-# ╠═1f759a4f-5dca-46d1-b8d1-482e7a610f79
-# ╠═fd8d3155-226d-43e1-b545-35e520673e9b
+# ╟─9560d375-ed9b-4ef6-8cf1-9f7b509f2af3
 # ╟─3f2c4518-a44b-4d79-bba0-51187c84dad9
 # ╟─f08b27e9-5328-4361-90d9-9ac944b090c0
-# ╠═5036ec33-5c94-4b5e-bcdf-089365166343
+# ╟─5036ec33-5c94-4b5e-bcdf-089365166343
 # ╠═a46cd130-d46a-4a3c-b99d-a8fe69640ea8
 # ╟─da26766c-f908-41da-bde4-ee2899237dac
-# ╠═0b5f1ed0-51c0-41d0-9946-9e3f6c91b524
-# ╠═097625a8-43a1-44a7-86b3-04f0b718f505
-# ╠═ec875061-2f1d-4d9b-8c0a-d6a6925dc4a4
+# ╟─097625a8-43a1-44a7-86b3-04f0b718f505
+# ╟─ec875061-2f1d-4d9b-8c0a-d6a6925dc4a4
 # ╠═e8703636-bbfe-46e2-9191-bd70f45d4a57
-# ╠═06fc9bd4-4f61-4c6f-b096-4fd94c7d26f3
-# ╠═7345c8db-73ce-4a90-a1b2-9478ab4d8a41
 # ╠═757777f2-889e-4156-afd7-79baf084b20d
 # ╠═24d55bf6-aed0-4d87-9682-00eb828b19bd
-# ╠═4960f6f2-7569-48f7-82f2-d5fd6af151ee
-# ╠═5af99272-9b87-4b25-8eb4-e75e0a14cfc3
+# ╟─76fee27e-ea89-49e0-b074-7f335a1b0b21
+# ╟─5af99272-9b87-4b25-8eb4-e75e0a14cfc3
+# ╠═74d876ba-4091-4143-adcb-16ddfd2c231b
 # ╠═24ae324c-8e00-4749-8440-1fb471ddf2b7
 # ╠═ca29e38b-171b-4dd7-b7ec-b3d31f66a19a
-# ╠═2585179f-14b1-4d28-81a3-f8e86b299f35
-# ╠═fe6b9eff-0963-4008-abc5-2efb99748bb2
+# ╟─2585179f-14b1-4d28-81a3-f8e86b299f35
+# ╟─fe6b9eff-0963-4008-abc5-2efb99748bb2

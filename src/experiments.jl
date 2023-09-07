@@ -1,9 +1,11 @@
 """
-Run simulations of sweeping kon and alpha
+	run_occupancy_simulation(
+		params_iter, occupancy_params,
+	)
 
-!!! explain difference of params_iter and occupancy params
-- one is fixed
-- the other varies across iterations
+Run simulations with different `kon` and `α`. `params_iter` contains
+parameters that vary across iterations (`kon` and `α`), while `occupancy_params` contains
+parameters that are fixed.
 """
 function run_occupancy_simulation(
 		params_iter, occupancy_params,
@@ -26,6 +28,7 @@ function run_occupancy_simulation(
 	α_eff = []
 
 	for (α, β, k_on_vec) in params_iter
+
 			k_off = max(0, 1/Ω-α)
 			
 			occupancy_crt = []
@@ -61,7 +64,6 @@ function run_occupancy_simulation(
 
 				_, density, _, _, n_inits = run_walker(params_crt);
 
-				# only works with L = 1
 				push!(
 					occupancy_crt, 
 					get_total_occupancy(
@@ -91,7 +93,50 @@ end
 
 
 """
-Do a sweep in the parameters.
+	get_feasible_pts(fnm)
+
+Extract feasible points from a simulation stored in `fnm`.
+"""
+function get_feasible_pts(fnm)
+
+    # unpack the results
+    results_fs = JLD2.load(fnm)
+    occupancy = results_fs["occupancy"]
+    promoter_occ = results_fs["promoter_occ"]
+
+	occ_median = get_quantile(occupancy, .5)
+	prom_occ_median = get_quantile(promoter_occ, .5)
+
+    # determine feasible points
+    occ_mat = reduce(hcat, occ_median)
+    prom_occ_mat = reduce(hcat, prom_occ_median)
+
+	feasible = is_feasible.(occ_mat, prom_occ_mat)
+
+    feasible_pts = []
+    for (idx_k, idx_α) in Tuple.(findall(feasible .== 1))
+        push!(feasible_pts, (k_on_vec_screen[idx_k], α_vec_screen[idx_α]))
+    end
+
+    return feasible, feasible_pts
+
+end
+
+""" 
+	is_feasible(occ, prom_occ)
+
+Determines if a point is feasible given gene body occupancy `occ` and promoter occupancy `prom_occ`
+"""
+function is_feasible(occ, prom_occ)
+    occ_fs = (occ .< RNApIIModels.max_ρ_g) .& (occ .> RNApIIModels.min_ρ_g)
+    prom_occ_fs = (prom_occ .< RNApIIModels.max_ρ_p) .& (prom_occ .> RNApIIModels.min_ρ_p)
+	return (occ_fs .& prom_occ_fs)
+end
+
+"""
+	sweep_params(α_vec, p_vec, param_name; params=DEFAULT_PARAMS)
+
+Perform a sweep in parameter space. 
 """
 function sweep_params(α_vec, p_vec, param_name; params=DEFAULT_PARAMS)
 
@@ -164,39 +209,4 @@ function get_quantile(x, q)
 		[quantile(x[k, α, :], q) for k in 1:nk] for α in 1:nα
 	]
 
-end
-
-"""
-"""
-function get_feasible_pts(fnm)
-
-    # unpack the results
-    results_fs = JLD2.load(fnm)
-    occupancy = results_fs["occupancy"]
-    promoter_occ = results_fs["promoter_occ"]
-
-	occ_median = get_quantile(occupancy, .5)
-	prom_occ_median = get_quantile(promoter_occ, .5)
-
-    # determine feasible points
-    occ_mat = reduce(hcat, occ_median)
-    prom_occ_mat = reduce(hcat, prom_occ_median)
-
-	feasible = is_feasible.(occ_mat, prom_occ_mat)
-
-    feasible_pts = []
-    for (idx_k, idx_α) in Tuple.(findall(feasible .== 1))
-        push!(feasible_pts, (k_on_vec_screen[idx_k], α_vec_screen[idx_α]))
-    end
-
-    return feasible, feasible_pts
-
-end
-
-""" Determines if a point is feasible
-"""
-function is_feasible(occ, prom_occ)
-    occ_fs = (occ .< RNApIIModels.max_ρ_g) .& (occ .> RNApIIModels.min_ρ_g)
-    prom_occ_fs = (prom_occ .< RNApIIModels.max_ρ_p) .& (prom_occ .> RNApIIModels.min_ρ_p)
-	return (occ_fs .& prom_occ_fs)
 end

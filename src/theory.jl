@@ -33,6 +33,15 @@ function J(α, β, γ, L)
 	end
 end
 
+"""
+    get_regime(α, β, γ, L)
+
+Extract regime the system is in, according the Lakatos, Chou 2003.
+    `α`: initiation rate
+    `β`: elongation rate
+    `γ`: termination rate
+    `L`: particle footprint
+"""
 function get_regime(α, β, γ, L)
 
     γ = check_γ(γ)
@@ -110,7 +119,9 @@ Effective initiation rate with a promoter
 """
 effective_α(kon, koff, α) = kon * α / (kon + koff + α)
 
-
+"""
+Assign value to γ if it is equal to `nothing`
+"""
 check_γ(γ) = γ === nothing ? LARGE_γ : γ
 
 """
@@ -118,29 +129,34 @@ Promoter occupancy
 """
 ρp(kon, koff, α) = kon / (kon + koff + α)
 
-"""
-Transition matrix of a markov chain
-"""
-
-
-# Ts(α, β, kon, koff, Δt) = Dict(
-#     1 => T(α, β, kon, koff, Δt), 
-#     2 => T2(α, β, kon, koff, Δt)
-# )
 
 """
-Promoter occupancy based on a MC approximation
+    ρp_MC(T)
+
+Promoter occupancy based on a MC approximation for a transition matrix `T`.
 """
 function ρp_MC(T)
     n = size(T, 1)
     sum(mean(T^1e3; dims=2)[Int(n/2)+1:end])
 end
 
+"""
+    ρp_MC(α, β, kon, koff, Δt; order=4
+
+Promoter occupancy based on a MC approximation with initiation rate `\alpha`, 
+elongation rate `β`, `kon` and `koff` and timestep `Δt`. The order refers to the number of sites
+that are modeled in the MC approximation
+"""
 ρp_MC(α, β, kon, koff, Δt; order=4) = ρp_MC(TransitionMatrix(α, β, kon, koff, Δt; order=order))
 
 ρp_MC(α, β, kon, koff; order=4) = ρp_MC(α, β, kon, koff, set_Δt(α, β, β, kon, koff, nothing); order=order)
 
 """
+    TransitionMatrix(α, β, kon, koff, Δt; order)
+
+Transition Matrix for an MC approximation with initiation rate `\alpha`, 
+elongation rate `β`, `kon` and `koff` and timestep `Δt`. The order refers to the number of sites
+that are modeled in the MC approximation
 """
 function TransitionMatrix(α, β, kon, koff, Δt; order)
 	n = 2^order

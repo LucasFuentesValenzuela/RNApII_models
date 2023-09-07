@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.9
+# v0.19.26
 
 using Markdown
 using InteractiveUtils
@@ -16,9 +16,9 @@ end
 
 # ╔═╡ 6fa6e566-eb31-4803-924f-8e4e1a10b9f6
 begin
-	using Revise
 	import Pkg
-	Pkg.activate()
+	Pkg.activate("../")
+	using Revise
 	using RNApIIModels
 end
 
@@ -28,19 +28,31 @@ begin
 	using PlutoUI
 end
 
+# ╔═╡ 35c02079-7ec3-4a07-8429-ce3340ff3bdf
+using TOML
+
 # ╔═╡ 798003cc-abd9-42f2-8f28-a52713ac72f7
 md"""# Description
 
-We want to replicate the same type of analysis we do with the simulations purely from a theoretical basis. This allows faster iterations, results verification, and more fine-grained analysis
+Exploration, from a theoretical perspective, of the landscape of feasible points. 
 
+In this notebook, there is no simulation data.
 """
 
 # ╔═╡ 77bf5141-2715-4016-bd3d-e7aeaeee3a51
 md"""# Load"""
 
+# ╔═╡ cc08ad03-cc5f-41c4-b351-68e0d73a50a3
+config = TOML.parsefile("../config.toml")
+
 # ╔═╡ 9b253a2e-baa0-4e23-838b-d437d89e0109
 md"""
 # Compression factor δ
+"""
+
+# ╔═╡ b05c40b9-e3fe-4abc-a6ad-c61d1b2bcad6
+md"""
+The compression factor defines how much we "simplify" the problem by representing the particle with a footprint of 1 or 35
 """
 
 # ╔═╡ 50e76ee8-fdf5-4044-a233-3e063455c195
@@ -58,8 +70,6 @@ L = Int(round(35/δ))
 # ╔═╡ 50f02860-1673-4a38-b690-b9d8ecbd6a2c
 md"""
 # Feasible points for the average gene. 
-
-Remember, those limits are only for the average gene in the average cell. 
 """
 
 # ╔═╡ 693e7709-159e-4dce-ab68-4badf8f3f95f
@@ -83,11 +93,11 @@ begin
 	β_screen = LITERATURE_PARAMS["max_β"] / δ
 end;
 
-# ╔═╡ 99508ec5-1b8b-4402-92f1-8c86f001e5c6
-koffs = max.(1/Ω .- α_vec, 0)
+# ╔═╡ c82797b0-7b0b-44d6-b33b-2e3bdcd2f5b4
+koffs = max.(1/Ω .- α_vec, 0);
 
-# ╔═╡ ce561af2-24e2-40fc-9664-dcb23ffbe861
-α_eff = [effective_α.(k_on_vec, koffs[i], α_vec[i]) for i in 1:length(α_vec)]
+# ╔═╡ 240d14de-5db3-4963-bf68-6449522633b8
+α_eff = [effective_α.(k_on_vec, koffs[i], α_vec[i]) for i in 1:length(α_vec)];
 
 # ╔═╡ 751e8d87-69cb-492b-ac48-d8ae6eb630a3
 # dims are n_k_points x n_α_pts
@@ -122,11 +132,6 @@ begin
 	plot!(xlim=(0, 1/Ω))
 end
 
-# ╔═╡ c2e302d2-c02f-444f-bf92-134d6a7467be
-md"""
-Very minor differences in terms of which points are feasible in between the two represenations
-"""
-
 # ╔═╡ e6ae1115-a82a-4e95-a7f9-d9f9308c1b72
 md"""
 # Fold changes
@@ -158,7 +163,7 @@ We see that αfc has no impact on the fold changes. This is true because the den
 cs = LinRange(50, 150, 10)
 
 # ╔═╡ 5e9bc538-7c92-4351-9fea-16da63ad275d
-RNAs = RNApIIModels.CV_to_RNAfree_interp().(cs)
+RNAs = RNApIIModels.CV_to_RNAfree_interp(config["DATADIR"]).(cs)
 
 # ╔═╡ 23a735c9-1921-45ad-afe6-9909efe46beb
 begin
@@ -277,51 +282,39 @@ let
 	
 end
 
-# ╔═╡ 179e1209-859d-46ce-bb70-3adfc208aaee
-md"""
-Ok, so this is interesting. It does indeed seem that in limit cases (very small residence time on the promoter, maximum value of α, very very large value of kon, you can get into a regime that is gene saturated). 
-
-*However*, I am confused because the answer seems to change if you change the value of L, right? 
-- β gets rescaled, as you need to account for it moving more slowly/rapidly. 
-- The treshold for regime change also shifts, but not as fast as β changes I think? Indeed, it is $\frac{β}{1 + \sqrt{L}}$. So it seems that the threshold actually moves as $\sqrt{L}$, right? 
-
-There are two things here: 
-1. Is that what we see in simulations (we simulate with $L=1$, so we expect the theory should match). Do we observe something different for some values of kon? We have seen there is a discrepancy at high values of kon -- is that due to a potential close regime change? Why would that be? 
-2. If the answer is significantly different depending on the way we model it, we probably need to at least investigate from the theoretical model what the answer is with `L = 35` and `β = 33-40`. 
-
-"""
-
 # ╔═╡ Cell order:
 # ╠═798003cc-abd9-42f2-8f28-a52713ac72f7
 # ╟─77bf5141-2715-4016-bd3d-e7aeaeee3a51
-# ╟─6fa6e566-eb31-4803-924f-8e4e1a10b9f6
+# ╠═6fa6e566-eb31-4803-924f-8e4e1a10b9f6
 # ╠═3cb614e0-cbfa-40d6-b2fd-5e2a925a3216
+# ╠═35c02079-7ec3-4a07-8429-ce3340ff3bdf
+# ╠═cc08ad03-cc5f-41c4-b351-68e0d73a50a3
 # ╟─9b253a2e-baa0-4e23-838b-d437d89e0109
+# ╟─b05c40b9-e3fe-4abc-a6ad-c61d1b2bcad6
 # ╟─a13c3565-5dd5-4727-8d70-a38516f48804
 # ╠═50e76ee8-fdf5-4044-a233-3e063455c195
 # ╠═8e66639e-0b2f-4c0b-ac34-1c70ce7c3565
 # ╠═089db03c-d59a-49ec-a4d9-08489347715d
 # ╟─50f02860-1673-4a38-b690-b9d8ecbd6a2c
 # ╠═7914de87-192d-4176-b4ca-b3ad13a5be95
-# ╠═99508ec5-1b8b-4402-92f1-8c86f001e5c6
-# ╠═ce561af2-24e2-40fc-9664-dcb23ffbe861
+# ╠═c82797b0-7b0b-44d6-b33b-2e3bdcd2f5b4
+# ╠═240d14de-5db3-4963-bf68-6449522633b8
 # ╠═751e8d87-69cb-492b-ac48-d8ae6eb630a3
 # ╠═c064f0e1-891b-4418-bb6e-400cce570957
-# ╠═693e7709-159e-4dce-ab68-4badf8f3f95f
+# ╟─693e7709-159e-4dce-ab68-4badf8f3f95f
 # ╠═5a82ec54-7d95-4281-b84c-fd918bf29d70
 # ╠═afca47ff-3552-4b86-940b-770a6311f48b
-# ╠═c2e302d2-c02f-444f-bf92-134d6a7467be
 # ╟─e6ae1115-a82a-4e95-a7f9-d9f9308c1b72
 # ╟─621e9282-c17a-422f-b291-01a0ae9cff8a
-# ╠═753f983b-2612-49d9-8fa8-94bc60ab81ca
-# ╠═2093cec3-c705-4f01-a38c-07f6d386deb2
+# ╟─753f983b-2612-49d9-8fa8-94bc60ab81ca
+# ╟─2093cec3-c705-4f01-a38c-07f6d386deb2
 # ╟─e00ea34c-0954-44aa-be03-7085c8562908
 # ╟─7e4226a5-2223-4916-8482-2f1966c346fe
-# ╠═42aa81d2-270e-45b4-8434-dd1f2fe1fa81
-# ╠═23a735c9-1921-45ad-afe6-9909efe46beb
-# ╠═47cdcca2-f7f9-429c-8146-3931c407cf06
+# ╟─42aa81d2-270e-45b4-8434-dd1f2fe1fa81
 # ╠═5e9bc538-7c92-4351-9fea-16da63ad275d
+# ╠═23a735c9-1921-45ad-afe6-9909efe46beb
 # ╠═8fcddff7-97b8-4edd-a322-faec03a25e87
+# ╠═47cdcca2-f7f9-429c-8146-3931c407cf06
 # ╟─e6c51b0b-cf93-4934-9615-3ad3ae35d019
 # ╟─694cdb4b-2434-4a4c-aea9-d7d317ce6389
 # ╟─f72a9a4b-8e48-4aeb-8fdb-00dc1ad10862
@@ -331,4 +324,3 @@ There are two things here:
 # ╟─9e44df78-4983-4d46-aec3-2c6a35ff1bfc
 # ╠═b4dc6631-83d7-4ee4-8a98-8fa566798ce5
 # ╟─2fc1d07b-e3de-47ea-bfc9-0b76d1c44f27
-# ╠═179e1209-859d-46ce-bb70-3adfc208aaee

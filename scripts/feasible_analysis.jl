@@ -1,12 +1,16 @@
+using Pkg
+Pkg.activate("../")
 using RNApIIModels
 using ArgParse
 using JLD2
 using ProgressBars
 using Statistics
-
-PATH = "/Users/lucasfuentes/RNApII_models"
+using TOML
 
 """
+    parse_commandline()
+
+Parse command line arguments for the simulations.
 """
 function parse_commandline()
     s = ArgParseSettings()
@@ -32,8 +36,18 @@ function parse_commandline()
 end
 
 """
+    build_iteration_params(type, fnm_screen)
+
+Parameters:
+    `type`: defines the experiment to be performed. 
+        `screen` is for a large parameter screen to identify feasible points.
+        `narrow` is for exploring scaling in the neighborhood of a feasible point.
+        `wide` is for exploring scaling over a large range of expression levels around a feasible point.
+    `fnm_screen`: filename where the simulation result is stored
+
 """
 function build_iteration_params(type, fnm_screen)
+
 
     if type=="screen"
 
@@ -65,7 +79,6 @@ function build_iteration_params(type, fnm_screen)
     elseif type=="wide"
 
         # unpack the results from the screen
-
         _, feasible_points = get_feasible_pts(fnm_screen)
         println("There are $(length(feasible_points)) feasible points.")
 
@@ -84,11 +97,17 @@ function build_iteration_params(type, fnm_screen)
 
 end
 
-
-
 """
+main function, executed when called from the command line.
 """
 function main()
+
+    config = TOML.parsefile("../config.toml")
+    PATH = config["RESULTSDIR"]
+
+    if !isdir(PATH)
+        mkdir(PATH)
+    end
 
     @show parsed_args = parse_commandline()
 
@@ -108,7 +127,7 @@ function main()
         "Running analyis $(type) with $(ntimes) repetitions, Ω=$(Ω) and saving at $(fnm)"
     )
 
-    fnm_screen = joinpath(PATH, "results", "feasible_pts_screen_Omega$(Ω).jld2")
+    fnm_screen = joinpath(PATH, "feasible_pts_screen_Omega$(Ω).jld2")
     params_iter = build_iteration_params(type, fnm_screen)
 
     occupancy = []
@@ -127,7 +146,7 @@ function main()
     end
     
     JLD2.jldsave(
-        joinpath(PATH, "results", fnm); 
+        joinpath(PATH, fnm); 
         occupancy, promoter_occ, params_occ, params_iter, OCCUPANCY_PARAMS_crt
     )
 

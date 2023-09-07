@@ -1,4 +1,9 @@
 """
+Series of plotting functions added over the course of the project. 
+They were mostly used in the earlier parts of the project to debug and build intuition.
+"""
+
+"""
 """
 function plot_tracker_end(tracker_end, params)
 	histogram(tracker_end["terminated"], label="Data", normed=true)
@@ -24,7 +29,6 @@ function plot_density(density, n_steps, n_sites, L; normalize=true)
 
 	return p
 end
-
 plot_density(density, params) = plot_density(density, params.n_steps, params.n_sites, params.L)
 
 # ======================= Plotting for param sweep ================================
