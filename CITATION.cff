@@ -1,12 +1,11 @@
 @article {Swaffer2021.09.20.461005,
-	author = {Matthew P. Swaffer and Georgi K. Marinov and Huan Zheng and Andrew W. Jones and Jessica Greenwood and Anshul Kundaje and Ambrosius P. Snijders and William J. Greenleaf and Rodrigo Reyes-Lamothe and Jan M. Skotheim},
-	title = {RNA polymerase II dynamics and mRNA stability feedback determine mRNA scaling with cell size},
-	elocation-id = {2021.09.20.461005},
-	year = {2021},
-	doi = {10.1101/2021.09.20.461005},
-	publisher = {Cold Spring Harbor Laboratory},
-	abstract = {A defining feature of cellular growth is that protein and mRNA amounts scale with cell size so that concentrations remain approximately constant, thereby ensuring similar reaction rates and efficient biosynthesis. A key component of this biosynthetic scaling is the scaling of mRNA amounts with cell size, which occurs even among cells with the same DNA template copy number. Here, we identify RNA polymerase II as a major limiting factor increasing transcription with cell size. Other components of the transcriptional machinery are only minimally limiting and the chromatin environment is largely invariant with size. However, RNA polymerase II activity does not increase in direct proportion to cell size, inconsistent with previously proposed DNA-titration models. Instead, our data support a dynamic equilibrium model where the rate of polymerase loading is proportional to the unengaged nucleoplasmic polymerase concentration. This sublinear transcriptional increase is then balanced by a compensatory increase in mRNA stability as cells get larger. Taken together, our results show how limiting RNA polymerase II and feedback on mRNA stability work in concert to ensure the precise scaling of mRNA amounts across the physiological cell size range.Competing Interest StatementThe authors have declared no competing interest.},
-	URL = {https://www.biorxiv.org/content/early/2021/09/20/2021.09.20.461005},
-	eprint = {https://www.biorxiv.org/content/early/2021/09/20/2021.09.20.461005.full.pdf},
-	journal = {bioRxiv}
+author = {Matthew P. Swaffer and Georgi K. Marinov and Huan Zheng and Andrew W. Jones and Jessica Greenwood and Anshul Kundaje and Ambrosius P. Snijders and William J. Greenleaf and Rodrigo Reyes-Lamothe and Jan M. Skotheim},
+title = {RNA polymerase II dynamics and mRNA stability feedback determine mRNA scaling with cell size},
+elocation-id = {2021.09.20.461005},
+year = {2021},
+doi = {10.1101/2021.09.20.461005},
+publisher = {Cold Spring Harbor Laboratory},
+URL = {https://www.biorxiv.org/content/early/2021/09/20/2021.09.20.461005},
+eprint = {https://www.biorxiv.org/content/early/2021/09/20/2021.09.20.461005.full.pdf},
+journal = {bioRxiv}
 }
