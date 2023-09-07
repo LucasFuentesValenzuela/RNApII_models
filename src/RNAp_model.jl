@@ -220,7 +220,3 @@ function get_total_occupancy(density, params; start_bp=1, end_bp=nothing)
 
 	return total_occupancy
 end
-
-# get_total_occupancyδ(α_vec, p, densities, params) = [
-# 	get_total_occupancy(densities[p][α], params[p][1]) for α in α_vec
-# ]

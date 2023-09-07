@@ -1,10 +1,11 @@
+using Pkg
+Pkg.activate("../")
 using RNApIIModels
 using ArgParse
 using JLD2
 using ProgressBars
 using Statistics
-
-PATH = "/Users/lucasfuentes/RNApII_models"
+using TOML
 
 """
     parse_commandline()
@@ -46,6 +47,7 @@ Parameters:
 
 """
 function build_iteration_params(type, fnm_screen)
+
 
     if type=="screen"
 
@@ -95,12 +97,17 @@ function build_iteration_params(type, fnm_screen)
 
 end
 
-
-
 """
 main function, executed when called from the command line.
 """
 function main()
+
+    config = TOML.parsefile("../config.toml")
+    PATH = config["RESULTSDIR"]
+
+    if !isdir(PATH)
+        mkdir(PATH)
+    end
 
     @show parsed_args = parse_commandline()
 
@@ -120,7 +127,7 @@ function main()
         "Running analyis $(type) with $(ntimes) repetitions, Ω=$(Ω) and saving at $(fnm)"
     )
 
-    fnm_screen = joinpath(PATH, "results", "feasible_pts_screen_Omega$(Ω).jld2")
+    fnm_screen = joinpath(PATH, "feasible_pts_screen_Omega$(Ω).jld2")
     params_iter = build_iteration_params(type, fnm_screen)
 
     occupancy = []
@@ -139,7 +146,7 @@ function main()
     end
     
     JLD2.jldsave(
-        joinpath(PATH, "results", fnm); 
+        joinpath(PATH, fnm); 
         occupancy, promoter_occ, params_occ, params_iter, OCCUPANCY_PARAMS_crt
     )
 

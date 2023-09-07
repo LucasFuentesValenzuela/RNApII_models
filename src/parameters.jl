@@ -56,15 +56,15 @@ DEFAULT_n_end_sites = 3 # small termination region as we neglect the termination
 Ranges of acceptable metrics from the literature
 """
 
-# residence time of mRNA molecules on promoter [s]
+# residence time of RNAp on promoter [s]
 min_Ω = 2
 max_Ω = 4
 
-# number of mRNA molecules on promoter [-]
+# number of RNAp on promoter [-]
 min_ρ_p = 0.017
 max_ρ_p = 0.055
 
-# number of mRNA molecules in gene body [-]
+# number of RNAp in gene body [-]
 min_ρ_g = 0.177 - max_ρ_p
 max_ρ_g = .67 - min_ρ_p
 
@@ -127,12 +127,20 @@ DEFAULT_PARAMS = Params(
 
 # other parameters for the screening experiments
 
-n_kon_pts_screen = 10
-n_α_values_screen = 8
+n_kon_pts_screen = 10 # how many different values of kon to simulate for
+n_α_values_screen = 8 # how many different values of α to simulate for
 
 # Parameters for a narrow screen with feasible and infeasible points
 k_on_vec_screen = 10 .^(LinRange(
-    log10(LITERATURE_PARAMS["min_k_on"]/1.2), log10(LITERATURE_PARAMS["max_k_on"]*1.2), n_kon_pts_screen
+    log10(LITERATURE_PARAMS["min_k_on"]/1.2), 
+	log10(LITERATURE_PARAMS["max_k_on"]*1.2), 
+	n_kon_pts_screen
 ))
-α_vec_screen = LinRange(LITERATURE_PARAMS["min_α"], LITERATURE_PARAMS["max_α"] * 1.5, n_α_values_screen)
+
+α_vec_screen = LinRange(
+	LITERATURE_PARAMS["min_α"], 
+	LITERATURE_PARAMS["max_α"] * 1.5, 
+	n_α_values_screen
+	)
+
 β_screen = LITERATURE_PARAMS["max_β"] / OCCUPANCY_PARAMS["δ"]
