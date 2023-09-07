@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.9
+# v0.19.26
 
 using Markdown
 using InteractiveUtils
@@ -16,9 +16,9 @@ end
 
 # ╔═╡ 6fa6e566-eb31-4803-924f-8e4e1a10b9f6
 begin
-	using Revise
 	import Pkg
-	Pkg.activate()
+	Pkg.activate("../")
+	using Revise
 	using RNApIIModels
 end
 
@@ -28,14 +28,22 @@ begin
 	using PlutoUI
 end
 
+# ╔═╡ 35c02079-7ec3-4a07-8429-ce3340ff3bdf
+using TOML
+
 # ╔═╡ 798003cc-abd9-42f2-8f28-a52713ac72f7
 md"""# Description
 
 Exploration, from a theoretical perspective, of the landscape of feasible points. 
+
+In this notebook, there is no simulation data.
 """
 
 # ╔═╡ 77bf5141-2715-4016-bd3d-e7aeaeee3a51
 md"""# Load"""
+
+# ╔═╡ cc08ad03-cc5f-41c4-b351-68e0d73a50a3
+config = TOML.parsefile("../config.toml")
 
 # ╔═╡ 9b253a2e-baa0-4e23-838b-d437d89e0109
 md"""
@@ -155,7 +163,7 @@ We see that αfc has no impact on the fold changes. This is true because the den
 cs = LinRange(50, 150, 10)
 
 # ╔═╡ 5e9bc538-7c92-4351-9fea-16da63ad275d
-RNAs = RNApIIModels.CV_to_RNAfree_interp().(cs)
+RNAs = RNApIIModels.CV_to_RNAfree_interp(config["DATADIR"]).(cs)
 
 # ╔═╡ 23a735c9-1921-45ad-afe6-9909efe46beb
 begin
@@ -277,8 +285,10 @@ end
 # ╔═╡ Cell order:
 # ╠═798003cc-abd9-42f2-8f28-a52713ac72f7
 # ╟─77bf5141-2715-4016-bd3d-e7aeaeee3a51
-# ╟─6fa6e566-eb31-4803-924f-8e4e1a10b9f6
+# ╠═6fa6e566-eb31-4803-924f-8e4e1a10b9f6
 # ╠═3cb614e0-cbfa-40d6-b2fd-5e2a925a3216
+# ╠═35c02079-7ec3-4a07-8429-ce3340ff3bdf
+# ╠═cc08ad03-cc5f-41c4-b351-68e0d73a50a3
 # ╟─9b253a2e-baa0-4e23-838b-d437d89e0109
 # ╟─b05c40b9-e3fe-4abc-a6ad-c61d1b2bcad6
 # ╟─a13c3565-5dd5-4727-8d70-a38516f48804
@@ -301,8 +311,8 @@ end
 # ╟─e00ea34c-0954-44aa-be03-7085c8562908
 # ╟─7e4226a5-2223-4916-8482-2f1966c346fe
 # ╟─42aa81d2-270e-45b4-8434-dd1f2fe1fa81
-# ╠═23a735c9-1921-45ad-afe6-9909efe46beb
 # ╠═5e9bc538-7c92-4351-9fea-16da63ad275d
+# ╠═23a735c9-1921-45ad-afe6-9909efe46beb
 # ╠═8fcddff7-97b8-4edd-a322-faec03a25e87
 # ╠═47cdcca2-f7f9-429c-8146-3931c407cf06
 # ╟─e6c51b0b-cf93-4934-9615-3ad3ae35d019
